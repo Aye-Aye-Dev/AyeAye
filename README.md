@@ -19,6 +19,8 @@ cd examples
 python poisonous_animals.py 
 ```
 
+This model takes a small input dataset of animals and collates them by the country they are found. It doesn't write to a dataset, it just outputs a log. The log for this example contains the name of the country and the animals found there.
+
 The `ln` (symlink) command will make all the modules in the examples directory visible. You could just change into this directory with the command:-
 
 ```shell
