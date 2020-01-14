@@ -3,12 +3,18 @@ import tarfile
 import unittest
 
 from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
+from ayeaye.connectors.csv_connector import CsvConnector
 
-EXAMPLE_FLOWERPOT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
+EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH,
                                       'data',
                                       'exampleflowerpot.tar.gz'
                                       )
 
+EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH,
+                                'data',
+                                'deadly_creatures.csv'
+                                      )
 EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
 
 
@@ -49,3 +55,13 @@ class TestConnectors(unittest.TestCase):
         some_items.sort()
         expected = "[('anchor', 'rudder'), ('apple', 'raspberry')]"
         assert expected == str(some_items)
+
+    def test_csv_basics(self):
+        """
+        Iterate all the data items and check each row is being yielded as an instance of :class:`ayeaye.Pinnate`
+        """
+        c = CsvConnector(engine_url="csv://"+EXAMPLE_CSV_PATH)
+
+        animals_names = ", ".join([deadly_animal.common_name for deadly_animal in c])
+        expected = 'Crown of thorns starfish, Golden dart frog'
+        assert expected == str(animals_names)

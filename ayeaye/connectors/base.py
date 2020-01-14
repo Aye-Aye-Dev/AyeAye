@@ -62,11 +62,16 @@ class DataConnector(ABC):
     @property
     @abstractmethod
     def data(self):
-        """Provide access to source data"""
-        pass
+        """
+        Return the entire dataset. The returned objects could be lazy evaluated. Use of this method
+        will get ugly with large datasets. Better to use the :method:`__iter__` iterator.
+
+        @return: mixed
+        """
+        raise NotImplementedError("TODO")
 
     @property
     @abstractmethod
     def schema(self):
         """Return the schema of whatever data source we're interacting with"""
-        pass
+        raise NotImplementedError("TODO")

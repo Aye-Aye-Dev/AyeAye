@@ -34,11 +34,11 @@ class Pinnate:
             self.load(data, merge=False)
 
     def __unicode__(self):
-        d = u', '.join([u"{}:{}".format(k, v) for k, v in self._attr.items()])
-        return u'<Pinnate %s>' % d
+        d = ', '.join([u"{}:{}".format(k, v) for k, v in self._attr.items()])
+        return '<Pinnate %s>' % d
 
     def __str__(self):
-        return self.__unicode__().encode("ascii", "replace")
+        return self.__unicode__().encode("ascii", "replace").decode()
 
     def keys(self):
         return self._attr.keys()
