@@ -27,6 +27,8 @@ class CsvConnector(DataConnector):
         """
         super().__init__(*args, **kwargs)
 
+        self.delimiter = ','
+
         self.file_handle = None
         self.csv = None
         self.csv_fields = None # this will change when schemas are implemented
@@ -39,7 +41,7 @@ class CsvConnector(DataConnector):
         if self.csv is None:
             file_path = self.engine_url.split(self.engine_type)[1]
             self.file_handle = open(file_path, 'r')
-            self.csv = csv.DictReader(self.file_handle)
+            self.csv = csv.DictReader(self.file_handle, delimiter=self.delimiter)
             self.csv_fields = self.csv.fieldnames
 
     def __len__(self):
@@ -65,3 +67,13 @@ class CsvConnector(DataConnector):
     def schema(self):
         raise NotImplementedError("TODO")
 
+
+class TsvConnector(CsvConnector):
+    """
+    Tab separated values. See :class:`CsvConnector`
+    """
+    engine_type = 'tsv://'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.delimiter = '\t'

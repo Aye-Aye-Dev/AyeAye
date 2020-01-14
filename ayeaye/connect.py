@@ -1,6 +1,6 @@
 # TODO - this should all be on demand
 from ayeaye.connectors.bigquery import BigQueryConnector
-from ayeaye.connectors.csv_connector import CsvConnector
+from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 from ayeaye.connectors.fake import FakeDataConnector
 from ayeaye.connectors.flowerpot import FlowerPotConnector
 from ayeaye.connectors.kafka_connector import KafkaConnector
@@ -61,7 +61,7 @@ class Connect:
         engine_url = self.relayed_kwargs['engine_url']
         engine_type = engine_url.split('://', 1)[0] + '://'
         for connector_cls in [BigQueryConnector, CsvConnector, FlowerPotConnector,
-                              FakeDataConnector, KafkaConnector]:
+                              FakeDataConnector, KafkaConnector, TsvConnector]:
             if engine_type == connector_cls.engine_type:
                 connector = connector_cls(**self.relayed_kwargs)
                 break

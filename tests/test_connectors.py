@@ -3,18 +3,12 @@ import tarfile
 import unittest
 
 from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
-from ayeaye.connectors.csv_connector import CsvConnector
+from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH,
-                                      'data',
-                                      'exampleflowerpot.tar.gz'
-                                      )
-
-EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH,
-                                'data',
-                                'deadly_creatures.csv'
-                                      )
+EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'exampleflowerpot.tar.gz')
+EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
+EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
 
 
@@ -58,10 +52,22 @@ class TestConnectors(unittest.TestCase):
 
     def test_csv_basics(self):
         """
-        Iterate all the data items and check each row is being yielded as an instance of :class:`ayeaye.Pinnate`
+        Iterate all the data items and check each row is being yielded as an instance of
+        :class:`ayeaye.Pinnate`
         """
         c = CsvConnector(engine_url="csv://"+EXAMPLE_CSV_PATH)
 
         animals_names = ", ".join([deadly_animal.common_name for deadly_animal in c])
         expected = 'Crown of thorns starfish, Golden dart frog'
-        assert expected == str(animals_names)
+        assert expected == animals_names
+
+    def test_tsv_basics(self):
+        """
+        Tab separated, Iterate all the data items and check each row is being yielded as an
+        instance of :class:`ayeaye.Pinnate`
+        """
+        c = TsvConnector(engine_url="tsv://"+EXAMPLE_TSV_PATH)
+
+        monkey_names = ", ".join([monkey.common_name for monkey in c])
+        expected = "Goeldi's marmoset, Common squirrel monkey, Crab-eating macaque"
+        assert expected == monkey_names
