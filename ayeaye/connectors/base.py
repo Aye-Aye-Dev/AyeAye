@@ -75,3 +75,19 @@ class DataConnector(ABC):
     def schema(self):
         """Return the schema of whatever data source we're interacting with"""
         raise NotImplementedError("TODO")
+
+    @property
+    def progress(self):
+        """
+        Return a number between and including 0 to 1 as simplified representation of how much of
+        the dataset has been read.
+
+        Optional property that can be implemented by subclasses. When available it returns float
+        from 0 -> 1 describing the position within the dataset. The value is only meaningful when
+        the dataset is in READ mode and records are being iterated through. The value isn't
+        expected to be really accurate as some reads will cache data so exact file positions wont
+        be available.
+
+        :returns: (float) or None when not available.
+        """
+        return None

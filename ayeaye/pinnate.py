@@ -52,8 +52,30 @@ class Pinnate:
     def __contains__(self, key):
         return key in self._attr
 
-    def as_dict(self):
-        return {k: v.as_dict() if isinstance(v, self.__class__) else v for k, v in self._attr.items()}
+    def as_dict(self, select_fields=None):
+        """
+        @param select_fields: (list of str) to only include some fields from model.
+        @return: (dict) with mixed values
+        """
+        if select_fields is not None:
+            r = {}
+            for k in select_fields:
+                if isinstance(self._attr[k], self.__class__):
+                    v = self._attr[k].as_dict()
+                else:
+                    v = self._attr[k]
+                r[k] = v
+            return r
+        else:
+            return {k: v.as_dict() if isinstance(v, self.__class__) else v \
+                    for k, v in self._attr.items()}
+
+    def as_json(self, *args, **kwargs):
+        """
+        @see :method:`as_dict` for params.
+        @returns (str) JSON representation
+        """
+        return json.dumps(self.as_dict(*args, **kwargs), default=str)
 
     def __getattr__(self, attr):
         if attr not in self._attr:

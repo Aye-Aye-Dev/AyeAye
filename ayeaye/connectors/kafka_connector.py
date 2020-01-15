@@ -7,12 +7,12 @@ from datetime import datetime
 from typing import Generator
 
 try:
-    from kafka import KafkaConsumer, TopicPartition
+    from kafka import KafkaConsumer, KafkaProducer, TopicPartition
     from kafka.structs import OffsetAndTimestamp
 except:
     pass
 
-from ayeaye.connectors.base import DataConnector
+from ayeaye.connectors.base import DataConnector, AccessMode
 from ayeaye.pinnate import Pinnate
 
 
@@ -40,47 +40,67 @@ class KafkaConnector(DataConnector):
         self.available_topics = None
         self.client = None
 
+        # publically readable
+        self.stats = Pinnate({'added': 0})
+
+    def __del__(self):
+        if self.access == AccessMode.WRITE and self.client is not None:
+            self.flush()
+
     def connect(self):
         if self.client is None:
             self.bootstrap_server, self.topic, self.start_params, self.end_params = \
                 self._decode_engine_url()
-            self.client = KafkaConsumer(bootstrap_servers=self.bootstrap_server)
 
-            # <WTF> https://github.com/dpkp/kafka-python/issues/601
-            self.available_topics = self.client.topics()
-            # </WTF>
-            
-            # might as well use it
-            assert self.topic in self.available_topics
+            if self.access == AccessMode.READ:
+                self.client = KafkaConsumer(bootstrap_servers=self.bootstrap_server)
+                self._setup_consumer()
 
-            # setup start and end partitions and offsets
+            elif self.access == AccessMode.WRITE:
+                self.client = KafkaProducer(bootstrap_servers=self.bootstrap_server)
+
+            else:
+                raise NotImplementedError('Unknown access mode')
+
+    def _setup_consumer(self):
+        """
+        prepare offset numbers etc. for reading from Topic
+        """
+        # <WTF> https://github.com/dpkp/kafka-python/issues/601
+        self.available_topics = self.client.topics()
+        # </WTF>
+
+        # might as well use it
+        assert self.topic in self.available_topics
+
+        # setup start and end partitions and offsets
 #             self.client.seek_to_beginning()
-            # datetime is only start/end implemented
-            assert isinstance(self.start_params, datetime) and isinstance(self.end_params, datetime)
-            start = int(self.start_params.timestamp() * 1000)
-            end = int(self.end_params.timestamp() * 1000)
+        # datetime is only start/end implemented
+        assert isinstance(self.start_params, datetime) and isinstance(self.end_params, datetime)
+        start = int(self.start_params.timestamp() * 1000)
+        end = int(self.end_params.timestamp() * 1000)
 
-            partitions = self.client.partitions_for_topic(self.topic)
-            tx = {TopicPartition(topic=self.topic, partition=p):start
-                  for p in list(partitions)}
-            self.start_p_offsets = self.client.offsets_for_times(tx)
+        partitions = self.client.partitions_for_topic(self.topic)
+        tx = {TopicPartition(topic=self.topic, partition=p):start
+              for p in list(partitions)}
+        self.start_p_offsets = self.client.offsets_for_times(tx)
 
-            # if you give a timestamp after the last record it returns None
-            for tp, offset_details in self.start_p_offsets.items():
-                if offset_details is None:
-                    raise ValueError("Start date outside of available messages")
+        # if you give a timestamp after the last record it returns None
+        for tp, offset_details in self.start_p_offsets.items():
+            if offset_details is None:
+                raise ValueError("Start date outside of available messages")
 
-            tx = {TopicPartition(topic=self.topic, partition=p):end
-                  for p in list(partitions)}
-            self.end_p_offsets = self.client.offsets_for_times(tx)
-            
-            # as above - out of range, for end offset give something useful
-            for tp, offset_details in self.end_p_offsets.items():
-                if offset_details is None:
-                    # go to last message. I'm not 100% sure this is correct
-                    end_offsets = self.client.end_offsets([tp])
-                    offset = end_offsets[tp]-1
-                    self.end_p_offsets[tp] = OffsetAndTimestamp(offset=offset, timestamp=None)
+        tx = {TopicPartition(topic=self.topic, partition=p):end
+              for p in list(partitions)}
+        self.end_p_offsets = self.client.offsets_for_times(tx)
+
+        # as above - out of range, for end offset give something useful
+        for tp, offset_details in self.end_p_offsets.items():
+            if offset_details is None:
+                # go to last message. I'm not 100% sure this is correct
+                end_offsets = self.client.end_offsets([tp])
+                offset = end_offsets[tp]-1
+                self.end_p_offsets[tp] = OffsetAndTimestamp(offset=offset, timestamp=None)
 
     def _decode_engine_url(self):
         """
@@ -165,3 +185,37 @@ class KafkaConnector(DataConnector):
 
                 if m.offset >= end_offset:
                     break
+
+    def add(self, data, partition=None):
+        """
+        Write message to topic.
+        @param data: (str)
+        @param partition: (int) Kafka partition. Not yet implemented.
+        """
+        # TODO expand data to include binary and instance of :class:`Pinnate` but needs a way of
+        # de-serialising on retrieve.
+
+        if self.access != AccessMode.WRITE:
+            raise ValueError("Write attempted on dataset opened in READ mode.")
+
+        if partition is not None:
+            raise NotImplementedError("Placeholder value, not implemented yet")
+
+        if not isinstance(data, str):
+            raise ValueError("data isn't an accepted type. Only (str) is accepted.")
+
+        self.connect()
+
+        # TODO use futures
+        self.client.send(self.topic, value=bytes(data, 'utf-8'))
+        self.stats.added += 1
+
+    def flush(self):
+        """
+        Ensure all messages have been sent to Kafka
+        """
+        if self.access != AccessMode.WRITE:
+            raise ValueError("Flush attempted on dataset opened in READ mode.")
+
+        # TODO futures and performance stats
+        self.client.flush()

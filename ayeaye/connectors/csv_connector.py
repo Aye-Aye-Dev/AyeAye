@@ -4,6 +4,7 @@ Created on 14 Jan 2020
 @author: si
 '''
 import csv
+import os
 
 from ayeaye.connectors.base import DataConnector, AccessMode
 from ayeaye.pinnate import Pinnate
@@ -32,15 +33,22 @@ class CsvConnector(DataConnector):
         self.file_handle = None
         self.csv = None
         self.csv_fields = None # this will change when schemas are implemented
+        self.file_size = None
+        self.approx_position = 0
 
         if self.access != AccessMode.READ:
             raise NotImplementedError('Write access not yet implememted')
 
+    def __del__(self):
+        if self.file_handle is not None:
+            self.file_handle.close()
+            self.file_handle = None
 
     def connect(self):
         if self.csv is None:
             file_path = self.engine_url.split(self.engine_type)[1]
             self.file_handle = open(file_path, 'r')
+            self.file_size = os.stat(file_path).st_size
             self.csv = csv.DictReader(self.file_handle, delimiter=self.delimiter)
             self.csv_fields = self.csv.fieldnames
 
@@ -55,6 +63,8 @@ class CsvConnector(DataConnector):
     def __iter__(self):
         self.connect()
         for raw in self.csv:
+            # OSError: telling position disabled by next() call so this for now
+            self.approx_position += len(self.delimiter.join(raw.values()))
             yield Pinnate(data=raw)
 
 
@@ -67,6 +77,12 @@ class CsvConnector(DataConnector):
     def schema(self):
         raise NotImplementedError("TODO")
 
+    @property
+    def progress(self):
+        if self.access != AccessMode.READ or self.file_size is None or self.approx_position == 0:
+            return None
+
+        return self.approx_position / self.file_size
 
 class TsvConnector(CsvConnector):
     """

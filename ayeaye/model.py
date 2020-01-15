@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import time
 
 from ayeaye.connectors.fake import FakeDataConnector
 
@@ -18,11 +19,17 @@ class Model:
 
         self.log_to_stdout = True
         self.external_logger = None
+        self.progress_log_interval = 20 # minimum seconds between progress messages to log
+
+        # stats
+        self.start_build_time = None
+        self.progress_logged = None # time last logged
 
     def go(self):
         """
         Run the model.
         """
+        self.start_build_time = time()
         self.build()
 
     def build(self):
@@ -51,6 +58,9 @@ class Model:
         self.external_logger = logger
 
     def log(self, msg, level="INFO"):
+        """
+        @param level: (str) DEBUG, PROGRESS, INFO, WARNING or CRITICAL
+        """
         if not (self.log_to_stdout or self.external_logger is not None):
             return
 
@@ -62,3 +72,26 @@ class Model:
 
         if self.log_to_stdout:
             print(msg)
+
+    def log_progress(self, position_pc, msg=None):
+        """
+        Externally provided indication of position through build is used to calculate ETA (TODO)
+        and occasionally log progress to show user something is happening.
+
+        @param position_pc: (float) or None meaning ignore
+        @param msg: (str) additional user friendly info
+        """
+        time_now = time()
+
+        if position_pc > 0.0001 and \
+        (self.progress_logged is None or\
+         self.progress_logged + self.progress_log_interval < time_now):
+
+            if msg is None:
+                msg = ""
+
+            progress_pc = "{:.2f}%".format(position_pc*100)
+            running_secs = time_now - self.start_build_time
+            eta = "{:.2f}".format((running_secs / position_pc) - running_secs)
+            self.log(f"{progress_pc} {eta} seconds remaining. {msg}", level="PROGRESS")
+            self.progress_logged = time_now
