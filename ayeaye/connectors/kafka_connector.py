@@ -57,6 +57,8 @@ class KafkaConnector(DataConnector):
                 self._setup_consumer()
 
             elif self.access == AccessMode.WRITE:
+                if self.start_params is None or self.end_params is None:
+                    raise ValueError("Start and end offsets can't be set when writing")
                 self.client = KafkaProducer(bootstrap_servers=self.bootstrap_server)
 
             else:

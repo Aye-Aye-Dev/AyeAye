@@ -1,3 +1,5 @@
+import copy
+
 # TODO - this should all be on demand
 from ayeaye.connectors.bigquery import BigQueryConnector
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
@@ -19,27 +21,37 @@ class Connect:
         """
         typical kwargs are 'ref', 'engine_url', 'access' TODO
         """
+        self.base_constructor_kwargs = copy.copy(kwargs)
+        self._construct(**kwargs)
+
+    def _construct(self, **kwargs):
+        """
+        setup -- can be called either on true construction or when variables are overlaid on a
+        (possibily cloned) instance of :class:`Connect`.
+        """
         # :class:`Connect` is responsible for resolving 'ref' into an engine_url via a
         # data catalogue. So 'ref' isn't passed to data type specific connectors (i.e.
         # subclasses of :class:`DataConnector`)
-        self.ref = kwargs.pop('ref', None)
-        self.relayed_kwargs = kwargs # these are passed to the data type specific connectors
+        self.relayed_kwargs = {**self.base_constructor_kwargs, **kwargs} # these are passed to the data type specific connectors
+        self.ref = self.relayed_kwargs.pop('ref', None)
         self._local_dataset = None # see :method:`data`
 
     def __call__(self, **kwargs):
         """
         Overlay (and overwrite) kwarg on existing instance.
-        Factory style, returns new instance.
-        TODO testing so not returning a new instance.
+        Factory style, returns self.
         """
-        # TODO - this could be a clone, and should at least have all allowed_args, needs thought
-        self.__init__(**kwargs)
+        self._construct(**kwargs)
         return self
+
+    def __copy__(self):
+        return self.__class__(**self.base_constructor_kwargs)
 
     def __get__(self, instance, instance_class):
         if instance is None:
             # class method called
-            return self.__class__(ref=self.ref)
+            # duplicate instance
+            return copy.copy(self)
         ident = id(self)
         if ident not in instance._connections:
             instance._connections[ident] = self._prepare_connection()

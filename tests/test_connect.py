@@ -1,5 +1,6 @@
 import unittest
 
+from ayeaye import AccessMode
 from ayeaye.connect import Connect
 
 
@@ -67,3 +68,18 @@ class TestConnect(unittest.TestCase):
         # on demand connection
         assert c.data is not None
         assert c._local_dataset.credentials == "hello_world"
+
+    def test_overlay_args(self):
+        """
+        Make an access=AccessMode.READ connection in a model into access=AccessMode.WRITE.
+        The engine_url stays the same.
+        """
+        class FakeModelWrite:
+            insects = FakeModel.insects(access=AccessMode.WRITE)
+
+            def __init__(self):
+                self._connections = {}
+
+        f = FakeModelWrite()
+        self.assertEqual('fake://bugsDB', f.insects.engine_url)
+        self.assertEqual(AccessMode.WRITE, f.insects.access)
