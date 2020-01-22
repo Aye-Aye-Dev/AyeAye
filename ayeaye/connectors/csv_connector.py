@@ -55,10 +55,8 @@ class CsvConnector(DataConnector):
     def __len__(self):
         raise NotImplementedError("TODO")
 
-
     def __getitem__(self, key):
         raise NotImplementedError("TODO")
-
 
     def __iter__(self):
         self.connect()
@@ -67,11 +65,9 @@ class CsvConnector(DataConnector):
             self.approx_position += len(self.delimiter.join(raw.values()))
             yield Pinnate(data=raw)
 
-
     @property
     def data(self):
         raise NotImplementedError("TODO")
-
 
     @property
     def schema(self):

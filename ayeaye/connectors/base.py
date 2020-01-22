@@ -24,7 +24,10 @@ class DataConnector(ABC):
         """
         self.access = access
         self.engine_url = engine_url
-        assert self.engine_url.startswith(self.engine_type)
+
+        engine_type = [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
+        if not any([self.engine_url.startswith(et) for et in engine_type]):
+            raise ValueError("Engine type mismatch")
 
         # process optional arguments with their defaults
         for arg in self.__class__.optional_args:
