@@ -40,8 +40,12 @@ class KafkaConnector(DataConnector):
         self.available_topics = None
         self.client = None
 
-        # publically readable
+        # publicly readable
         self.stats = Pinnate({'added': 0})
+
+        # used during read
+        self.approx_position = None
+        self.items_to_fetch = None
 
     def __del__(self):
         if self.access == AccessMode.WRITE and self.client is not None:
@@ -57,7 +61,7 @@ class KafkaConnector(DataConnector):
                 self._setup_consumer()
 
             elif self.access == AccessMode.WRITE:
-                if self.start_params is None or self.end_params is None:
+                if self.start_params is not None or self.end_params is not None:
                     raise ValueError("Start and end offsets can't be set when writing")
                 self.client = KafkaProducer(bootstrap_servers=self.bootstrap_server)
 
@@ -75,34 +79,52 @@ class KafkaConnector(DataConnector):
         # might as well use it
         assert self.topic in self.available_topics
 
-        # setup start and end partitions and offsets
-#             self.client.seek_to_beginning()
-        # datetime is only start/end implemented
-        assert isinstance(self.start_params, datetime) and isinstance(self.end_params, datetime)
-        start = int(self.start_params.timestamp() * 1000)
-        end = int(self.end_params.timestamp() * 1000)
+        if (self.start_params is None) != (self.end_params is None):
+            raise ValueError("Both start and end params must be set or both must be None")
 
-        partitions = self.client.partitions_for_topic(self.topic)
-        tx = {TopicPartition(topic=self.topic, partition=p):start
-              for p in list(partitions)}
-        self.start_p_offsets = self.client.offsets_for_times(tx)
+        if self.start_params is None:
+            # setup partitions to read through
+            # TODO not checked with multiple partitions since inheriting from foxglove
+            # An offset is assigned to make repeatability (via a locking file) possible later on.
+            # and it's easier to terminate the fetch loop this way.
+            p_id = self.client.partitions_for_topic(self.topic)
+            topic_partitions = [TopicPartition(topic=self.topic, partition=p) for p in list(p_id)]
+            starts = self.client.beginning_offsets(topic_partitions)
+            ends = self.client.end_offsets(topic_partitions)
 
-        # if you give a timestamp after the last record it returns None
-        for tp, offset_details in self.start_p_offsets.items():
-            if offset_details is None:
-                raise ValueError("Start date outside of available messages")
+            self.start_p_offsets = {tp: OffsetAndTimestamp(offset=offset, timestamp=None) for tp, offset in starts.items()}
+            self.end_p_offsets = {tp: OffsetAndTimestamp(offset=offset-1, timestamp=None) for tp, offset in ends.items()}
 
-        tx = {TopicPartition(topic=self.topic, partition=p):end
-              for p in list(partitions)}
-        self.end_p_offsets = self.client.offsets_for_times(tx)
+        else:
+            # TODO - this code was inherited from Foxglove and hasn't be checked through
+            # setup start and end partitions and offsets
+            # self.client.seek_to_beginning()
+            # datetime is only start/end implemented
+            assert isinstance(self.start_params, datetime) and isinstance(self.end_params, datetime)
+            start = int(self.start_params.timestamp() * 1000)
+            end = int(self.end_params.timestamp() * 1000)
 
-        # as above - out of range, for end offset give something useful
-        for tp, offset_details in self.end_p_offsets.items():
-            if offset_details is None:
-                # go to last message. I'm not 100% sure this is correct
-                end_offsets = self.client.end_offsets([tp])
-                offset = end_offsets[tp]-1
-                self.end_p_offsets[tp] = OffsetAndTimestamp(offset=offset, timestamp=None)
+            partitions = self.client.partitions_for_topic(self.topic)
+            tx = {TopicPartition(topic=self.topic, partition=p):start
+                  for p in list(partitions)}
+            self.start_p_offsets = self.client.offsets_for_times(tx)
+
+            # if you give a timestamp after the last record it returns None
+            for tp, offset_details in self.start_p_offsets.items():
+                if offset_details is None:
+                    raise ValueError("Start date outside of available messages")
+
+            tx = {TopicPartition(topic=self.topic, partition=p):end
+                  for p in list(partitions)}
+            self.end_p_offsets = self.client.offsets_for_times(tx)
+
+            # as above - out of range, for end offset give something useful
+            for tp, offset_details in self.end_p_offsets.items():
+                if offset_details is None:
+                    # go to last message. I'm not 100% sure this is correct
+                    end_offsets = self.client.end_offsets([tp])
+                    offset = end_offsets[tp]-1
+                    self.end_p_offsets[tp] = OffsetAndTimestamp(offset=offset, timestamp=None)
 
     def _decode_engine_url(self):
         """
@@ -163,29 +185,31 @@ class KafkaConnector(DataConnector):
         useful attribs include
         m.offset, m.partition, m.timestamp, m.key, m.value
         """
+        # Not using a consumer group and setting partitions manually so it's a smaller
+        # jump to make this deterministic/repeatable with multiple workers later on.
+
         self.connect()
 
+        self.approx_position = 0
         for partition_id, start_offset, end_offset in self._partition_ranges():
+
             # TODO - confirm this can never jump to another partition
             tp = TopicPartition(topic=self.topic, partition=partition_id)
-            items_to_fetch = end_offset-start_offset
             self.client.assign([tp])
+
+            self.items_to_fetch = end_offset-start_offset
             self.client.seek(tp, start_offset)
 
-            if items_to_fetch <= 0:
+            if self.items_to_fetch <= 0:
                 msg = f"Invalid offsets {start_offset}:{end_offset} for partition {partition_id}"
                 raise ValueError(msg)
 
             for m in self.client:
 
-                #dt = datetime.utcfromtimestamp(m.timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
-                #msg = "{}-{} {} key:{} value:{}".format(m.offset, m.partition, dt, m.key, m.value)
-                #if m.offset == 100000:
-                #    print("now")
-                #print(msg)
+                self.approx_position += 1
                 yield Pinnate(data=m.value)
 
-                if m.offset >= end_offset:
+                if end_offset is not None and m.offset >= end_offset:
                     break
 
     def add(self, data, partition=None):
@@ -221,3 +245,12 @@ class KafkaConnector(DataConnector):
 
         # TODO futures and performance stats
         self.client.flush()
+
+    @property
+    def progress(self):
+        if self.access != AccessMode.READ \
+        or self.items_to_fetch is None \
+        or self.approx_position is None:
+            return None
+
+        return self.approx_position / self.items_to_fetch
