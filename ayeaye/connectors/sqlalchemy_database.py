@@ -37,7 +37,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
             For example:
               .schema requires the name of the class in multiple mode.
               e.g.  my_connection.schema.OrmClass (for multiple mode)
-                    and my_connection.schema (for single mode)
+                    and my_connection.schema (for 'single schema mode')
 
         Connection information-
             engine_url format varied with each engine
@@ -53,7 +53,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         self.engine = None
         
         # self.schema_builder is built by init from the optional args
-        self._schema_p = None # see :method:`schema`
+        self._schema_p = None # see :method:`connect`
 
     def connect(self):
 
@@ -100,7 +100,17 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         raise NotImplementedError("TODO")
 
     def __iter__(self):
-        raise NotImplementedError("TODO")
+        """
+        Generator for all records in all schema.
+        """
+        if self.access not in [AccessMode.READ, AccessMode.READWRITE]:
+            raise ValueError("Can not read data without access == READ")
+
+        schemata = [self.schema] if self.is_single_schema_mode else self.schema.values()
+        for schema in schemata:
+            # TODO take primary key from schema or default to 'id'
+            for r in self.session.query(schema).order_by(schema.id).all():
+                yield r
 
     @property
     def data(self):
@@ -118,3 +128,30 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         """
         self.connect()
         return self._schema_p
+
+    @property
+    def is_single_schema_mode(self):
+        return not isinstance(self.schema, Pinnate)
+
+    def add(self, item):
+        """
+        @param item: (dict or ORM instance) - dict only with 'single schema mode'
+        """
+        self.connect()
+        if isinstance(item, dict):
+            if not self.is_single_schema_mode:
+                raise ValueError("Dictionary can only be used in single schema mode")
+            item = self.schema(**item)
+        else:
+            if not isinstance(item, tuple(self.schema.values())):
+                msg = "Item of type {} isn't part of this connection's schema"
+                raise ValueError(msg.format(type(item)))
+
+        self.session.add(item)
+
+    def commit(self):
+        """
+        Send pending data changes to the database.
+        """
+        # TODO auto commit
+        self.session.commit()

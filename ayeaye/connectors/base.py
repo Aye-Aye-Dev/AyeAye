@@ -5,6 +5,7 @@ from enum import Enum
 class AccessMode(Enum):
     READ = 'r'
     WRITE = 'w'
+    READWRITE = 'rw'
 
 
 class DataConnector(ABC):
