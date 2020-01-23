@@ -6,6 +6,7 @@ from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 from ayeaye.connectors.fake import FakeDataConnector
 from ayeaye.connectors.flowerpot import FlowerPotConnector
 from ayeaye.connectors.kafka_connector import KafkaConnector
+from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
 
 
 class Connect:
@@ -73,8 +74,14 @@ class Connect:
         engine_url = self.relayed_kwargs['engine_url']
         engine_type = engine_url.split('://', 1)[0] + '://'
         for connector_cls in [BigQueryConnector, CsvConnector, FlowerPotConnector,
-                              FakeDataConnector, KafkaConnector, TsvConnector]:
-            if engine_type == connector_cls.engine_type:
+                              FakeDataConnector, KafkaConnector, TsvConnector,
+                              SqlAlchemyDatabaseConnector]:
+            if isinstance(connector_cls.engine_type, list):
+                supported_engines = connector_cls.engine_type
+            else:
+                supported_engines = [connector_cls.engine_type]
+
+            if engine_type in supported_engines:
                 connector = connector_cls(**self.relayed_kwargs)
                 break
         else:

@@ -86,7 +86,6 @@ class TestSqlAlchemyConnector(unittest.TestCase):
                                         schema_builder=people_schema,
                                         access=ayeaye.AccessMode.READWRITE
                                         )
-        c.connect()
         c.create_table_schema()
 
         c.add({'surname': 'Cornwallis'})
