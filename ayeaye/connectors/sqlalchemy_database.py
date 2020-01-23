@@ -30,8 +30,14 @@ class SqlAlchemyDatabaseConnector(DataConnector):
 
         additional args for SqlalchemyDatabaseConnector
             schema_builder (optional) (callable) taking declarative base as the single argument.
-            Must return a list of classes with the shared declarative base.
+            Must return a list of classes or single class with the shared declarative base.
             see https://docs.sqlalchemy.org/en/13/orm/extensions/declarative/api.html
+
+            The behaviour of this connection will differ on single or list being passed.
+            For example:
+              .schema requires the name of the class in multiple mode.
+              e.g.  my_connection.schema.OrmClass (for multiple mode)
+                    and my_connection.schema (for single mode)
 
         Connection information-
             engine_url format varied with each engine
@@ -71,15 +77,16 @@ class SqlAlchemyDatabaseConnector(DataConnector):
 
             # initialise schema            
             schema_classes = self.schema_builder(self.Base) if self.schema_builder is not None else []
-            as_dict = {c.__name__: c for c in schema_classes}
-            self._schema_p = Pinnate(as_dict)
+            if isinstance(schema_classes, list):
+                as_dict = {c.__name__: c for c in schema_classes}
+                self._schema_p = Pinnate(as_dict)
+            else:
+                self._schema_p = schema_classes # single class
 
     def create_table_schema(self):
         """
         Create the tables defined in self.schema
         """
-        raise NotImplementedError("TODO, not checked or tested")
-
         if self.access == AccessMode.READ:
             raise ValueError("Can not build schema when access == READ")
 
