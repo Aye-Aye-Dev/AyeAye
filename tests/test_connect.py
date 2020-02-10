@@ -83,3 +83,16 @@ class TestConnect(unittest.TestCase):
         f = FakeModelWrite()
         self.assertEqual('fake://bugsDB', f.insects.engine_url)
         self.assertEqual(AccessMode.WRITE, f.insects.access)
+
+    def test_replace_existing_connect(self):
+
+        m = FakeModel()
+        with self.assertRaises(ValueError) as context:
+            m.insects = "this is a string, not an instance of Connect"
+        self.assertEqual("Only Connect instances can be set", str(context.exception))
+
+        self.assertEqual({}, m._connections, "Connections not initialised prior to access")
+        self.assertEqual("fake://bugsDB", m.insects.engine_url, "Original connection")
+
+        m.insects = Connect(engine_url="fake://creepyCrawliesDB")
+        self.assertEqual("fake://creepyCrawliesDB", m.insects.engine_url, "New connection")

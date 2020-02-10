@@ -58,6 +58,19 @@ class Connect:
             instance._connections[ident] = self._prepare_connection()
         return instance._connections[ident]
 
+    def __set__(self, instance, new_connection):
+        """
+        Replace an instance of :class:`ayeaye.Model`'s :class:`ayeaye.Connect` with another
+        instance of `Connect`.
+        """
+        if not isinstance(new_connection, self.__class__):
+            my_class = self.__class__.__name__
+            raise ValueError(f'Only {my_class} instances can be set')
+
+        self.__init__(**new_connection.base_constructor_kwargs)
+        ident = id(self)
+        instance._connections[ident] = self._prepare_connection()
+
     def _prepare_connection(self):
         """
         Resolve everything apart from secrets needed to access the engine behind this dataset.
