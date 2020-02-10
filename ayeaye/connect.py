@@ -67,7 +67,7 @@ class Connect:
             my_class = self.__class__.__name__
             raise ValueError(f'Only {my_class} instances can be set')
 
-        self.__init__(**new_connection.base_constructor_kwargs)
+        self.__init__(**new_connection.relayed_kwargs)
         ident = id(self)
         instance._connections[ident] = self._prepare_connection()
 
@@ -101,6 +101,7 @@ class Connect:
             raise NotImplementedError(f"Unknown engine in url:{engine_url}")
 
         connector.uses_dataset_discovery = self.ref is not None
+        connector._connect_instance = self
         return connector
 
     @property

@@ -96,3 +96,24 @@ class TestConnect(unittest.TestCase):
 
         m.insects = Connect(engine_url="fake://creepyCrawliesDB")
         self.assertEqual("fake://creepyCrawliesDB", m.insects.engine_url, "New connection")
+
+    def test_connect_update(self):
+        """
+        Take a connection from a model, make a small tweak and set it back into the model.
+        Note is isn't a class tweak (that is tested elsewhere), it's on instances.
+        """
+        m = FakeModel()
+        self.assertTrue(AccessMode.READ == m.insects.access, "Expected starting state not found")
+
+        connect = m.insects.connect_instance
+        connect_refs = [k for k in m._connections.keys()]
+
+        # change something, this could have been more dramatic, the engine type for example
+        connect(access=AccessMode.WRITE)
+
+        # this set will re-prepare the connection
+        m.insects = connect
+
+        self.assertTrue(AccessMode.WRITE == m.insects.access, "Change to connection went missing")
+        connect_refs_now = [k for k in m._connections.keys()]
+        self.assertEqual(connect_refs, connect_refs_now, "Connect instances shouldn't change")

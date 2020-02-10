@@ -25,6 +25,7 @@ class DataConnector(ABC):
         """
         self.access = access
         self.engine_url = engine_url
+        self._connect_instance = None # set when :class:`ayeaye.Connect` builds subclass instances
 
         engine_type = [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
         if not any([self.engine_url.startswith(et) for et in engine_type]):
@@ -95,3 +96,12 @@ class DataConnector(ABC):
         :returns: (float) or None when not available.
         """
         return None
+
+    @property
+    def connect_instance(self):
+        """
+        Instances of subclasses of :class:`DataConnector` are usually built by
+        :class:`ayeaye.Connect`. `connect_instance` is a reference to make it easy to tweak an
+        existing connect on a model. See :method:`TestConnect.test_connect_update` for an example.
+        """
+        return self._connect_instance
