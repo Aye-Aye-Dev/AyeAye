@@ -22,6 +22,7 @@ class Connect:
         """
         typical kwargs are 'ref', 'engine_url', 'access' TODO
         """
+        self._parent_model = None
         self.base_constructor_kwargs = copy.copy(kwargs)
         self._construct(**kwargs)
 
@@ -53,6 +54,8 @@ class Connect:
             # class method called
             # duplicate instance
             return copy.copy(self)
+
+        self._parent_model = instance
         ident = id(self)
         if ident not in instance._connections:
             instance._connections[ident] = self._prepare_connection()

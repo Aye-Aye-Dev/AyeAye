@@ -2,7 +2,8 @@ import unittest
 
 from ayeaye import AccessMode
 from ayeaye.connect import Connect
-
+from ayeaye.connectors.fake import FakeDataConnector
+from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
 
 class FakeModel:
     insects = Connect(engine_url="fake://bugsDB")
@@ -97,7 +98,7 @@ class TestConnect(unittest.TestCase):
         m.insects = Connect(engine_url="fake://creepyCrawliesDB")
         self.assertEqual("fake://creepyCrawliesDB", m.insects.engine_url, "New connection")
 
-    def test_connect_update(self):
+    def test_update_by_replacement(self):
         """
         Take a connection from a model, make a small tweak and set it back into the model.
         Note is isn't a class tweak (that is tested elsewhere), it's on instances.
@@ -117,3 +118,13 @@ class TestConnect(unittest.TestCase):
         self.assertTrue(AccessMode.WRITE == m.insects.access, "Change to connection went missing")
         connect_refs_now = [k for k in m._connections.keys()]
         self.assertEqual(connect_refs, connect_refs_now, "Connect instances shouldn't change")
+
+    def test_update_inline(self):
+        """
+        A change to the `Connect` propagates to build a new DataConnector with a different type.
+        """
+        m = FakeModel()
+        self.assertIsInstance(m.insects, FakeDataConnector)
+
+        m.insects(engine_url="mysql://")
+        self.assertIsInstance(m.insects, SqlAlchemyDatabaseConnector)

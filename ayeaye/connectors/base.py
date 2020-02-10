@@ -39,6 +39,22 @@ class DataConnector(ABC):
         if len(kwargs) > 0:
             raise ValueError('Unexpected arguments')
 
+    def __call__(self, **kwargs):
+        """
+        Rebuild this (subclass of) DataConnector. It can only be used if self was built by
+        :class:`ayeaye.Connect` because Connect determines the subclass based on engine type.
+        If the call used the same engine_type as `self` then this wouldn't be needed.
+        """
+        if self._connect_instance is None:
+            raise ValueError("Connect instance not referenced. See :method:`__call__ for more")
+
+        self._connect_instance._construct(**kwargs)
+        if self._connect_instance._parent_model is not None:
+            parent_model = self._connect_instance._parent_model
+            ident = id(self._connect_instance)
+            # remove old Connector, it will be re-built on access
+            del parent_model._connections[ident]
+
     @abstractmethod
     def connect(self):
         """Open network or filesystem or other connection to datasource. The connection is expected
