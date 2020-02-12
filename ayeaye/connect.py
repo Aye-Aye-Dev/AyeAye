@@ -1,13 +1,7 @@
 import copy
 
-# TODO - this should all be on demand
-from ayeaye.connectors.bigquery import BigQueryConnector
-from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
-from ayeaye.connectors.fake import FakeDataConnector
-from ayeaye.connectors.flowerpot import FlowerPotConnector
-from ayeaye.connectors.kafka_connector import KafkaConnector
-from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
-
+from ayeaye.connectors import connector_factory
+from ayeaye.connectors.multi_connector import MultiConnector
 
 class Connect:
     """
@@ -85,24 +79,16 @@ class Connect:
         if self.relayed_kwargs['engine_url'] is None:
             raise NotImplementedError(("Sorry! Dataset discovery (looking up engine_url from ref) "
                                       "hasn't been written yet."
-                                      )
-                                      )
+                                      ))
         engine_url = self.relayed_kwargs['engine_url']
-        engine_type = engine_url.split('://', 1)[0] + '://'
-        for connector_cls in [BigQueryConnector, CsvConnector, FlowerPotConnector,
-                              FakeDataConnector, KafkaConnector, TsvConnector,
-                              SqlAlchemyDatabaseConnector]:
-            if isinstance(connector_cls.engine_type, list):
-                supported_engines = connector_cls.engine_type
-            else:
-                supported_engines = [connector_cls.engine_type]
-
-            if engine_type in supported_engines:
-                connector = connector_cls(**self.relayed_kwargs)
-                break
+        if isinstance(engine_url, list):
+            # compile time list of engine_url strings
+            # might be callable or a dict or set in the future
+            connector_cls = MultiConnector
         else:
-            raise NotImplementedError(f"Unknown engine in url:{engine_url}")
+            connector_cls = connector_factory(engine_url)
 
+        connector = connector_cls(**self.relayed_kwargs)
         connector.uses_dataset_discovery = self.ref is not None
         connector._connect_instance = self
         return connector
@@ -140,4 +126,4 @@ class Connect:
         for record in Connect(ref="my_dataset"):
             print(record)
         """
-        return self.data
+        yield from self.data

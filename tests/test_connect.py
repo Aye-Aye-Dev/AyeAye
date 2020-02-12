@@ -1,9 +1,15 @@
+import os
 import unittest
 
 from ayeaye import AccessMode
 from ayeaye.connect import Connect
+from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 from ayeaye.connectors.fake import FakeDataConnector
 from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
+
+PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
+EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
+EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 
 class FakeModel:
     insects = Connect(engine_url="fake://bugsDB")
@@ -128,3 +134,54 @@ class TestConnect(unittest.TestCase):
 
         m.insects(engine_url="mysql://")
         self.assertIsInstance(m.insects, SqlAlchemyDatabaseConnector)
+
+    def test_compile_time_multiple_engine_urls(self):
+        """
+        engine_url could be a list of engine_urls.
+        In the future, a dictionary version might be added
+        """
+        tsv_engine_url = "tsv://"+EXAMPLE_TSV_PATH
+        csv_engine_url = "csv://"+EXAMPLE_CSV_PATH
+        c = Connect(engine_url=[tsv_engine_url, csv_engine_url])
+
+        all_the_animals = []
+        for index, data_connector in enumerate(c):
+
+            if index == 0:
+                self.assertIsInstance(data_connector, TsvConnector)
+            elif index == 1:
+                self.assertIsInstance(data_connector, CsvConnector)
+            else:
+                raise ValueError("Connect has more than expected data connectors")
+
+            all_the_animals += [animal.common_name for animal in data_connector]
+
+        expected = ['Goeldi\'s marmoset',
+                    'Common squirrel monkey',
+                    'Crab-eating macaque',
+                    'Crown of thorns starfish',
+                    'Golden dart frog',
+                    ]
+        self.assertEqual(expected, all_the_animals)
+
+    def test_compile_time_multiple_engine_urls_in_a_model(self):
+        """
+        Check the descriptors are treating children of MultiConnector the same as
+        the other DataConnector subclasses.
+        """
+        class AnimalsModel(FakeModel):
+            animals = Connect(engine_url=["tsv://"+EXAMPLE_TSV_PATH, "csv://"+EXAMPLE_CSV_PATH])
+
+        m = AnimalsModel()
+
+        all_the_animals = []
+        for animal_dataset in m.animals:
+            all_the_animals += [animal.common_name for animal in animal_dataset]
+
+        expected = ['Goeldi\'s marmoset',
+                    'Common squirrel monkey',
+                    'Crab-eating macaque',
+                    'Crown of thorns starfish',
+                    'Golden dart frog',
+                    ]
+        self.assertEqual(expected, all_the_animals)

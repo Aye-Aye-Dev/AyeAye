@@ -27,9 +27,11 @@ class DataConnector(ABC):
         self.engine_url = engine_url
         self._connect_instance = None # set when :class:`ayeaye.Connect` builds subclass instances
 
-        engine_type = [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
-        if not any([self.engine_url.startswith(et) for et in engine_type]):
-            raise ValueError("Engine type mismatch")
+        if isinstance(self.engine_url, str):
+            engine_type = \
+                [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
+            if not any([self.engine_url.startswith(et) for et in engine_type]):
+                raise ValueError("Engine type mismatch")
 
         # process optional arguments with their defaults
         for arg in self.__class__.optional_args:
