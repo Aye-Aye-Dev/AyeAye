@@ -37,7 +37,7 @@ class CsvConnector(DataConnector):
         self.approx_position = 0
 
         if self.access != AccessMode.READ:
-            raise NotImplementedError('Write access not yet implememted')
+            raise NotImplementedError('Write access not yet implemented')
 
     def __del__(self):
         if self.file_handle is not None:

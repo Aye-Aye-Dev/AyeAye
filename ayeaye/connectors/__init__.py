@@ -4,6 +4,7 @@ from .fake import FakeDataConnector
 from .flowerpot import FlowerPotConnector
 from .gcs_flowerpot import GcsFlowerpotConnector, FlowerpotEngine
 from .kafka_connector import KafkaConnector
+from .parquet_connector import ParquetConnector
 from .sqlalchemy_database import SqlAlchemyDatabaseConnector
 
 
@@ -14,8 +15,8 @@ def connector_factory(engine_url):
     """
     engine_type = engine_url.split('://', 1)[0] + '://'
     for connector_cls in [BigQueryConnector, CsvConnector, FlowerPotConnector,
-                          FakeDataConnector, KafkaConnector, TsvConnector,
-                          SqlAlchemyDatabaseConnector]:
+                          FakeDataConnector, KafkaConnector, ParquetConnector,
+                          TsvConnector, SqlAlchemyDatabaseConnector]:
         if isinstance(connector_cls.engine_type, list):
             supported_engines = connector_cls.engine_type
         else:
