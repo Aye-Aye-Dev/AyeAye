@@ -28,12 +28,45 @@ class Model:
     def go(self):
         """
         Run the model.
+
+        @return: boolean for success
         """
         self.start_build_time = time()
+        if not self.pre_build_check():
+            self.log("Pre-build check failed", "ERROR")
+            return False
+
         self.build()
+
+        if not self.post_build_check():
+            self.log("Post-build check failed", "ERROR")
+            return False
+
+        return True
+
+    def pre_build_check(self):
+        """
+        Optionally implemented by subclasses to check any conditions that must be met before
+        running :method:`build`.
+
+        For example, assumptions :method:`build` makes on on the format or values within the data
+        could be checked here in order to keep code in build simple.
+
+        @return: boolean. If False is returned :method:`build` won't be run.
+        """
+        return True
 
     def build(self):
         raise NotImplementedError()
+
+    def post_build_check(self):
+        """
+        This is an optional method that will be run after :method:`build`. It can be used to check
+        the validity of the build process.
+
+        @return: boolean. If False is returned the model is considered to have failed.
+        """
+        return True
 
     def datasets(self):
         """
@@ -59,7 +92,7 @@ class Model:
 
     def log(self, msg, level="INFO"):
         """
-        @param level: (str) DEBUG, PROGRESS, INFO, WARNING or CRITICAL
+        @param level: (str) DEBUG, PROGRESS, INFO, WARNING, ERROR or CRITICAL
         """
         if not (self.log_to_stdout or self.external_logger is not None):
             return
