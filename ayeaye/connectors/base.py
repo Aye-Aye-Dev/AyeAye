@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
+from ayeaye.connect_resolve import connector_resolver
 
 class AccessMode(Enum):
     READ = 'r'
@@ -10,7 +11,8 @@ class AccessMode(Enum):
 
 class DataConnector(ABC):
     engine_type = None  # must be defined by subclasses
-    optional_args = {}  # subclasses should specify their optional kwargs. Values in this dict are default values.
+    optional_args = {}  # subclasses should specify their optional kwargs. Values in this dict are
+                        # default values.
 
     def __init__(self, engine_url=None, access=AccessMode.READ, **kwargs):
         """
@@ -20,17 +22,22 @@ class DataConnector(ABC):
                 input or output
         **kwargs are any params needed by subclasses
 
-        Note that subclasses must call this constructor and should 'pop' their arguments so that none are left
-        unprocessed. Any which are specified in optional_args will be set as attributes by this super constructor.
+        Note that subclasses must call this constructor and should 'pop' their arguments so that
+        none are left unprocessed. Any which are specified in optional_args will be set as
+        attributes by this super constructor.
         """
         self.access = access
-        self.engine_url = engine_url
+        # engine_urls may need local resolution to find a particular version or to replace
+        # placeholders with secrets
+        self._unresolved_engine_url = engine_url
+        self._fully_resolved_engine_url = None
+
         self._connect_instance = None # set when :class:`ayeaye.Connect` builds subclass instances
 
-        if isinstance(self.engine_url, str):
-            engine_type = \
-                [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
-            if not any([self.engine_url.startswith(et) for et in engine_type]):
+        if isinstance(self._unresolved_engine_url, str):
+            engine_type = [self.engine_type] if isinstance(self.engine_type, str) \
+                            else self.engine_type
+            if not any([self._unresolved_engine_url.startswith(et) for et in engine_type]):
                 raise ValueError("Engine type mismatch")
 
         # process optional arguments with their defaults
@@ -40,6 +47,30 @@ class DataConnector(ABC):
         # Subclasses should consume any kwargs before this constructor is invoked
         if len(kwargs) > 0:
             raise ValueError('Unexpected arguments')
+
+    @property
+    def engine_url(self):
+        """
+        A fully resolved engine url contains everything needed to connect to the data source. This
+        includes secrets like username and password.
+
+        Don't store the result of this property when locking or similar. @see :method:`engine_url_public` 
+
+        @return: (str) the fully resolved engine url.
+        """
+        if self._fully_resolved_engine_url is None:
+            if connector_resolver.needs_resolution(self._unresolved_engine_url):
+                # local resolution is still needed
+                resolved = connector_resolver.resolve_engine_url(self._unresolved_engine_url)
+                self._fully_resolved_engine_url = resolved 
+            else:
+                self._fully_resolved_engine_url = self._unresolved_engine_url
+
+        return self._fully_resolved_engine_url
+
+    @property
+    def engine_url_public(self):
+        raise NotImplementedError("TODO")
 
     def __call__(self, **kwargs):
         """
@@ -59,8 +90,10 @@ class DataConnector(ABC):
 
     @abstractmethod
     def connect(self):
-        """Open network or filesystem or other connection to datasource. The connection is expected
-        to be cached by subclasses"""
+        """
+        Open resource handles used to access the dataset. e.g. network or filesystem connection.
+        These resources are help open by the subclass.
+        """
         pass
 
     @abstractmethod
@@ -120,6 +153,7 @@ class DataConnector(ABC):
         """
         Instances of subclasses of :class:`DataConnector` are usually built by
         :class:`ayeaye.Connect`. `connect_instance` is a reference to make it easy to tweak an
-        existing connect on a model. See :method:`TestConnect.test_connect_update` for an example.
+        existing connect on a model. See :method:`TestConnect.test_update_by_replacement` for an
+        example.
         """
         return self._connect_instance

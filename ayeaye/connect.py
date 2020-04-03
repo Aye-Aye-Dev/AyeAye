@@ -72,10 +72,6 @@ class Connect:
         """
         Resolve everything apart from secrets needed to access the engine behind this dataset.
         """
-        # TODO - available connectors shouldn't be hard coded based on url, the catalogue of
-        #    available connectors should be decoupled and each should declare which engine types
-        #    they support
-        #
         if self.relayed_kwargs['engine_url'] is None:
             raise NotImplementedError(("Sorry! Dataset discovery (looking up engine_url from ref) "
                                       "hasn't been written yet."

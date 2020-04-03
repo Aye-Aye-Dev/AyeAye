@@ -2,6 +2,7 @@ import os
 import tarfile
 import unittest
 
+from ayeaye.connect_resolve import connector_resolver
 from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 
@@ -71,3 +72,35 @@ class TestConnectors(unittest.TestCase):
         monkey_names = ", ".join([monkey.common_name for monkey in c])
         expected = "Goeldi's marmoset, Common squirrel monkey, Crab-eating macaque"
         assert expected == monkey_names
+
+    def test_resolve_engine_url(self):
+        """
+        The engine_url contains a parameter that is replaced on demand.
+        """
+        msg = "There are existing resolver callables before the test has started"
+        self.assertEqual(0, len(connector_resolver.resolver_callables), msg)
+
+        class MockFakeEngineResolver:
+            "Record when it's used and just substiture {data_version} with '1234'"
+            def __init__(self):
+                self.has_been_called = False
+
+            def __call__(self, unresolved_engine_url):
+                self.has_been_called = True
+                return unresolved_engine_url.format(**{'data_version': '1234'})
+
+        c = CsvConnector(engine_url="csv://my_path/data_{data_version}.csv")
+
+        m_resolver = MockFakeEngineResolver()
+        with connector_resolver.context(m_resolver):
+            self.assertFalse(m_resolver.has_been_called, "Should only be called on demand")
+            msg = "One resolver exists during the .context"
+            self.assertEqual(1, len(connector_resolver.resolver_callables), msg)
+
+            self.assertEqual('csv://my_path/data_1234.csv', c.engine_url)
+
+            msg = "Should have been called after engine_url is available"
+            self.assertTrue(m_resolver.has_been_called, msg)
+
+        msg = "At end of with .context the MockFakeEngineResolver should have been removed"
+        self.assertEqual(0, len(connector_resolver.resolver_callables), msg)
