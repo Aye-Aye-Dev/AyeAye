@@ -1,7 +1,9 @@
 import os
 import tarfile
+import tempfile
 import unittest
 
+import ayeaye
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
@@ -35,7 +37,7 @@ class TestConnectors(unittest.TestCase):
         """
         Iterate all the data items in all the files in the example flowerpot.
         """
-        c = FlowerPotConnector(engine_url="flowerpot://"+EXAMPLE_FLOWERPOT_PATH)
+        c = FlowerPotConnector(engine_url="flowerpot://" + EXAMPLE_FLOWERPOT_PATH)
         all_items = [(r.availability, r.referential) for r in c]
         all_items.sort()
         expected = "[('acoustic', 'rap'), ('anchor', 'rudder'), ('antenna', 'receive'), ('apple', 'raspberry')]"
@@ -45,7 +47,7 @@ class TestConnectors(unittest.TestCase):
         """
         The 'table' kwarg gets rows from all files that start with that string.
         """
-        c = FlowerPotConnector(engine_url="flowerpot://"+EXAMPLE_FLOWERPOT_PATH)
+        c = FlowerPotConnector(engine_url="flowerpot://" + EXAMPLE_FLOWERPOT_PATH)
         some_items = [(r.availability, r.referential) for r in c.query(table='test_a')]
         some_items.sort()
         expected = "[('anchor', 'rudder'), ('apple', 'raspberry')]"
@@ -56,18 +58,45 @@ class TestConnectors(unittest.TestCase):
         Iterate all the data items and check each row is being yielded as an instance of
         :class:`ayeaye.Pinnate`
         """
-        c = CsvConnector(engine_url="csv://"+EXAMPLE_CSV_PATH)
+        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_PATH)
 
         animals_names = ", ".join([deadly_animal.common_name for deadly_animal in c])
         expected = 'Crown of thorns starfish, Golden dart frog'
         assert expected == animals_names
+
+    def test_csv_write(self):
+        """
+        Write to a CSV without using a schema.
+        """
+        data_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(data_dir, "fish.csv")
+        c = CsvConnector(engine_url="csv://" + csv_file, access=ayeaye.AccessMode.WRITE)
+
+        # two data types that can be added
+        p = ayeaye.Pinnate({'common_name': 'Angel fish'})
+        c.add(p)
+
+        d = {'common_name': 'Grey reef shark'}
+        c.add(d)
+
+        c = None  # flush to disk on deconstruction
+
+        with open(csv_file, 'r') as f:
+            csv_content = f.read()
+
+        expected_content = ('common_name\n'
+                            'Angel fish\n'
+                            'Grey reef shark\n'
+                            )
+
+        self.assertEqual(expected_content, csv_content)
 
     def test_tsv_basics(self):
         """
         Tab separated, Iterate all the data items and check each row is being yielded as an
         instance of :class:`ayeaye.Pinnate`
         """
-        c = TsvConnector(engine_url="tsv://"+EXAMPLE_TSV_PATH)
+        c = TsvConnector(engine_url="tsv://" + EXAMPLE_TSV_PATH)
 
         monkey_names = ", ".join([monkey.common_name for monkey in c])
         expected = "Goeldi's marmoset, Common squirrel monkey, Crab-eating macaque"
@@ -82,6 +111,7 @@ class TestConnectors(unittest.TestCase):
 
         class MockFakeEngineResolver:
             "Record when it's used and just substiture {data_version} with '1234'"
+
             def __init__(self):
                 self.has_been_called = False
 

@@ -32,12 +32,13 @@ class CsvConnector(DataConnector):
 
         self.file_handle = None
         self.csv = None
-        self.csv_fields = None # this will change when schemas are implemented
+        self.csv_fields = None  # this will change when schemas are implemented
         self.file_size = None
         self.approx_position = 0
+        self._field_names = None  # place holder for write mode until schemas are supported
 
-        if self.access != AccessMode.READ:
-            raise NotImplementedError('Write access not yet implemented')
+        if self.access == AccessMode.READWRITE:
+            raise NotImplementedError('Read+Write access not yet implemented')
 
     def __del__(self):
         if self.file_handle is not None:
@@ -47,10 +48,22 @@ class CsvConnector(DataConnector):
     def connect(self):
         if self.csv is None:
             file_path = self.engine_url.split(self.engine_type)[1]
-            self.file_handle = open(file_path, 'r')
-            self.file_size = os.stat(file_path).st_size
-            self.csv = csv.DictReader(self.file_handle, delimiter=self.delimiter)
-            self.csv_fields = self.csv.fieldnames
+
+            if self.access == AccessMode.READ:
+                self.file_handle = open(file_path, 'r')
+                self.file_size = os.stat(file_path).st_size
+                self.csv = csv.DictReader(self.file_handle, delimiter=self.delimiter)
+                self.csv_fields = self.csv.fieldnames
+            elif self.access == AccessMode.WRITE:
+                self.file_handle = open(file_path, 'w')
+                self.csv = csv.DictWriter(self.file_handle,
+                                          delimiter=self.delimiter,
+                                          fieldnames=self._field_names,
+                                          )
+                self.csv.writeheader()
+
+            else:
+                raise ValueError('Unknown access mode')
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -79,6 +92,31 @@ class CsvConnector(DataConnector):
             return None
 
         return self.approx_position / self.file_size
+
+    def add(self, data):
+        """
+        Write line to CSV file.
+        @param data: (dict or Pinnate)
+        """
+        if self.access != AccessMode.WRITE:
+            raise ValueError("Write attempted on dataset opened in READ mode.")
+
+        # until schemas are implemented, first row determines fields
+        if self.csv is None:
+            if isinstance(data, dict):
+                self._field_names = list(data.keys())
+            elif isinstance(data, Pinnate):
+                self._field_names = list(data.as_dict().keys())
+
+        self.connect()
+
+        if isinstance(data, dict):
+            self.csv.writerow(data)
+        elif isinstance(data, Pinnate):
+            self.csv.writerow(data.as_dict())
+        else:
+            raise ValueError("data isn't an accepted type. Only (dict) or (Pinnate) are accepted.")
+
 
 class TsvConnector(CsvConnector):
     """
