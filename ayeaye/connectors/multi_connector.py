@@ -3,7 +3,7 @@ Created on 12 Feb 2020
 
 @author: si
 '''
-from ayeaye.connectors.base import DataConnector, AccessMode
+from ayeaye.connectors.base import DataConnector
 from ayeaye.connectors import connector_factory
 
 
@@ -25,22 +25,43 @@ class MultiConnector(DataConnector):
         """
         super().__init__(*args, **kwargs)
 
-        self.child_data_connectors = None # on connect
-
-        if self.access != AccessMode.READ:
-            raise NotImplementedError('Write access not yet implemented')
+        self._child_data_connectors = None  # on connect
+        self._child_dc_mapping = {}
 
     def connect(self):
 
-        if self.child_data_connectors is None:        
+        if self._child_data_connectors is None:
             if not isinstance(self.engine_url, list):
                 raise ValueError("Expected a list of engine_urls in self.engine_url")
-    
-            self.child_data_connectors = []
-            for engine_url in self.engine_url:
+
+            self._child_data_connectors = []
+            for idx, engine_url in enumerate(self.engine_url):
                 connector_cls = connector_factory(engine_url)
                 connector = connector_cls(engine_url=engine_url, access=self.access)
-                self.child_data_connectors.append(connector)
+                self._child_data_connectors.append(connector)
+                # this is the unresolved engine_url
+                self._child_dc_mapping[engine_url] = idx
+
+        else:
+            # see if self._child_data_connectors is stale. The happens if engine_urls has been
+            # changed since the last connect(). It's easier to detect the change on read than it is
+            # to override the behaviour of engine_urls.append(..) to connect on demand.
+            # Also, can't just drop and rebuild as they could be in use
+            already_seen = len(self._child_dc_mapping)
+            for idx, engine_url in enumerate(self.engine_url):
+                if engine_url not in self._child_dc_mapping:
+                    if idx < already_seen:
+                        msg = f"Can't remap after engine_url removed for: {engine_url}"
+                        raise NotImplementedError(msg)
+                    else:
+                        # new engine_url
+                        connector_cls = connector_factory(engine_url)
+                        connector = connector_cls(engine_url=engine_url, access=self.access)
+                        self._child_data_connectors.append(connector)
+                        self._child_dc_mapping[engine_url] = idx
+
+                elif self._child_dc_mapping[engine_url] != idx:
+                    raise Exception("Please tell the AyeAye developers how this exception happens!")
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -50,13 +71,13 @@ class MultiConnector(DataConnector):
 
     def __iter__(self):
         self.connect()
-        for dc in self.child_data_connectors:
+        for dc in self._child_data_connectors:
             yield dc
 
     @property
     def data(self):
         self.connect()
-        return self.child_data_connectors
+        return self._child_data_connectors
 
     @property
     def schema(self):

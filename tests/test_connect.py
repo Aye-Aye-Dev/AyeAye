@@ -3,6 +3,7 @@ import unittest
 
 from ayeaye import AccessMode
 from ayeaye.connect import Connect
+from ayeaye.connect_resolve import connector_resolver
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 from ayeaye.connectors.fake import FakeDataConnector
 from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
@@ -11,11 +12,13 @@ PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
 EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 
+
 class FakeModel:
     insects = Connect(engine_url="fake://bugsDB")
 
     def __init__(self):
         self._connections = {}
+
 
 class TestConnect(unittest.TestCase):
 
@@ -40,7 +43,7 @@ class TestConnect(unittest.TestCase):
         with self.assertRaises(ValueError):
             # the kwargs are not used until an engine_url is needed
             c._prepare_connection()
-    
+
     def test_connect_within_instantiated_class(self):
         """
         Connect used as a class variable. The parent class, which in practice will be a
@@ -50,11 +53,11 @@ class TestConnect(unittest.TestCase):
         """
         e0 = FakeModel()
         assert len(e0._connections) == 0
-    
+
         # connect on demand/access
         assert e0.insects is not None
         assert len(e0._connections) == 1
-    
+
     def test_connect_within_class(self):
         """
         Connect used as a class variable. On access it returns a new instance that is separated,
@@ -62,9 +65,9 @@ class TestConnect(unittest.TestCase):
         """
         copy_0 = FakeModel.insects
         copy_1 = FakeModel.insects
-        
+
         assert id(copy_0) != id(copy_1)
-    
+
     def test_custom_kwargs_are_passed(self):
         """
         ayeaye.Connect should relay kwargs to subclasses of DataConnecter
@@ -140,8 +143,8 @@ class TestConnect(unittest.TestCase):
         engine_url could be a list of engine_urls.
         In the future, a dictionary version might be added
         """
-        tsv_engine_url = "tsv://"+EXAMPLE_TSV_PATH
-        csv_engine_url = "csv://"+EXAMPLE_CSV_PATH
+        tsv_engine_url = "tsv://" + EXAMPLE_TSV_PATH
+        csv_engine_url = "csv://" + EXAMPLE_CSV_PATH
         c = Connect(engine_url=[tsv_engine_url, csv_engine_url])
 
         all_the_animals = []
@@ -170,7 +173,7 @@ class TestConnect(unittest.TestCase):
         the other DataConnector subclasses.
         """
         class AnimalsModel(FakeModel):
-            animals = Connect(engine_url=["tsv://"+EXAMPLE_TSV_PATH, "csv://"+EXAMPLE_CSV_PATH])
+            animals = Connect(engine_url=["tsv://" + EXAMPLE_TSV_PATH, "csv://" + EXAMPLE_CSV_PATH])
 
         m = AnimalsModel()
 
@@ -185,3 +188,24 @@ class TestConnect(unittest.TestCase):
                     'Golden dart frog',
                     ]
         self.assertEqual(expected, all_the_animals)
+
+    def test_multi_connector_resolve(self):
+        """
+        MultiConnector + ConnectorResolver.
+        Other tests for this in :class:`TestConnectors`.
+        """
+
+        def simple_resolver(unresolved_engine_url):
+            return unresolved_engine_url.format(**{'data_version': '1234'})
+
+        # A MultiConnector
+        c = Connect(engine_url=["csv://my_path_x/data_{data_version}.csv",
+                                "csv://my_path_y/data_{data_version}.csv"
+                                ]
+                    )
+
+        with connector_resolver.context(simple_resolver):
+            resolved_engine_urls = [data_conn.engine_url for data_conn in c]
+
+        expected_urls = ['csv://my_path_x/data_1234.csv', 'csv://my_path_y/data_1234.csv']
+        self.assertEqual(expected_urls, resolved_engine_urls)

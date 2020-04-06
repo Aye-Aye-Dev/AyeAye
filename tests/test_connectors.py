@@ -7,6 +7,7 @@ import ayeaye
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
+from ayeaye.connectors.multi_connector import MultiConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'exampleflowerpot.tar.gz')
@@ -110,7 +111,7 @@ class TestConnectors(unittest.TestCase):
         self.assertEqual(0, len(connector_resolver.resolver_callables), msg)
 
         class MockFakeEngineResolver:
-            "Record when it's used and just substiture {data_version} with '1234'"
+            "Record when it's used and just substitute {data_version} with '1234'"
 
             def __init__(self):
                 self.has_been_called = False
@@ -134,3 +135,26 @@ class TestConnectors(unittest.TestCase):
 
         msg = "At end of with .context the MockFakeEngineResolver should have been removed"
         self.assertEqual(0, len(connector_resolver.resolver_callables), msg)
+
+    def test_multi_connector_append(self):
+        """
+        Add engine_urls at runtime.
+        This is a preemptive measure for when the post build lock file (not yet implemented) will
+        store runtime changes to the data connections.
+        """
+        c = MultiConnector(engine_url=['csv://data_1234.csv', 'csv://data_4567.csv'],
+                           access=ayeaye.AccessMode.WRITE,
+                           )
+        c.engine_url.append('csv://data_8910.csv')
+
+        all_urls = [connector.engine_url for connector in c]
+        expected_urls = ['csv://data_1234.csv', 'csv://data_4567.csv', 'csv://data_8910.csv']
+        self.assertEqual(expected_urls, all_urls)
+
+        # check that late additions to c.engine_url are visible. 'late' means after c.connect()
+        # has been called
+        another_file = 'csv://data_1112.csv'
+        c.engine_url.append(another_file)
+        all_urls = [connector.engine_url for connector in c]
+        expected_urls.append(another_file)
+        self.assertEqual(expected_urls, all_urls)
