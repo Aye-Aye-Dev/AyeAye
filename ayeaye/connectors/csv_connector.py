@@ -62,7 +62,7 @@ class CsvConnector(DataConnector):
                 if not os.path.exists(file_dir):
                     os.makedirs(file_dir)
 
-                self.file_handle = open(file_path, 'w')
+                self.file_handle = open(file_path, 'w', newline='\n', encoding='utf-8')
                 self.csv = csv.DictWriter(self.file_handle,
                                           delimiter=self.delimiter,
                                           fieldnames=self._field_names,
