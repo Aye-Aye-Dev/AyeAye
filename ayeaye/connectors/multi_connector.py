@@ -30,6 +30,10 @@ class MultiConnector(DataConnector):
 
     def connect(self):
 
+        if len(self.engine_url) != len(set(self.engine_url)):
+            msg = "engine_url contains duplicates. Not yet supported."
+            raise NotImplementedError(msg)
+
         if self._child_data_connectors is None:
             if not isinstance(self.engine_url, list):
                 raise ValueError("Expected a list of engine_urls in self.engine_url")
@@ -62,6 +66,23 @@ class MultiConnector(DataConnector):
 
                 elif self._child_dc_mapping[engine_url] != idx:
                     raise Exception("Please tell the AyeAye developers how this exception happens!")
+
+    def add_engine_url(self, engine_url):
+        """
+        A convenience method for adding engine_urls at run time that returns the resolved connector.
+        multi_connector.engine_url.append(...) could also be used.
+
+        @param engine_url: (str) unresolved engine_url (i.e. could contain {params} to be resolved
+                by :class:`ayeaye.connect_resolve.ConnectorResolver`
+
+        @return: (subclass of :class:`DataConnector`)
+        """
+        self.engine_url.append(engine_url)
+        self.connect()
+
+        idx = self._child_dc_mapping[engine_url]
+        connector = self._child_data_connectors[idx]
+        return connector
 
     def __len__(self):
         raise NotImplementedError("TODO")
