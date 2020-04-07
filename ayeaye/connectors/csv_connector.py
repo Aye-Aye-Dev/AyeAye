@@ -54,7 +54,14 @@ class CsvConnector(DataConnector):
                 self.file_size = os.stat(file_path).st_size
                 self.csv = csv.DictReader(self.file_handle, delimiter=self.delimiter)
                 self.csv_fields = self.csv.fieldnames
+
             elif self.access == AccessMode.WRITE:
+
+                # auto create directory
+                file_dir = os.path.dirname(file_path)
+                if not os.path.exists(file_dir):
+                    os.makedirs(file_dir)
+
                 self.file_handle = open(file_path, 'w')
                 self.csv = csv.DictWriter(self.file_handle,
                                           delimiter=self.delimiter,

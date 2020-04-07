@@ -223,7 +223,9 @@ class TestConnect(unittest.TestCase):
 
             def build(self):
                 # add a new dataset at runtime
-                self.fish.add_engine_url('csv://{file_location}/pond_3.csv')
+                c = self.fish.add_engine_url('csv://{file_location}/pond_3.csv')
+                assert isinstance(c, CsvConnector)
+                assert c.engine_url == 'csv:///data/pond_3.csv'
 
         def file_location_resolver(unresolved_engine_url):
             return unresolved_engine_url.format(**{'file_location': '/data'})
