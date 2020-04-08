@@ -1,8 +1,9 @@
 import unittest
 
-from ayeaye.connect import Connect
 from ayeaye.connect_resolve import connector_resolver
+from ayeaye.connect import Connect
 from ayeaye.connectors.csv_connector import CsvConnector
+from ayeaye.model import Model
 
 
 class FakeModel:
@@ -113,3 +114,31 @@ class TestResolve(unittest.TestCase):
 
         self.assertEqual(["csv://cucumbers.csv", "csv://cress.csv"], todays_engine_urls)
         self.assertNotIn('salad', connector_resolver._attr, "Post context clean up failed")
+
+    def test_deferred_attribute_access(self):
+        """
+        If a Connect uses a callable to return engine_urls at runtime and this callable uses
+        connector_resolver's named attributes there is a catch 22. -- the resolver needs the
+        attribute to be set before the model class is imported. Solution is a deferred call that
+        is only evaluated by Connect._prepare_connection
+        """
+        class InsectSurvey(Model):
+            ants = Connect(engine_url=connector_resolver.my_ants.all_the_files(ant_types="red"))
+
+            def build(self):
+                assert self.ants.engine_url == "csv://red_ants.csv"
+
+        # ------- at this point ------------
+        # without the deferred call this would have failed by here because `importing` InsectSurvey
+        # would have evaluated 'ants = Connect(...)'
+
+        class MyFileResolver:
+            def all_the_files(self, ant_types):
+                if ant_types == "red":
+                    return "csv://red_ants.csv"
+                raise ValueError("Should be unreachable in this test")
+
+        files_at_runtime = MyFileResolver()
+        with connector_resolver.context(my_ants=files_at_runtime):
+            m = InsectSurvey()
+            m.build()

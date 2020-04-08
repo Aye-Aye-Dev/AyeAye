@@ -83,6 +83,8 @@ class Connect:
 
         if callable(self.relayed_kwargs['engine_url']):
             engine_url = self.relayed_kwargs['engine_url']()
+            # make the resolved engine_url available to the final connector
+            self.relayed_kwargs['engine_url'] = engine_url
         else:
             engine_url = self.relayed_kwargs['engine_url']
 

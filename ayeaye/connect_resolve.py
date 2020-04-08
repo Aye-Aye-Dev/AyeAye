@@ -39,7 +39,7 @@ class ConnectorResolver:
 
     def __getattr__(self, attr):
         if attr not in self._attr:
-            raise AttributeError(f"Unknown attribute: '{attr}'")
+            return DeferredResolution(self, attr)
         return self._attr[attr]
 
     def needs_resolution(self, engine_url):
@@ -112,6 +112,46 @@ class ConnectorResolver:
                     del parent._attr[attr_name]
 
         return ConnectorResolverContext()
+
+
+class DeferredResolution:
+    """
+    Avoid the catch 22 of :class:`ConnectorResolver`'s named attribute being needed by a class variable
+    but having not been added to the connector_resolver instance.
+
+    Save the calling until :method:`Connect._prepare_connection calls` :method:`evaluate`.
+    """
+
+    def __init__(self, calling_instance, requested_attrib):
+        self.calling_instance = calling_instance
+        self.requested_attrib = requested_attrib
+
+        # for now this isn't a general pattern, just one level down is a method which is passed
+        # args and kwargs or it's a plain variable.
+        self.second_level_attrib_name = None
+        self.method_args = None
+        self.method_kwargs = None
+
+    def __getattr__(self, attrib_name):
+        self.second_level_attrib_name = attrib_name
+
+        def callable_might_be_needed(*args, **kwargs):
+            self.method_args = args
+            self.method_kwargs = kwargs
+            return self
+
+        return callable_might_be_needed
+
+    def __call__(self):
+        original_attrib = getattr(self.calling_instance, self.requested_attrib)
+        if self.method_args or self.method_kwargs:
+            # attrib was a method
+            target_method = getattr(original_attrib, self.second_level_attrib_name)
+            r = target_method(*self.method_args, **self.method_kwargs)
+            return r
+        else:
+            # just return the attrib
+            return original_attrib
 
 
 # global provider of context
