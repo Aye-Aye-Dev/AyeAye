@@ -95,7 +95,8 @@ class Connect:
         else:
             connector_cls = connector_factory(engine_url)
 
-        connector = connector_cls(**self.relayed_kwargs)
+        detached_args = copy.deepcopy(self.relayed_kwargs)
+        connector = connector_cls(**detached_args)
         connector.uses_dataset_discovery = self.ref is not None
         connector._connect_instance = self
         return connector

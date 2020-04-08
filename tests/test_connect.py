@@ -195,3 +195,18 @@ class TestConnect(unittest.TestCase):
 
         c = Connect(engine_url=pointlessly_deterministic_example_callable)
         self.assertEqual({'fake': 'data'}, c.data[0], "Example data not found")
+
+    def test_split_instance_and_connect(self):
+        """
+        Connect() is only called when the class is imported. If the instance of Connect is mutated
+        this shouldn't be passed to other instances.
+        Bug found in other project.
+        """
+        class AnimalsModel(FakeModel):
+            animals = Connect(engine_url=[])
+
+        m1 = AnimalsModel()
+        m1.animals.engine_url.append('hi')
+
+        m2 = AnimalsModel()
+        self.assertEqual([], m2.animals.engine_url)
