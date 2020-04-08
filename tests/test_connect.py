@@ -187,3 +187,11 @@ class TestConnect(unittest.TestCase):
                     'Golden dart frog',
                     ]
         self.assertEqual(expected, all_the_animals)
+
+    def test_callable_engine_url(self):
+
+        def pointlessly_deterministic_example_callable():
+            return "fake://MyDataset"
+
+        c = Connect(engine_url=pointlessly_deterministic_example_callable)
+        self.assertEqual({'fake': 'data'}, c.data[0], "Example data not found")

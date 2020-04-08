@@ -3,6 +3,7 @@ import copy
 from ayeaye.connectors import connector_factory
 from ayeaye.connectors.multi_connector import MultiConnector
 
+
 class Connect:
     """
     Connect to a dataset. A dataset contains :method:`data` and a :method:`schema` describing
@@ -12,6 +13,7 @@ class Connect:
 
     Secrets management isn't yet implemented.
     """
+
     def __init__(self, **kwargs):
         """
         typical kwargs are 'ref', 'engine_url', 'access' TODO
@@ -28,9 +30,11 @@ class Connect:
         # :class:`Connect` is responsible for resolving 'ref' into an engine_url via a
         # data catalogue. So 'ref' isn't passed to data type specific connectors (i.e.
         # subclasses of :class:`DataConnector`)
-        self.relayed_kwargs = {**self.base_constructor_kwargs, **kwargs} # these are passed to the data type specific connectors
+
+        # these are passed to the data type specific connectors
+        self.relayed_kwargs = {**self.base_constructor_kwargs, **kwargs}
         self.ref = self.relayed_kwargs.pop('ref', None)
-        self._local_dataset = None # see :method:`data`
+        self._local_dataset = None  # see :method:`data`
 
     def __call__(self, **kwargs):
         """
@@ -74,9 +78,14 @@ class Connect:
         """
         if self.relayed_kwargs['engine_url'] is None:
             raise NotImplementedError(("Sorry! Dataset discovery (looking up engine_url from ref) "
-                                      "hasn't been written yet."
-                                      ))
-        engine_url = self.relayed_kwargs['engine_url']
+                                       "hasn't been written yet."
+                                       ))
+
+        if callable(self.relayed_kwargs['engine_url']):
+            engine_url = self.relayed_kwargs['engine_url']()
+        else:
+            engine_url = self.relayed_kwargs['engine_url']
+
         if isinstance(engine_url, list):
             # compile time list of engine_url strings
             # might be callable or a dict or set in the future
