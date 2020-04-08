@@ -24,11 +24,23 @@ class ConnectorResolver:
     >>> x = SqlAlchemyDatabaseConnector(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
     >>> x.engine_url
     'mysql://root:p4ssw0rd@localhost/my_database'
-    >>> 
+    >>>
+
+    Example using named attributes-
+    >>> import ayeaye
+    >>> from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
+    >>> ayeaye.connect_resolve.connector_resolver.add(my_env_resolver)
 
     """
+
     def __init__(self):
-        self.resolver_callables = []
+        self.unnamed_callables = []
+        self._attr = {}
+
+    def __getattr__(self, attr):
+        if attr not in self._attr:
+            raise AttributeError(f"Unknown attribute: '{attr}'")
+        return self._attr[attr]
 
     def needs_resolution(self, engine_url):
         return engine_url is None or (isinstance(engine_url, str) and '{' in engine_url)
@@ -40,7 +52,7 @@ class ConnectorResolver:
         @return: (str) engine_url
         """
         engine_url = unresolved_engine_url
-        for r_callable in self.resolver_callables:
+        for r_callable in self.unnamed_callables:
             engine_url = r_callable(engine_url)
             if not self.needs_resolution(engine_url):
                 return engine_url
@@ -49,17 +61,25 @@ class ConnectorResolver:
         # contain secretes.
         raise ValueError(f"Couldn't fully resolve engine URL. Unresolved: {unresolved_engine_url}")
 
-    def add(self, resolver_callable):
+    def add(self, *args, **kwargs):
         """
-        @param resolver_callable: a caller that will have single argument (engine_url (str)) passed
+        @param *args: a callable that will have single argument (engine_url (str)) passed
             to it and must return (str) with anything that can be resolved having been resolved.
             There will be a chain of these resolvers that will be used in turn until there are no
             more parameters that need resolution.
+        @param **kwargs: add named attributes. These could be instances, functions or plain variables.
+            For an example, see docstring for class.
         """
-        assert callable(resolver_callable)
-        self.resolver_callables.append(resolver_callable)
-    
-    def context(self, resolver_callable):
+        for resolver_callable in args:
+            assert callable(resolver_callable)
+            self.unnamed_callables.append(resolver_callable)
+
+        for attribute_name, attribute_value in kwargs.items():
+            if attribute_name in self._attr:
+                raise ValueError(f"Attempted to set existing attribute: {attribute_name}")
+            self._attr[attribute_name] = attribute_value
+
+    def context(self, *args, **kwargs):
         """
         Use a resolver_callable just for the duration of a with statement. e.g.
 
@@ -69,16 +89,30 @@ class ConnectorResolver:
 
         @see :method:`TestConnectors.test_resolve_engine_url` for an example.
 
-        @param resolver_callable: @see :method:`add` for params and returns of callable.
+        @see :method:`add` for args and kwargs
         """
         parent = self
+
         class ConnectorResolverContext:
+            def __init__(self):
+                self.args_count = None
+                self.named_attr = None
+
             def __enter__(self):
-                parent.add(resolver_callable)
+                self.args_count = len(args)
+                self.named_attr = kwargs
+                parent.add(*args, **kwargs)
+
             def __exit__(self, exc_type, exc_val, exc_tb):
-                del parent.resolver_callables[-1]
+
+                for _ in range(self.args_count):
+                    del parent.unnamed_callables[-1]
+
+                for attr_name in self.named_attr.keys():
+                    del parent._attr[attr_name]
 
         return ConnectorResolverContext()
+
 
 # global provider of context
 connector_resolver = ConnectorResolver()

@@ -3,7 +3,6 @@ import unittest
 
 from ayeaye import AccessMode
 from ayeaye.connect import Connect
-from ayeaye.connect_resolve import connector_resolver
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 from ayeaye.connectors.fake import FakeDataConnector
 from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
@@ -188,54 +187,3 @@ class TestConnect(unittest.TestCase):
                     'Golden dart frog',
                     ]
         self.assertEqual(expected, all_the_animals)
-
-    def test_multi_connector_resolve(self):
-        """
-        MultiConnector + ConnectorResolver.
-        Other tests for this in :class:`TestConnectors`.
-        """
-
-        def simple_resolver(unresolved_engine_url):
-            return unresolved_engine_url.format(**{'data_version': '1234'})
-
-        # A MultiConnector
-        c = Connect(engine_url=["csv://my_path_x/data_{data_version}.csv",
-                                "csv://my_path_y/data_{data_version}.csv"
-                                ]
-                    )
-
-        with connector_resolver.context(simple_resolver):
-            resolved_engine_urls = [data_conn.engine_url for data_conn in c]
-
-        expected_urls = ['csv://my_path_x/data_1234.csv', 'csv://my_path_y/data_1234.csv']
-        self.assertEqual(expected_urls, resolved_engine_urls)
-
-    def test_multi_connector_add(self):
-        """
-        Use MultiConnector's convenience method for adding engine_urls at run time.
-        Also ensure the connector resolver is still being used.
-        """
-        class FishStocksCollator(FakeModel):
-            fish = Connect(engine_url=['csv://{file_location}/pond_1.csv',
-                                       'csv://{file_location}/pond_2.csv',
-                                       ]
-                           )
-
-            def build(self):
-                # add a new dataset at runtime
-                c = self.fish.add_engine_url('csv://{file_location}/pond_3.csv')
-                assert isinstance(c, CsvConnector)
-                assert c.engine_url == 'csv:///data/pond_3.csv'
-
-        def file_location_resolver(unresolved_engine_url):
-            return unresolved_engine_url.format(**{'file_location': '/data'})
-
-        with connector_resolver.context(file_location_resolver):
-            m = FishStocksCollator()
-            m.build()
-            all_urls = [connector.engine_url for connector in m.fish]
-
-        expected_urls = ['csv:///data/pond_1.csv', 'csv:///data/pond_2.csv',
-                         'csv:///data/pond_3.csv',
-                         ]
-        self.assertEqual(expected_urls, all_urls)
