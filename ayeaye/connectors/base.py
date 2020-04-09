@@ -3,6 +3,7 @@ from enum import Enum
 
 from ayeaye.connect_resolve import connector_resolver
 
+
 class AccessMode(Enum):
     READ = 'r'
     WRITE = 'w'
@@ -12,7 +13,7 @@ class AccessMode(Enum):
 class DataConnector(ABC):
     engine_type = None  # must be defined by subclasses
     optional_args = {}  # subclasses should specify their optional kwargs. Values in this dict are
-                        # default values.
+    # default values.
 
     def __init__(self, engine_url=None, access=AccessMode.READ, **kwargs):
         """
@@ -32,11 +33,11 @@ class DataConnector(ABC):
         self._unresolved_engine_url = engine_url
         self._fully_resolved_engine_url = None
 
-        self._connect_instance = None # set when :class:`ayeaye.Connect` builds subclass instances
+        self._connect_instance = None  # set when :class:`ayeaye.Connect` builds subclass instances
 
         if isinstance(self._unresolved_engine_url, str):
             engine_type = [self.engine_type] if isinstance(self.engine_type, str) \
-                            else self.engine_type
+                else self.engine_type
             if not any([self._unresolved_engine_url.startswith(et) for et in engine_type]):
                 raise ValueError("Engine type mismatch")
 
@@ -47,6 +48,9 @@ class DataConnector(ABC):
         # Subclasses should consume any kwargs before this constructor is invoked
         if len(kwargs) > 0:
             raise ValueError('Unexpected arguments')
+
+    def __del__(self):
+        self.close_connection()
 
     @property
     def engine_url(self):
@@ -62,7 +66,7 @@ class DataConnector(ABC):
             if connector_resolver.needs_resolution(self._unresolved_engine_url):
                 # local resolution is still needed
                 resolved = connector_resolver.resolve_engine_url(self._unresolved_engine_url)
-                self._fully_resolved_engine_url = resolved 
+                self._fully_resolved_engine_url = resolved
             else:
                 self._fully_resolved_engine_url = self._unresolved_engine_url
 
@@ -93,6 +97,12 @@ class DataConnector(ABC):
         """
         Open resource handles used to access the dataset. e.g. network or filesystem connection.
         These resources are help open by the subclass.
+        """
+        pass
+
+    def close_connection(self):
+        """
+        Explicitly close the connection to the dataset rather than just wait for the process to end.
         """
         pass
 

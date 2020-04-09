@@ -1,29 +1,31 @@
 from datetime import datetime
 from time import time
 
-from ayeaye.connectors.fake import FakeDataConnector
+from ayeaye.connectors.base import DataConnector
+
 
 class Model:
     """
     Do the thing!
-    
+
     Abstract class 
-    
+
     The thing is probably an ETL (Extract, Transform and Load) task which is at the minimum
     the :method:`build`. It could optionally also have a :method:`pre_build_check`, which is run
     first and must succeed. After the :method:`build` an optional :method:`post_build_check`
     can be used to see if build worked. 
     """
+
     def __init__(self):
         self._connections = {}
 
         self.log_to_stdout = True
         self.external_logger = None
-        self.progress_log_interval = 20 # minimum seconds between progress messages to log
+        self.progress_log_interval = 20  # minimum seconds between progress messages to log
 
         # stats
         self.start_build_time = None
-        self.progress_logged = None # time last logged
+        self.progress_logged = None  # time last logged
 
     def go(self):
         """
@@ -41,6 +43,9 @@ class Model:
         if not self.post_build_check():
             self.log("Post-build check failed", "ERROR")
             return False
+
+        for connection in self.datasets().values():
+            connection.close_connection()
 
         return True
 
@@ -78,7 +83,7 @@ class Model:
         connections = {}
         for obj_name in dir(self):
             obj = getattr(self, obj_name)
-            if isinstance(obj, FakeDataConnector):
+            if isinstance(obj, DataConnector):
                 connections[obj_name] = obj
 
         return connections
@@ -117,13 +122,13 @@ class Model:
         time_now = time()
 
         if position_pc > 0.0001 and \
-        (self.progress_logged is None or\
-         self.progress_logged + self.progress_log_interval < time_now):
+            (self.progress_logged is None or
+             self.progress_logged + self.progress_log_interval < time_now):
 
             if msg is None:
                 msg = ""
 
-            progress_pc = "{:.2f}%".format(position_pc*100)
+            progress_pc = "{:.2f}%".format(position_pc * 100)
             running_secs = time_now - self.start_build_time
             eta = "{:.2f}".format((running_secs / position_pc) - running_secs)
             self.log(f"{progress_pc} {eta} seconds remaining. {msg}", level="PROGRESS")

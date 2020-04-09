@@ -67,6 +67,15 @@ class MultiConnector(DataConnector):
                 elif self._child_dc_mapping[engine_url] != idx:
                     raise Exception("Please tell the AyeAye developers how this exception happens!")
 
+    def close_connection(self):
+
+        if self._child_data_connectors:
+            for c in self._child_data_connectors:
+                c.close_connection()
+
+        self._child_data_connectors = None  # on connect
+        self._child_dc_mapping = {}
+
     def add_engine_url(self, engine_url):
         """
         A convenience method for adding engine_urls at run time that returns the resolved connector.

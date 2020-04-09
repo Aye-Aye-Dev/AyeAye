@@ -78,11 +78,9 @@ class TestConnectors(unittest.TestCase):
 
         d = {'common_name': 'Grey reef shark'}
         c.add(d)
-        csv_encoding = c.encoding
-        # TODO .close
-        c = None
+        c.close_connection()  # flush to disk
 
-        with open(csv_file, 'r', encoding=csv_encoding) as f:
+        with open(csv_file, 'r', encoding=c.encoding) as f:
             csv_content = f.read()
 
         expected_content = ('common_name\n'

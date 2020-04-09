@@ -33,7 +33,7 @@ class CsvConnector(DataConnector):
         self.file_handle = None
         self.csv = None
         self.csv_fields = None  # this will change when schemas are implemented
-        self.encoding = 'utf-8-sig'  # default encoding. 'sig' means don't include the unicode BOM
+        self._encoding = None
         self.file_size = None
         self.approx_position = 0
         self._field_names = None  # place holder for write mode until schemas are supported
@@ -41,14 +41,32 @@ class CsvConnector(DataConnector):
         if self.access == AccessMode.READWRITE:
             raise NotImplementedError('Read+Write access not yet implemented')
 
-        self.engine_params = self._decode_engine_url(self.engine_url)
-        if 'encoding' in self.engine_params:
-            self.encoding = self.engine_params.encoding
+        self._engine_params = None
 
-        if 'start' in self.engine_params or 'end' in self.engine_params:
-            raise NotImplementedError("TODO")
+    @property
+    def engine_params(self):
+        if self._engine_params is None:
+            self._engine_params = self._decode_engine_url(self.engine_url)
 
-    def __del__(self):
+            if 'encoding' in self._engine_params:
+                self._encoding = self.engine_params.encoding
+
+            if 'start' in self._engine_params or 'end' in self._engine_params:
+                raise NotImplementedError("TODO")
+
+        return self._engine_params
+
+    @property
+    def encoding(self):
+        """
+        default encoding. 'sig' means don't include the unicode BOM
+        """
+        if self._encoding is None:
+            ep = self.engine_params
+            self._encoding = ep.encoding if 'encoding' in ep else 'utf-8-sig'
+        return self._encoding
+
+    def close_connection(self):
         if self.file_handle is not None:
             self.file_handle.close()
             self.file_handle = None

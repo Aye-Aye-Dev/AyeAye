@@ -47,7 +47,7 @@ class KafkaConnector(DataConnector):
         self.approx_position = None
         self.items_to_fetch = None
 
-    def __del__(self):
+    def close_connection(self):
         if self.access == AccessMode.WRITE and self.client is not None:
             self.flush()
 
@@ -92,8 +92,10 @@ class KafkaConnector(DataConnector):
             starts = self.client.beginning_offsets(topic_partitions)
             ends = self.client.end_offsets(topic_partitions)
 
-            self.start_p_offsets = {tp: OffsetAndTimestamp(offset=offset, timestamp=None) for tp, offset in starts.items()}
-            self.end_p_offsets = {tp: OffsetAndTimestamp(offset=offset-1, timestamp=None) for tp, offset in ends.items()}
+            self.start_p_offsets = {tp: OffsetAndTimestamp(
+                offset=offset, timestamp=None) for tp, offset in starts.items()}
+            self.end_p_offsets = {tp: OffsetAndTimestamp(
+                offset=offset - 1, timestamp=None) for tp, offset in ends.items()}
 
         else:
             # TODO - this code was inherited from Foxglove and hasn't be checked through
@@ -105,7 +107,7 @@ class KafkaConnector(DataConnector):
             end = int(self.end_params.timestamp() * 1000)
 
             partitions = self.client.partitions_for_topic(self.topic)
-            tx = {TopicPartition(topic=self.topic, partition=p):start
+            tx = {TopicPartition(topic=self.topic, partition=p): start
                   for p in list(partitions)}
             self.start_p_offsets = self.client.offsets_for_times(tx)
 
@@ -114,7 +116,7 @@ class KafkaConnector(DataConnector):
                 if offset_details is None:
                     raise ValueError("Start date outside of available messages")
 
-            tx = {TopicPartition(topic=self.topic, partition=p):end
+            tx = {TopicPartition(topic=self.topic, partition=p): end
                   for p in list(partitions)}
             self.end_p_offsets = self.client.offsets_for_times(tx)
 
@@ -123,7 +125,7 @@ class KafkaConnector(DataConnector):
                 if offset_details is None:
                     # go to last message. I'm not 100% sure this is correct
                     end_offsets = self.client.end_offsets([tp])
-                    offset = end_offsets[tp]-1
+                    offset = end_offsets[tp] - 1
                     self.end_p_offsets[tp] = OffsetAndTimestamp(offset=offset, timestamp=None)
 
     def _decode_engine_url(self):
@@ -141,7 +143,7 @@ class KafkaConnector(DataConnector):
         for param_section in r_url.split(';'):
             if len(param_section) == 0:
                 continue
-            k,v = param_section.split('=', 1)
+            k, v = param_section.split('=', 1)
             if k in r:
                 r[k] = v
         # resolve to dates if needed
@@ -197,7 +199,7 @@ class KafkaConnector(DataConnector):
             tp = TopicPartition(topic=self.topic, partition=partition_id)
             self.client.assign([tp])
 
-            self.items_to_fetch = end_offset-start_offset
+            self.items_to_fetch = end_offset - start_offset
             self.client.seek(tp, start_offset)
 
             if self.items_to_fetch <= 0:
@@ -249,8 +251,8 @@ class KafkaConnector(DataConnector):
     @property
     def progress(self):
         if self.access != AccessMode.READ \
-        or self.items_to_fetch is None \
-        or self.approx_position is None:
+                or self.items_to_fetch is None \
+                or self.approx_position is None:
             return None
 
         return self.approx_position / self.items_to_fetch
