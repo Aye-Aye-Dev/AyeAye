@@ -33,12 +33,20 @@ class CsvConnector(DataConnector):
         self.file_handle = None
         self.csv = None
         self.csv_fields = None  # this will change when schemas are implemented
+        self.encoding = 'utf-8-sig'  # default encoding. 'sig' means don't include the unicode BOM
         self.file_size = None
         self.approx_position = 0
         self._field_names = None  # place holder for write mode until schemas are supported
 
         if self.access == AccessMode.READWRITE:
             raise NotImplementedError('Read+Write access not yet implemented')
+
+        self.engine_params = self._decode_engine_url(self.engine_url)
+        if 'encoding' in self.engine_params:
+            self.encoding = self.engine_params.encoding
+
+        if 'start' in self.engine_params or 'end' in self.engine_params:
+            raise NotImplementedError("TODO")
 
     def __del__(self):
         if self.file_handle is not None:
@@ -47,22 +55,25 @@ class CsvConnector(DataConnector):
 
     def connect(self):
         if self.csv is None:
-            file_path = self.engine_url.split(self.engine_type)[1]
 
             if self.access == AccessMode.READ:
-                self.file_handle = open(file_path, 'r')
-                self.file_size = os.stat(file_path).st_size
+                self.file_handle = open(self.engine_params.file_path, 'r', encoding=self.encoding)
+                self.file_size = os.stat(self.engine_params.file_path).st_size
                 self.csv = csv.DictReader(self.file_handle, delimiter=self.delimiter)
                 self.csv_fields = self.csv.fieldnames
 
             elif self.access == AccessMode.WRITE:
 
                 # auto create directory
-                file_dir = os.path.dirname(file_path)
+                file_dir = os.path.dirname(self.engine_params.file_path)
                 if not os.path.exists(file_dir):
                     os.makedirs(file_dir)
 
-                self.file_handle = open(file_path, 'w', newline='\n', encoding='utf-8')
+                self.file_handle = open(self.engine_params.file_path,
+                                        'w',
+                                        newline='\n',
+                                        encoding=self.encoding
+                                        )
                 self.csv = csv.DictWriter(self.file_handle,
                                           delimiter=self.delimiter,
                                           fieldnames=self._field_names,
@@ -71,6 +82,29 @@ class CsvConnector(DataConnector):
 
             else:
                 raise ValueError('Unknown access mode')
+
+    def _decode_engine_url(self, engine_url):
+        """
+        Raises value error if there is anything odd in the URL.
+
+        @param engine_url: (str)
+        @return: (Pinnate) with .file_path
+                                and optional: .encoding .start and .end
+        """
+        path_plus = engine_url.split(self.engine_type)[1].split(';')
+        file_path = path_plus[0]
+        d = {'file_path': file_path}
+        if len(path_plus) > 1:
+            for arg in path_plus[1:]:
+                k, v = arg.split("=", 1)
+                if k not in ['encoding', 'start', 'end']:
+                    raise ValueError(f"Unknown option in CSV: {k}")
+                if k in ['start', 'end']:
+                    d[k] = int(v)
+                else:
+                    d[k] = v
+
+        return Pinnate(d)
 
     def __len__(self):
         raise NotImplementedError("TODO")

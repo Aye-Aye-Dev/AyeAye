@@ -136,7 +136,7 @@ class TestResolve(unittest.TestCase):
             def all_the_files(self, ant_types):
                 if ant_types == "red":
                     return "csv://red_ants.csv"
-                raise ValueError("Should be unreachable in this test")
+                raise ValueError("This line should be unreachable in this test")
 
         files_at_runtime = MyFileResolver()
         with connector_resolver.context(my_ants=files_at_runtime):

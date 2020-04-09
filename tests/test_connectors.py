@@ -78,10 +78,11 @@ class TestConnectors(unittest.TestCase):
 
         d = {'common_name': 'Grey reef shark'}
         c.add(d)
+        csv_encoding = c.encoding
+        # TODO .close
+        c = None
 
-        c = None  # flush to disk on deconstruction
-
-        with open(csv_file, 'r') as f:
+        with open(csv_file, 'r', encoding=csv_encoding) as f:
             csv_content = f.read()
 
         expected_content = ('common_name\n'
@@ -124,3 +125,25 @@ class TestConnectors(unittest.TestCase):
         all_urls = [connector.engine_url for connector in c]
         expected_urls.append(another_file)
         self.assertEqual(expected_urls, all_urls)
+
+    def test_csv_encoding(self):
+        """
+        Specify character encoding in the URL. This test doesn't ensure data conforms.
+        """
+        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_PATH)
+        self.assertEqual("utf-8-sig", c.encoding, "Unexpected default encoding")
+
+        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_PATH + ";encoding=latin-1")
+        self.assertEqual("latin-1", c.encoding, "Can't override default encoding")
+
+    def test_csv_engine_decode(self):
+        c = CsvConnector(engine_url="csv://")
+
+        a = c._decode_engine_url("csv:///data/abc.csv")
+        self.assertEqual("/data/abc.csv", a.file_path)
+
+        a = c._decode_engine_url("csv:///data/abc.csv;encoding=latin-1;start=3;end=100")
+        self.assertEqual("/data/abc.csv", a.file_path)
+        self.assertEqual("latin-1", a.encoding)
+        self.assertEqual(3, a.start)
+        self.assertEqual(100, a.end)
