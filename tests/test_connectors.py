@@ -6,6 +6,7 @@ import unittest
 import ayeaye
 from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
+from ayeaye.connectors.json_connector import JsonConnector
 from ayeaye.connectors.multi_connector import MultiConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -13,6 +14,7 @@ EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'exampleflowerp
 EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
 EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
+EXAMPLE_JSON_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'london_weather.json')
 
 
 class TestConnectors(unittest.TestCase):
@@ -145,3 +147,8 @@ class TestConnectors(unittest.TestCase):
         self.assertEqual("latin-1", a.encoding)
         self.assertEqual(3, a.start)
         self.assertEqual(100, a.end)
+
+    def test_json_basics(self):
+        c = JsonConnector(engine_url="json://" + EXAMPLE_JSON_PATH)
+        self.assertEqual('London', c.data.name)
+        self.assertEqual('light intensity drizzle', c.data.weather.description)

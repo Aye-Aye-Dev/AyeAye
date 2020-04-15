@@ -23,7 +23,8 @@ class CsvConnector(DataConnector):
          None
 
         Connection information-
-            engine_url format is csv://<filesystem absolute path>data_file.csv[;start <line number>][;end <line number>]
+            engine_url format is
+            csv://<filesystem absolute path>data_file.csv[;start=<line number>][;end=<line number>][;encoding=<character encoding>]
         e.g. csv:///data/my_project/all_the_data.csv
         """
         super().__init__(*args, **kwargs)
@@ -34,14 +35,13 @@ class CsvConnector(DataConnector):
         self.csv = None
         self.csv_fields = None  # this will change when schemas are implemented
         self._encoding = None
+        self._engine_params = None
         self.file_size = None
         self.approx_position = 0
         self._field_names = None  # place holder for write mode until schemas are supported
 
         if self.access == AccessMode.READWRITE:
             raise NotImplementedError('Read+Write access not yet implemented')
-
-        self._engine_params = None
 
     @property
     def engine_params(self):
