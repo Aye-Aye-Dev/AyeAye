@@ -6,6 +6,8 @@ Created on 4 Mar 2020
 import os
 import unittest
 
+import pandas as pd
+
 from ayeaye.connectors.parquet_connector import ParquetConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -26,13 +28,14 @@ df = pd.DataFrame({'name': ['Alice', 'Bob'],
 pq.write_table(table, 'hello.parquet')
 """
 
+
 class TestSqlAlchemyConnector(unittest.TestCase):
 
     def test_read_as_rows(self):
         """
         Iterate through a parqet file row by row for all columns.
         """
-        c = ParquetConnector(engine_url="parquet://"+EXAMPLE_HELLO)
+        c = ParquetConnector(engine_url="parquet://" + EXAMPLE_HELLO)
         all_records = [r.as_dict() for r in c]
 
         self.assertEqual(2, len(all_records), "There are two sample records")
@@ -45,3 +48,10 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         for idx, expected_row in enumerate(wanted):
             for expected_key, expected_value in expected_row.items():
                 self.assertEqual(expected_value, all_records[idx][expected_key])
+
+    def test_read_as_pandas(self):
+        c = ParquetConnector(engine_url="parquet://" + EXAMPLE_HELLO)
+        p = c.as_pandas()
+
+        self.assertIsInstance(p, pd.DataFrame)
+        self.assertEqual('Alice', p['name'][0], "Can't find expected value in Pandas dataframe")

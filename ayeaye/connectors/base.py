@@ -136,6 +136,14 @@ class DataConnector(ABC):
         """
         raise NotImplementedError("TODO")
 
+    def as_pandas(self):
+        """
+        Similar to :method:`data` but as a Pandas dataframe.
+
+        @return: (Pandas dataframe)
+        """
+        raise NotImplementedError("Not available for all datasets or might need to be written")
+
     @property
     @abstractmethod
     def schema(self):

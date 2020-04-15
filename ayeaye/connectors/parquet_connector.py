@@ -98,6 +98,13 @@ class ParquetConnector(DataConnector):
     def data(self):
         raise NotImplementedError("TODO")
 
+    def as_pandas(self):
+        """
+        @return: (Pandas dataframe)
+        """
+        self.connect()
+        return self.table.to_pandas()
+
     @property
     def schema(self):
         raise NotImplementedError("TODO")
