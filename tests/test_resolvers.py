@@ -142,3 +142,39 @@ class TestResolve(unittest.TestCase):
         with connector_resolver.context(my_ants=files_at_runtime):
             m = InsectSurvey()
             m.build()
+
+    def test_without_with_statement(self):
+        """
+        In unit tests it's helpful to use the same resolver context across a few methods. For
+        example in unittest's setUp, tearDown and the test itself.
+        """
+        class LizardLocator(FakeModel):
+            habitats = Connect(engine_url='csv://{file_location}/habitat.csv')
+
+            def get_the_important_engine_url(self):
+                return self.habitats.engine_url
+
+        def file_location_resolver(unresolved_engine_url):
+            return unresolved_engine_url.format(**{'file_location': '/data'})
+
+        m = LizardLocator()
+        with self.assertRaises(ValueError) as exception_context:
+            m.get_the_important_engine_url()
+
+        msg = "Without a connector_resolver it shouldn't be possible to get the engine_url"
+        self.assertIn("Couldn't fully resolve engine URL", str(exception_context.exception), msg)
+
+        # using .start() and .finish() instead of a with statement
+        local_context = connector_resolver.context(file_location_resolver)
+        local_context.start()
+
+        m = LizardLocator()
+        self.assertEqual('csv:///data/habitat.csv', m.get_the_important_engine_url())
+
+        msg = "One resolver exists between .start() and .finish()"
+        self.assertEqual(1, len(connector_resolver.unnamed_callables), msg)
+
+        # drop the local context
+        local_context.finish()
+
+        self.assertEqual(0, len(connector_resolver.unnamed_callables), msg)

@@ -94,22 +94,40 @@ class ConnectorResolver:
         parent = self
 
         class ConnectorResolverContext:
+            """
+            Keep track of a temporary resolver.
+
+            Can be used with a 'with statement' or by calling :method:`start` and :method:`finish`.
+            @see :method:`TestResolve.test_without_with_statement` for an example.
+            """
+
             def __init__(self):
                 self.args_count = None
                 self.named_attr = None
 
-            def __enter__(self):
+            def start(self):
+                """
+                Add a new resolver callable to the temporary context.
+                """
                 self.args_count = len(args)
                 self.named_attr = kwargs
                 parent.add(*args, **kwargs)
 
-            def __exit__(self, exc_type, exc_val, exc_tb):
-
+            def finish(self):
+                """
+                Clear this context away from the ConnectResolve instance.
+                """
                 for _ in range(self.args_count):
                     del parent.unnamed_callables[-1]
 
                 for attr_name in self.named_attr.keys():
                     del parent._attr[attr_name]
+
+            def __enter__(self):
+                self.start()
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                self.finish()
 
         return ConnectorResolverContext()
 
