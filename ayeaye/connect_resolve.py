@@ -117,6 +117,8 @@ class ConnectorResolver:
                 """
                 Clear this context away from the ConnectResolve instance.
                 """
+                # TODO check the right one is being cleared. This is currently making the assumption
+                # that the last item is the right item.
                 for _ in range(self.args_count):
                     del parent.unnamed_callables[-1]
 
