@@ -1,3 +1,4 @@
+import json
 import os
 import tarfile
 import tempfile
@@ -152,3 +153,30 @@ class TestConnectors(unittest.TestCase):
         c = JsonConnector(engine_url="json://" + EXAMPLE_JSON_PATH)
         self.assertEqual('London', c.data.name)
         self.assertEqual('light intensity drizzle', c.data.weather.description)
+
+    def test_json_write(self):
+
+        data_dir = tempfile.mkdtemp()
+        json_file = os.path.join(data_dir, "chips.json")
+        c = JsonConnector(engine_url=f"json://{json_file}", access=ayeaye.AccessMode.WRITE)
+
+        good_examples = [('a string', '"a string"'),
+                         (ayeaye.Pinnate({'a': 1}), '{"a": 1}'),
+                         ({'a': 1}, '{"a": 1}'),
+                         ([1, 2, 3], '[1, 2, 3]')
+                         ]
+
+        for acceptable_data, expected_json in good_examples:
+
+            c.data = acceptable_data
+            with open(json_file, 'r', encoding=c.encoding) as f:
+                json_not_decoded = f.read()
+                self.assertEqual(expected_json, json_not_decoded)
+
+        # these data types can't be encoded as JSON
+        bad_examples = [set([1, 2, 3]),
+                        c,
+                        ]
+        for unacceptable_data in bad_examples:
+            with self.assertRaises(TypeError):
+                c.data = unacceptable_data

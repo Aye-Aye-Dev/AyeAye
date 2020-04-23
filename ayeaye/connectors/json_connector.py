@@ -34,8 +34,8 @@ class JsonConnector(DataConnector):
         self._encoding = None
         self._engine_params = None
 
-        if self.access != AccessMode.READ:
-            raise NotImplementedError('Write access not yet implemented')
+        if self.access == AccessMode.READWRITE:
+            raise NotImplementedError('Read-Write access not yet implemented')
 
     @property
     def engine_params(self):
@@ -85,15 +85,24 @@ class JsonConnector(DataConnector):
         self._doc = None
 
     def connect(self):
+        """
+        When in AccessMode.READ, read the contents of the file into a :class:`Pinnate` instance
+        that is available as self.data.
+
+        In AccessMode.WRITE mode connect() doesn't do anything because file handles aren't kept
+        open by the JsonConnector. The write operation is in :method:`_data_write`.
+        """
         if self._doc is None:
             file_path = self.engine_url.split(self.engine_type)[1]
 
-            if not os.path.isfile(file_path) or not os.access(file_path, os.R_OK):
-                raise ValueError(f"File '{file_path}' not readable")
+            if self.access == AccessMode.READ:
 
-            with open(self.engine_params.file_path, 'r', encoding=self.encoding) as f:
-                as_native = json.load(f)
-                self._doc = Pinnate(as_native)
+                if not os.path.isfile(file_path) or not os.access(file_path, os.R_OK):
+                    raise ValueError(f"File '{file_path}' not readable")
+
+                with open(self.engine_params.file_path, 'r', encoding=self.encoding) as f:
+                    as_native = json.load(f)
+                    self._doc = Pinnate(as_native)
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -104,10 +113,33 @@ class JsonConnector(DataConnector):
     def __iter__(self):
         raise NotImplementedError("Not an iterative dataset. Use .data instead.")
 
-    @property
-    def data(self):
+    def _data_read(self):
         self.connect()
         return self._doc
+
+    def _data_write(self, new_data):
+        """
+        Set the contents of a JSON file. `new_data` can be an instance of :class:`Pinnate` or any
+        python datatype that will serialise into JSON.
+
+        Will raise TypeError if the data can't be serialised to JSON.
+
+        @param new_data: (mixed, see description)
+        """
+        if self.access != AccessMode.WRITE:
+            raise ValueError("Write attempted on dataset opened in READ mode.")
+
+        if isinstance(new_data, Pinnate):
+            as_json = json.dumps(new_data.as_dict())
+        else:
+            as_json = json.dumps(new_data)
+
+        # Data is written to disk immediately. The file handle isn't left open.
+        # @see :method:`connect`.
+        with open(self.engine_params.file_path, 'w', encoding=self.encoding) as f:
+            f.write(as_json)
+
+    data = property(fget=_data_read, fset=_data_write)
 
     @property
     def schema(self):
