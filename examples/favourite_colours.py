@@ -24,8 +24,8 @@ class FavouriteColours(ayeaye.Model):
     a coding mistake. I wouldn't write code like this unless I'm demonstrating a coding mistake
     (honest). There is a unit test for this model but it misses the two mistakes as well.
 
-    Data validation tests aren't a substitute for unit tests. They are another way to spot mistakes
-    that can be more intuative.
+    Data validation tests should compliment rather than substitute unit tests. They are another way
+    to spot mistakes that can be more intuitive.
     """
     favourite_colours = ayeaye.Connect(engine_url='csv://data/favourite_colours.csv')
 
