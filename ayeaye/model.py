@@ -49,6 +49,7 @@ class Model:
             self.log("Pre-build check failed", "ERROR")
             self.close_datasets()
             return False
+        self.close_datasets()
 
         self.build()
         self.close_datasets()
@@ -57,6 +58,7 @@ class Model:
             self.log("Post-build check failed", "ERROR")
             self.close_datasets()
             return False
+        self.close_datasets()
 
         return True
 

@@ -30,7 +30,12 @@ class CsvConnector(DataConnector):
         super().__init__(*args, **kwargs)
 
         self.delimiter = ','
+        self._reset()
 
+        if self.access == AccessMode.READWRITE:
+            raise NotImplementedError('Read+Write access not yet implemented')
+
+    def _reset(self):
         self.file_handle = None
         self.csv = None
         self.csv_fields = None  # this will change when schemas are implemented
@@ -39,9 +44,6 @@ class CsvConnector(DataConnector):
         self.file_size = None
         self.approx_position = 0
         self._field_names = None  # place holder for write mode until schemas are supported
-
-        if self.access == AccessMode.READWRITE:
-            raise NotImplementedError('Read+Write access not yet implemented')
 
     @property
     def engine_params(self):
@@ -69,7 +71,7 @@ class CsvConnector(DataConnector):
     def close_connection(self):
         if self.file_handle is not None:
             self.file_handle.close()
-            self.file_handle = None
+        self._reset()
 
     def connect(self):
         if self.csv is None:

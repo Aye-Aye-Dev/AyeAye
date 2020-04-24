@@ -5,6 +5,8 @@ import shutil
 import tempfile
 import unittest
 
+import ayeaye
+
 from examples.favourite_colours import FavouriteColours
 from examples.poisonous_animals import PoisonousAnimals
 
@@ -46,7 +48,7 @@ class TestExamples(unittest.TestCase):
         external_log.seek(0)
         all_the_logs = external_log.read()
         expected = 'In Australia you could find Blue ringed octopus,Box jellyfish,Eastern brown snake'
-        assert expected in all_the_logs
+        self.assertIn(expected, all_the_logs)
 
     def test_favourite_colours_build_sample_data(self):
         """
@@ -54,6 +56,8 @@ class TestExamples(unittest.TestCase):
         """
         output_file = "{}/favourite_colours_summary.json".format(self.working_directory())
         m = FavouriteColours()
+        m.log_to_stdout = False
+
         # give the connector a new output file
         m.favourites_summary(engine_url=f"json://{output_file};indent=4")
         m.build()
@@ -66,3 +70,44 @@ class TestExamples(unittest.TestCase):
         # check Blue which has dates 2020-01-01 - 2020-02-15
         self.assertEqual(31, output_data["Blue"]["January"])
         self.assertEqual(14, output_data["Blue"]["February"])
+
+    def test_favourite_colours_pre_post_checks(self):
+        """
+
+        """
+        output_file = "{}/favourite_colours_summary.json".format(self.working_directory())
+        m = FavouriteColours()
+        m.log_to_stdout = False
+
+        # give the connector a new output file
+        m.favourites_summary(engine_url=f"json://{output_file}")
+        self.assertTrue(m.go(), "Pre, post and build should work for favourite_colours.csv")
+
+        # now run it with bad data.
+        m = FavouriteColours()
+        m.log_to_stdout = False
+        external_log = StringIO()
+        m.set_logger(external_log)
+
+        m.favourite_colours = ayeaye.Connect(engine_url='csv://data/favourite_colours_bad_data.csv')
+        m.favourites_summary(engine_url=f"json://{output_file}")
+
+        # There are two issues.
+        # (i) multiple years aren't supported, this should be caught by the pre_build_check
+        self.assertFalse(m.pre_build_check(), "favourite_colours_bad_data.csv should fail.")
+        m.close_datasets()  # reset file pointers
+        external_log.seek(0)
+        all_the_logs = external_log.read()
+        expected = 'This model is only designed to work with data from a single year.'
+        self.assertIn(expected, all_the_logs)
+
+        # (ii) conservation of value - total number of days in the output should match the number of
+        # days in the input. This fails because the algorithm in build assumes the data is good and
+        # start date is before end date. The bad data file has one pair swapped.
+        m.build()  # run it anyway
+        m.close_datasets()  # reset file pointers
+        self.assertFalse(m.post_build_check(), "favourite_colours_bad_data.csv should fail.")
+        external_log.seek(0)
+        all_the_logs = external_log.read()
+        expected = "Total days in input doesn't match total days in output."
+        self.assertIn(expected, all_the_logs)

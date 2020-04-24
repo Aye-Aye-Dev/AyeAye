@@ -93,19 +93,18 @@ class JsonConnector(DataConnector):
         open by the JsonConnector. The write operation is in :method:`_data_write`.
         """
         if self._doc is None:
-            file_path = self.engine_url.split(self.engine_type)[1]
 
-            if self.access in [AccessMode.READ, AccessMode.READWRITE]:
+            file_path = self.engine_params.file_path
+            if self.access in [AccessMode.READ, AccessMode.READWRITE]\
+                    and os.path.isfile(file_path) \
+                    and os.access(file_path, os.R_OK):
 
-                if not (os.path.isfile(file_path) and os.access(file_path, os.R_OK)):
+                with open(file_path, 'r', encoding=self.encoding) as f:
+                    as_native = json.load(f)
+                    self._doc = Pinnate(as_native)
 
-                    if self.access == AccessMode.READ:
-                        raise ValueError(f"File '{file_path}' not readable")
-
-                    else:
-                        with open(self.engine_params.file_path, 'r', encoding=self.encoding) as f:
-                            as_native = json.load(f)
-                            self._doc = Pinnate(as_native)
+            else:
+                raise ValueError(f"Attempt to read '{file_path}' which isn't readable")
 
     def __len__(self):
         raise NotImplementedError("TODO")

@@ -35,16 +35,36 @@ class FavouriteColours(ayeaye.Model):
         access=ayeaye.AccessMode.READWRITE
     )
 
+    date_format = "%Y-%m-%d"
+
     def pre_build_check(self):
+        """
+        Data validation example on input data.
+        """
+        error_message = ("This model is only designed to work with data from a single year. "
+                         "Both {} and {} have been found in the input dataset."
+                         )
+        target_year = None
+        for survey_record in self.favourite_colours:
+            for check_field in ['start', 'end']:
+                record_year = datetime.strptime(survey_record[check_field], self.date_format).year
+
+                if target_year is None:
+                    target_year = record_year
+
+                if target_year != record_year:
+                    self.log(error_message.format(target_year, record_year), "ERROR")
+                    return False
+
         return True
 
     def build(self):
-        date_format = "%Y-%m-%d"
+
         by_colour = defaultdict(lambda: defaultdict(int))
         for survey_record in self.favourite_colours:
 
-            start = datetime.strptime(survey_record.start, date_format)
-            end = datetime.strptime(survey_record.end, date_format)
+            start = datetime.strptime(survey_record.start, self.date_format)
+            end = datetime.strptime(survey_record.end, self.date_format)
             date_delta = end - start
 
             unaccounted_days = date_delta.days
@@ -69,6 +89,27 @@ class FavouriteColours(ayeaye.Model):
         self.log("Done!")
 
     def post_build_check(self):
+
+        error_message = ("Total days in input doesn't match total days in output. Input has {} "
+                         "days and output has {} days."
+                         )
+
+        input_days = 0
+        for survey_record in self.favourite_colours:
+
+            start = datetime.strptime(survey_record.start, self.date_format)
+            end = datetime.strptime(survey_record.end, self.date_format)
+            date_delta = end - start
+            input_days += abs(date_delta.days)
+
+        output_days = 0
+        for month_days in self.favourites_summary.data.values():
+            output_days += sum([days for days in month_days.values()])
+
+        if input_days != output_days:
+            self.log(error_message.format(input_days, output_days), "ERROR")
+            return False
+
         return True
 
 
