@@ -24,7 +24,7 @@ class JsonConnector(DataConnector):
 
         Connection information-
             engine_url format is
-            json://<filesystem absolute path>[;encoding=<character encoding>]
+            json://<filesystem absolute path>[;encoding=<character encoding>][;indent=<spaces when pretty printing write output>]
         e.g. json:///data/my_project/the_data.json;encoding=latin-1
 
         """
@@ -34,9 +34,6 @@ class JsonConnector(DataConnector):
         self._encoding = None
         self._engine_params = None
 
-        if self.access == AccessMode.READWRITE:
-            raise NotImplementedError('Read-Write access not yet implemented')
-
     @property
     def engine_params(self):
         if self._engine_params is None:
@@ -44,9 +41,6 @@ class JsonConnector(DataConnector):
 
             if 'encoding' in self._engine_params:
                 self._encoding = self.engine_params.encoding
-
-            if 'start' in self._engine_params or 'end' in self._engine_params:
-                raise NotImplementedError("TODO")
 
         return self._engine_params
 
@@ -66,7 +60,10 @@ class JsonConnector(DataConnector):
 
         @param engine_url: (str)
         @return: (Pinnate) with .file_path
-                                and optional: .encoding
+                                and optional:
+                                    .encoding
+                                    .indent - integer number of spaces for pretty printing.
+                                            only used in write mode.
         """
         path_plus = engine_url.split(self.engine_type)[1].split(';')
         file_path = path_plus[0]
@@ -74,10 +71,13 @@ class JsonConnector(DataConnector):
         if len(path_plus) > 1:
             for arg in path_plus[1:]:
                 k, v = arg.split("=", 1)
-                if k not in ['encoding']:
+                if k not in ['encoding', 'indent']:
                     raise ValueError(f"Unknown option in JSON: {k}")
                 else:
-                    d[k] = v
+                    if k == 'indent':
+                        d[k] = int(v)
+                    else:
+                        d[k] = v
 
         return Pinnate(d)
 
@@ -95,14 +95,17 @@ class JsonConnector(DataConnector):
         if self._doc is None:
             file_path = self.engine_url.split(self.engine_type)[1]
 
-            if self.access == AccessMode.READ:
+            if self.access in [AccessMode.READ, AccessMode.READWRITE]:
 
-                if not os.path.isfile(file_path) or not os.access(file_path, os.R_OK):
-                    raise ValueError(f"File '{file_path}' not readable")
+                if not (os.path.isfile(file_path) and os.access(file_path, os.R_OK)):
 
-                with open(self.engine_params.file_path, 'r', encoding=self.encoding) as f:
-                    as_native = json.load(f)
-                    self._doc = Pinnate(as_native)
+                    if self.access == AccessMode.READ:
+                        raise ValueError(f"File '{file_path}' not readable")
+
+                    else:
+                        with open(self.engine_params.file_path, 'r', encoding=self.encoding) as f:
+                            as_native = json.load(f)
+                            self._doc = Pinnate(as_native)
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -126,13 +129,17 @@ class JsonConnector(DataConnector):
 
         @param new_data: (mixed, see description)
         """
-        if self.access != AccessMode.WRITE:
+        if self.access not in [AccessMode.WRITE, AccessMode.READWRITE]:
             raise ValueError("Write attempted on dataset opened in READ mode.")
 
+        json_args = {}
+        if 'indent' in self.engine_params:
+            json_args['indent'] = self.engine_params['indent']
+
         if isinstance(new_data, Pinnate):
-            as_json = json.dumps(new_data.as_dict())
+            as_json = json.dumps(new_data.as_dict(), **json_args)
         else:
-            as_json = json.dumps(new_data)
+            as_json = json.dumps(new_data, **json_args)
 
         # Data is written to disk immediately. The file handle isn't left open.
         # @see :method:`connect`.

@@ -31,21 +31,32 @@ class Model:
         """
         Run the model.
 
+        The steps to run a model are
+        1. :method:`pre_build_check` - Optional conditional check if model's pre-conditions have
+           been met.
+        2. :method:`build` - The main modelling stage
+        3. :method:`post_build_check` - Optional check if the outputs are valid. e.g. a data
+           validation check that is simple and concise. It's like a unit test but on changable
+           data.
+
+        Datasets are closed after each stage. This ensures the connections don't have a state, for
+        example a position within a file.
+
         @return: boolean for success
         """
         self.start_build_time = time()
         if not self.pre_build_check():
             self.log("Pre-build check failed", "ERROR")
+            self.close_datasets()
             return False
 
         self.build()
+        self.close_datasets()
 
         if not self.post_build_check():
             self.log("Post-build check failed", "ERROR")
+            self.close_datasets()
             return False
-
-        for connection in self.datasets().values():
-            connection.close_connection()
 
         return True
 
@@ -62,7 +73,7 @@ class Model:
         return True
 
     def build(self):
-        raise NotImplementedError()
+        raise NotImplementedError("All models must implement this method")
 
     def post_build_check(self):
         """
@@ -87,6 +98,13 @@ class Model:
                 connections[obj_name] = obj
 
         return connections
+
+    def close_datasets(self):
+        """
+        Call :method:`close_connection` on all datasets.
+        """
+        for connection in self.datasets().values():
+            connection.close_connection()
 
     def set_logger(self, logger):
         """
