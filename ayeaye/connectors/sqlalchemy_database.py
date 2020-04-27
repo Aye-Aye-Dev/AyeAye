@@ -44,16 +44,16 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         e.g. sqlite:////data/sensors.db  for SQLite DB stored in '/data/sensors.db'
         """
         super().__init__(*args, **kwargs)
-        
+
         # on demand see :method:`connect`
         # the engine, declarative base class and sessions belong to this connection. Sharing these
         # between connections within a single model is not yet implemented.
-        self.Base = None # the declarative base
+        self.Base = None  # the declarative base
         self.session = None
         self.engine = None
-        
+
         # self.schema_builder is built by init from the optional args
-        self._schema_p = None # see :method:`connect`
+        self._schema_p = None  # see :method:`connect`
 
     def connect(self):
 
@@ -75,13 +75,19 @@ class SqlAlchemyDatabaseConnector(DataConnector):
             # session.rollback()
             self.session = DBSession()
 
-            # initialise schema            
-            schema_classes = self.schema_builder(self.Base) if self.schema_builder is not None else []
+            # initialise schema
+            schema_classes = self.schema_builder(self.Base) \
+                if self.schema_builder is not None else []
+
             if isinstance(schema_classes, list):
                 as_dict = {c.__name__: c for c in schema_classes}
                 self._schema_p = Pinnate(as_dict)
             else:
-                self._schema_p = schema_classes # single class
+                self._schema_p = schema_classes  # single class
+
+    def close_connection(self):
+        if self.session is not None:
+            self.session.close()
 
     def create_table_schema(self):
         """
@@ -153,5 +159,8 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         """
         Send pending data changes to the database.
         """
+        # only actually needed if no items were added. otherwise the session is already there.
+        self.connect()
+
         # TODO auto commit
         self.session.commit()

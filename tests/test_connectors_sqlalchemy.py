@@ -3,6 +3,10 @@ Created on 22 Jan 2020
 
 @author: si
 '''
+import os
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 from sqlalchemy import Column, Integer, String
@@ -25,6 +29,7 @@ def fruit_schemas(declarative_base):
 
     return [Pear, Bananna]
 
+
 def people_schema(declarative_base):
     class Person(declarative_base):
         __tablename__ = 'person'
@@ -32,7 +37,19 @@ def people_schema(declarative_base):
         surname = Column(String(250), nullable=False)
     return Person
 
+
 class TestSqlAlchemyConnector(unittest.TestCase):
+
+    def setUp(self):
+        self._working_directory = None
+
+    def tearDown(self):
+        if self._working_directory and os.path.isdir(self._working_directory):
+            shutil.rmtree(self._working_directory)
+
+    def working_directory(self):
+        self._working_directory = tempfile.mkdtemp()
+        return self._working_directory
 
     def test_schema_access_multiple(self):
         """
@@ -43,7 +60,7 @@ class TestSqlAlchemyConnector(unittest.TestCase):
                                         )
         # method resolution order
         super_classes = [cc.__name__ for cc in c.schema.Pear.mro()]
-        expected = ['Pear', 'Base', 'object'] # class above, declarative base, py obj
+        expected = ['Pear', 'Base', 'object']  # class above, declarative base, py obj
         self.assertEqual(expected, super_classes)
 
     def test_schema_access_single(self):
@@ -55,7 +72,7 @@ class TestSqlAlchemyConnector(unittest.TestCase):
                                         )
         # method resolution order
         super_classes = [cc.__name__ for cc in c.schema.mro()]
-        expected = ['Person', 'Base', 'object'] # class above, declarative base, py obj
+        expected = ['Person', 'Base', 'object']  # class above, declarative base, py obj
         self.assertEqual(expected, super_classes)
 
     def test_create_db_schema(self):
@@ -116,6 +133,29 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         c.commit()
 
         # read back mixed types with primary key values belonging to each table (i.e. both are 1)
-        mixed_records = [r.__tablename__+str(r.id) for r in c]
+        mixed_records = [r.__tablename__ + str(r.id) for r in c]
         expected = "pear1 bananna1"
         self.assertEqual(expected, " ".join(mixed_records))
+
+    def test_on_disk(self):
+        """
+        All the other tests are in memory. Ensure to disk works.
+
+        This test is also being created because windows is refusing to delete open files so
+        confirmation that close_connection() is working was experimented with using lsof under
+        OSX. But the file handle isn't left open so can't be part of this test.
+        """
+        db_file = "{}/fruit.db".format(self.working_directory())
+        c = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
+                                        schema_builder=fruit_schemas,
+                                        access=ayeaye.AccessMode.READWRITE
+                                        )
+        c.connect()
+        c.create_table_schema()
+
+        c.add(c.schema.Pear(variety="Comice"))
+        c.commit()
+
+        c.close_connection()
+
+        self.assertTrue(os.access(db_file, os.R_OK))
