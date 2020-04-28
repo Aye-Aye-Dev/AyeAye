@@ -136,7 +136,9 @@ class CsvConnector(DataConnector):
         self.connect()
         for raw in self.csv:
             # OSError: telling position disabled by next() call so this for now
-            self.approx_position += len(self.delimiter.join(raw.values()))
+            # str(x) will slightly over count 'None'. None is given by DictReader when
+            # trailing commas are omitted for optional fields at end of row.
+            self.approx_position += len(self.delimiter.join([str(x) for x in raw.values()]))
             yield Pinnate(data=raw)
 
     @property

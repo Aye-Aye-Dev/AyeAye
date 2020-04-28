@@ -1,4 +1,3 @@
-import json
 import os
 import tarfile
 import tempfile
@@ -16,6 +15,7 @@ EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv
 EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
 EXAMPLE_JSON_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'london_weather.json')
+EXAMPLE_CSV_BROKEN_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_missing_values.csv')
 
 
 class TestConnectors(unittest.TestCase):
@@ -180,3 +180,13 @@ class TestConnectors(unittest.TestCase):
         for unacceptable_data in bad_examples:
             with self.assertRaises(TypeError):
                 c.data = unacceptable_data
+
+    def test_csv_missing_values(self):
+        """
+        Approx position in file not working when None values are in the CSV.
+        """
+        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_BROKEN_PATH)
+        current_position = 0
+        for _ in c:
+            self.assertTrue(c.progress > current_position)
+            current_position = c.progress
