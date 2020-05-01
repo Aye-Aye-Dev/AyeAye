@@ -33,7 +33,9 @@ class DataConnector(ABC):
         self._unresolved_engine_url = engine_url
         self._fully_resolved_engine_url = None
 
-        self._connect_instance = None  # set when :class:`ayeaye.Connect` builds subclass instances
+        # set when :class:`ayeaye.Connect` builds subclass instances
+        self._connect_instance = None  # instance of :class:`ayeaye.Connect`
+        self._parent_model = None  # instance of :class:`ayeaye.Model`
 
         if isinstance(self._unresolved_engine_url, str):
             engine_type = [self.engine_type] if isinstance(self.engine_type, str) \
@@ -76,21 +78,28 @@ class DataConnector(ABC):
     def engine_url_public(self):
         raise NotImplementedError("TODO")
 
-    def __call__(self, **kwargs):
+    def update(self, **kwargs):
         """
         Rebuild this (subclass of) DataConnector. It can only be used if self was built by
-        :class:`ayeaye.Connect` because Connect determines the subclass based on engine type.
+        :class:`ayeaye.Connect` because Connect determines the subclass based on the engine type.
         If the call used the same engine_type as `self` then this wouldn't be needed.
+
+        The instance of :class:`Connect` that `self` is referencing is updated with `kwargs`. The
+        current prepared DataConnect subclass (i.e. self) that was assigned to the parent model is
+        thrown away because the new args probably alter how the dataset is connected to. It will
+        re-initialise on demand.
+
+        @param kwargs: anything you'd pass to :class:`Connect`
+        @return: None
         """
         if self._connect_instance is None:
-            raise ValueError("Connect instance not referenced. See :method:`__call__ for more")
+            raise ValueError("Connect instance not referenced. See :method:`update` for more")
 
-        self._connect_instance._construct(**kwargs)
-        if self._connect_instance._parent_model is not None:
-            parent_model = self._connect_instance._parent_model
-            ident = id(self._connect_instance)
+        self._connect_instance.update(**kwargs)
+        ident = id(self._connect_instance)
+        if self._parent_model is not None:
             # remove old Connector, it will be re-built on access
-            del parent_model._connections[ident]
+            del self._parent_model._connections[ident]
 
     @abstractmethod
     def connect(self):

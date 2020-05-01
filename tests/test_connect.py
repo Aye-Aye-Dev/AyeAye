@@ -12,9 +12,7 @@ EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv
 EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 
 
-class FakeModel:
-    insects = Connect(engine_url="fake://bugsDB")
-
+class AbstractFakeModel:
     def __init__(self):
         self._connections = {}
 
@@ -29,7 +27,7 @@ class TestConnect(unittest.TestCase):
         # happy path
         # it works without Connect being part of a ayeaye.Model
         c = Connect(engine_url="fake://MyDataset")
-        assert c.data[0] == {'fake': 'data'}
+        self.assertEqual({'fake': 'data'}, c.data[0])
 
     def test_connect_spare_kwargs(self):
         """
@@ -50,22 +48,15 @@ class TestConnect(unittest.TestCase):
         When used as a class variable in an instantiated class, Connect() will store information
         about the dataset within the parent (i.e. Model) class.
         """
+        class FakeModel(AbstractFakeModel):
+            insects = Connect(engine_url="fake://bugsDB")
+
         e0 = FakeModel()
-        assert len(e0._connections) == 0
+        self.assertEqual(0, len(e0._connections))
 
         # connect on demand/access
-        assert e0.insects is not None
-        assert len(e0._connections) == 1
-
-    def test_connect_within_class(self):
-        """
-        Connect used as a class variable. On access it returns a new instance that is separated,
-        i.e. not the same object as, the original.
-        """
-        copy_0 = FakeModel.insects
-        copy_1 = FakeModel.insects
-
-        assert id(copy_0) != id(copy_1)
+        self.assertIsNotNone(e0.insects)
+        self.assertEqual(1, len(e0._connections))
 
     def test_custom_kwargs_are_passed(self):
         """
@@ -75,16 +66,19 @@ class TestConnect(unittest.TestCase):
         engine_url = 'bigquery://projectId=my_project;datasetId=nice_food;tableId=cakes;'
         c = Connect(engine_url=engine_url, credentials="hello_world")
         # on demand connection
-        assert c.data is not None
-        assert c._local_dataset.credentials == "hello_world"
+        self.assertIsNotNone(c.data)
+        self.assertEqual("hello_world", c._standalone_data_connection.credentials)
 
     def test_overlay_args(self):
         """
         Make an access=AccessMode.READ connection in a model into access=AccessMode.WRITE.
         The engine_url stays the same.
         """
+        class FakeModel(AbstractFakeModel):
+            insects = Connect(engine_url="fake://bugsDB")
+
         class FakeModelWrite:
-            insects = FakeModel.insects(access=AccessMode.WRITE)
+            insects = FakeModel.insects.clone(access=AccessMode.WRITE)
 
             def __init__(self):
                 self._connections = {}
@@ -94,6 +88,9 @@ class TestConnect(unittest.TestCase):
         self.assertEqual(AccessMode.WRITE, f.insects.access)
 
     def test_replace_existing_connect(self):
+
+        class FakeModel(AbstractFakeModel):
+            insects = Connect(engine_url="fake://bugsDB")
 
         m = FakeModel()
         with self.assertRaises(ValueError) as context:
@@ -111,19 +108,21 @@ class TestConnect(unittest.TestCase):
         Take a connection from a model, make a small tweak and set it back into the model.
         Note is isn't a class tweak (that is tested elsewhere), it's on instances.
         """
+        class FakeModel(AbstractFakeModel):
+            insects = Connect(engine_url="fake://bugsDB")
+
         m = FakeModel()
         self.assertTrue(AccessMode.READ == m.insects.access, "Expected starting state not found")
 
-        connect = m.insects.connect_instance
         connect_refs = [k for k in m._connections.keys()]
 
         # change something, this could have been more dramatic, the engine type for example
-        connect(access=AccessMode.WRITE)
+        # Assigning this back to insects will re-prepare the connection
+        c = m.insects.connect_instance
+        c.update(access=AccessMode.WRITE)
+        m.insects = c
 
-        # this set will re-prepare the connection
-        m.insects = connect
-
-        self.assertTrue(AccessMode.WRITE == m.insects.access, "Change to connection went missing")
+        self.assertEqual(AccessMode.WRITE, m.insects.access, "Change to connection went missing")
         connect_refs_now = [k for k in m._connections.keys()]
         self.assertEqual(connect_refs, connect_refs_now, "Connect instances shouldn't change")
 
@@ -131,10 +130,13 @@ class TestConnect(unittest.TestCase):
         """
         A change to the `Connect` propagates to build a new DataConnector with a different type.
         """
+        class FakeModel(AbstractFakeModel):
+            insects = Connect(engine_url="fake://bugsDB")
+
         m = FakeModel()
         self.assertIsInstance(m.insects, FakeDataConnector)
 
-        m.insects(engine_url="mysql://")
+        m.insects.update(engine_url="mysql://")
         self.assertIsInstance(m.insects, SqlAlchemyDatabaseConnector)
 
     def test_compile_time_multiple_engine_urls(self):
@@ -171,7 +173,7 @@ class TestConnect(unittest.TestCase):
         Check the descriptors are treating children of MultiConnector the same as
         the other DataConnector subclasses.
         """
-        class AnimalsModel(FakeModel):
+        class AnimalsModel(AbstractFakeModel):
             animals = Connect(engine_url=["tsv://" + EXAMPLE_TSV_PATH, "csv://" + EXAMPLE_CSV_PATH])
 
         m = AnimalsModel()
@@ -202,7 +204,7 @@ class TestConnect(unittest.TestCase):
         this shouldn't be passed to other instances.
         Bug found in other project.
         """
-        class AnimalsModel(FakeModel):
+        class AnimalsModel(AbstractFakeModel):
             animals = Connect(engine_url=[])
 
         m1 = AnimalsModel()
@@ -210,3 +212,51 @@ class TestConnect(unittest.TestCase):
 
         m2 = AnimalsModel()
         self.assertEqual([], m2.animals.engine_url)
+
+    def test_steal_model_connect(self):
+        """
+        Take a Connect from a model'sclass variables and use it as a standalone Connect.
+        """
+        class AnimalsModel(AbstractFakeModel):
+            animals = Connect(engine_url="csv://" + EXAMPLE_CSV_PATH)
+
+        animals = AnimalsModel.animals
+        self.assertEqual('ConnectBind.NEW', str(animals.connection_bind))
+
+        all_the_animals = [animal.common_name for animal in animals]
+
+        expected = ['Crown of thorns starfish', 'Golden dart frog']
+        self.assertEqual(expected, all_the_animals)
+
+        self.assertEqual('ConnectBind.STANDALONE', str(animals.connection_bind))
+
+    def test_standalone_in_non_model_instance(self):
+        """
+        Make changes to a Connect that doesn't belong to an ayeaye.Model.
+        Also see :method:`TestModels.test_double_usage` for how this behaves with an ayeaye.Model. 
+        """
+        class NonModelClass:
+            "doesn't have self._connections"
+
+            def __init__(self):
+                # the instance of Connect is just a variable, it's not an attribute so it's descriptor
+                # methods aren't called.
+                self.animals = Connect(engine_url="csv://" + EXAMPLE_CSV_PATH)
+
+            def go(self):
+                all_the_animals = [animal.common_name for animal in self.animals]
+                return all_the_animals
+
+        nmc = NonModelClass()
+        self.assertEqual(['Crown of thorns starfish', 'Golden dart frog'], nmc.go())
+
+        nmc.animals.update(engine_url="tsv://" + EXAMPLE_TSV_PATH)
+        expected_values = ["Goeldi's marmoset", 'Common squirrel monkey', 'Crab-eating macaque']
+        self.assertEqual(expected_values, nmc.go())
+
+    def test_standalone_as_proxy(self):
+        """
+        Access an attribute of the subclass that doesn't belong to the DataConnector abstract class.
+        """
+        animals = Connect(engine_url="csv://" + EXAMPLE_CSV_PATH + ";encoding=magic_encoding")
+        self.assertEqual("magic_encoding", animals.encoding)

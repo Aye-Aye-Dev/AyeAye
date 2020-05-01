@@ -1,31 +1,61 @@
 import copy
+from enum import Enum
 
 from ayeaye.connectors import connector_factory
 from ayeaye.connectors.multi_connector import MultiConnector
+from ayeaye.connectors.placeholder import PlaceholderDataConnector
 
 
 class Connect:
     """
-    Connect to a dataset. A dataset contains :method:`data` and a :method:`schema` describing
-    the data. An `engine_url` describes how to connect to the source of data.
+    Connect to a dataset.
 
-    This as a descriptor. See https://docs.python.org/3/howto/descriptor.html
+    A dataset is a grouping of related data. What makes data 'related' will be down to the
+    subject-domain. Datasets have a type - it could be a JSON document, a CSV file or a database.
 
-    Secrets management isn't yet implemented.
+    The main responsibility of :class:`Connect` is to provide a concrete subclass of
+    :class:`DataConnector` which in turn provides access to operations on that dataset type.
+    e.g. read, write etc.
+
+    :class:`Connect` can be used standalone (see below) but is really designed to be used as a
+    class variable in an :class:`ayeaye.Model`:
+
+    ```
+        class FavouriteColours(ayeaye.Model):
+            favourite_colours = ayeaye.Connect(engine_url='csv://data/favourite_colours.csv')
+    ```
+
+    An instance of :class:`Connect` as a class variable in an :class:`ayeaye.Model` is a
+    declaration of a model's use of a dataset. In Python, class variables shouldn't be used as
+    'dynamic' instance variables so :class:`Connect` is a descriptor
+    (https://docs.python.org/3/howto/descriptor.html) and the instantiation of the underlying
+    connection (concrete subclass of :class:`DataConnector`) is evaluated on demand.
+
+    It is also possible to use :class:`Connect` in *standalone* mode. This is as a convenience, in
+    particular for evaluating datasets, for example in a Jupyter notepad:
+    ```
+    for row in ayeaye.Connect(engine_url='csv://data/favourite_colours.csv'):
+      print(row.colour)
+    ```
+
+    For secrets management @see :class:`ConnectorResolver`.
     """
+    class ConnectBind(Enum):
+        MODEL = "MODEL"
+        STANDALONE = "STANDALONE"
+        NEW = "NEW"
 
     def __init__(self, **kwargs):
         """
         typical kwargs are 'ref', 'engine_url', 'access' TODO
         """
-        self._parent_model = None
         self.base_constructor_kwargs = copy.copy(kwargs)
         self._construct(**kwargs)
 
     def _construct(self, **kwargs):
         """
         setup -- can be called either on true construction or when variables are overlaid on a
-        (possibily cloned) instance of :class:`Connect`.
+        (possibly cloned) instance of :class:`Connect`.
         """
         # :class:`Connect` is responsible for resolving 'ref' into an engine_url via a
         # data catalogue. So 'ref' isn't passed to data type specific connectors (i.e.
@@ -34,29 +64,58 @@ class Connect:
         # these are passed to the data type specific connectors
         self.relayed_kwargs = {**self.base_constructor_kwargs, **kwargs}
         self.ref = self.relayed_kwargs.pop('ref', None)
-        self._local_dataset = None  # see :method:`data`
+        self._standalone_data_connection = None  # see :method:`data`
+        self._parent_model = None
 
-    def __call__(self, **kwargs):
+    def update(self, **kwargs):
         """
         Overlay (and overwrite) kwarg on existing instance.
-        Factory style, returns self.
+        @returns None
         """
+        # reminder to me: I've gone in circles here on returning a copy (factory style) and it's
+        # not a good idea
         self._construct(**kwargs)
-        return self
+
+    def clone(self, **kwargs):
+        """
+        Overlay (and overwrite) kwarg onto a copy of the existing instance.
+
+        This is typically used when :class:`Connect` objects are being used as class variables to
+        refer to the same dataset multiple times in a single model.
+
+        @see :method:`TestModels.test_double_usage`
+
+        @return (instance of :class:`Connect`)
+        """
+        new_instance = copy.copy(self)
+        new_instance._construct(**kwargs)
+        return new_instance
 
     def __copy__(self):
         return self.__class__(**self.base_constructor_kwargs)
 
     def __get__(self, instance, instance_class):
         if instance is None:
-            # class method called
-            # duplicate instance
-            return copy.copy(self)
+            # class method called.
+            # This means `self` is currently an attribute of the class (so NOT an instance
+            # variable).
+            #
+            # Class variables are kind of like constants because they are shared between multiple
+            # instances of the class and you shouldn't mutate them so just return self.
+            return self
 
-        self._parent_model = instance
+        if self.connection_bind == Connect.ConnectBind.STANDALONE:
+            raise ValueError("Attempt to connect as a model when already initiated as standalone")
+
         ident = id(self)
         if ident not in instance._connections:
+
             instance._connections[ident] = self._prepare_connection()
+
+            # a Connect belongs to zero or one ayeaye.Model. Link in both directions.
+            instance._connections[ident]._parent_model = instance
+            self._parent_model = instance
+
         return instance._connections[ident]
 
     def __set__(self, instance, new_connection):
@@ -75,25 +134,33 @@ class Connect:
     def _prepare_connection(self):
         """
         Resolve everything apart from secrets needed to access the engine behind this dataset.
+
+        @return: (instance subclass of :class:`DataConnector`) or (None) when resolve not yet
+            possible.
         """
-        if self.relayed_kwargs['engine_url'] is None:
+        if self.ref is not None:
             raise NotImplementedError(("Sorry! Dataset discovery (looking up engine_url from ref) "
                                        "hasn't been written yet."
                                        ))
 
-        if callable(self.relayed_kwargs['engine_url']):
-            engine_url = self.relayed_kwargs['engine_url']()
-            # make the resolved engine_url available to the final connector
-            self.relayed_kwargs['engine_url'] = engine_url
-        else:
-            engine_url = self.relayed_kwargs['engine_url']
+        if 'engine_url' not in self.relayed_kwargs or self.relayed_kwargs['engine_url'] is None:
+            connector_cls = PlaceholderDataConnector
 
-        if isinstance(engine_url, list):
-            # compile time list of engine_url strings
-            # might be callable or a dict or set in the future
-            connector_cls = MultiConnector
         else:
-            connector_cls = connector_factory(engine_url)
+
+            if callable(self.relayed_kwargs['engine_url']):
+                engine_url = self.relayed_kwargs['engine_url']()
+                # make the resolved engine_url available to the final connector
+                self.relayed_kwargs['engine_url'] = engine_url
+            else:
+                engine_url = self.relayed_kwargs['engine_url']
+
+            if isinstance(engine_url, list):
+                # compile time list of engine_url strings
+                # might be callable or a dict or set in the future
+                connector_cls = MultiConnector
+            else:
+                connector_cls = connector_factory(engine_url)
 
         detached_args = copy.deepcopy(self.relayed_kwargs)
         connector = connector_cls(**detached_args)
@@ -102,23 +169,55 @@ class Connect:
         return connector
 
     @property
-    def data(self):
+    def connection_bind(self):
         """
-        The data within the dataset the connection is to. It's structure could be described
-        by :method:`schema`. This property is used when Connect() is used outside of an ETL
-        model.
-        """
-        if self._local_dataset is None:
-            self._local_dataset = self._prepare_connection()
-        return self._local_dataset.data
+        Raises a ValueError if an indeterminate state is found.
 
-    @property
-    def schema(self):
+        @return: (ConnectBind)
+
+        @see class's docstring.
+
+        An instance of :class:`Connect` can be a class variable for an :class:`ayeaye.Model`
+        or
+        Standalone mode
+        or
+        Not yet determined
         """
-        The structure of the data within the dataset the connection is to.
+
+        if self._parent_model is None and self._standalone_data_connection is None:
+            return Connect.ConnectBind.NEW
+
+        if self._standalone_data_connection is not None:
+            return Connect.ConnectBind.STANDALONE
+
+        if self._parent_model is not None:
+            return Connect.ConnectBind.MODEL
+
+        msg = ('Parent already attached and standalone connection is present. This'
+               ' shouldn\'t ever happen. Please let us know how it did!'
+               )
+        raise ValueError(msg)
+
+    def _connect_standalone_dataset(self):
+
+        if self.connection_bind == Connect.ConnectBind.MODEL:
+            raise ValueError("Attempt to connect as standalone when already bound to a model")
+
+        if self.connection_bind == Connect.ConnectBind.NEW:
+            self._standalone_data_connection = self._prepare_connection()
+
+    def __getattr__(self, attr):
         """
-        # TODO fake
-        raise NotImplementedError("TODO")
+        proxy through to subclass of :class:`DataConnector` when used as a standalone Connect
+        (i.e. not a class variable on :class:`ayeaye.Model`).
+        """
+        attrib_error_msg = "'{}' object has no attribute '{}'".format(self.__class__.__name__, attr)
+
+        if self.connection_bind == Connect.ConnectBind.MODEL:
+            raise AttributeError(attrib_error_msg)
+
+        self._connect_standalone_dataset()
+        return getattr(self._standalone_data_connection, attr)
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -134,4 +233,5 @@ class Connect:
         for record in Connect(ref="my_dataset"):
             print(record)
         """
-        yield from self.data
+        self._connect_standalone_dataset()
+        yield from self._standalone_data_connection

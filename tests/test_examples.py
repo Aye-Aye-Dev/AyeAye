@@ -59,7 +59,7 @@ class TestExamples(unittest.TestCase):
         m.log_to_stdout = False
 
         # give the connector a new output file
-        m.favourites_summary(engine_url=f"json://{output_file};indent=4")
+        m.favourites_summary.update(engine_url=f"json://{output_file};indent=4")
         m.build()
         output_encoding = m.favourites_summary.encoding
         m.close_datasets()
@@ -73,14 +73,14 @@ class TestExamples(unittest.TestCase):
 
     def test_favourite_colours_pre_post_checks(self):
         """
-
+        Check .pre_build_check() and .post_build_check()
         """
         output_file = "{}/favourite_colours_summary.json".format(self.working_directory())
         m = FavouriteColours()
         m.log_to_stdout = False
 
         # give the connector a new output file
-        m.favourites_summary(engine_url=f"json://{output_file}")
+        m.favourites_summary.update(engine_url=f"json://{output_file}")
         self.assertTrue(m.go(), "Pre, post and build should work for favourite_colours.csv")
 
         # now run it with bad data.
@@ -90,7 +90,7 @@ class TestExamples(unittest.TestCase):
         m.set_logger(external_log)
 
         m.favourite_colours = ayeaye.Connect(engine_url='csv://data/favourite_colours_bad_data.csv')
-        m.favourites_summary(engine_url=f"json://{output_file}")
+        m.favourites_summary.update(engine_url=f"json://{output_file}")
 
         # There are two issues.
         # (i) multiple years aren't supported, this should be caught by the pre_build_check
