@@ -2,20 +2,23 @@ import copy
 from enum import Enum
 
 from ayeaye.connectors import connector_factory
+from ayeaye.connectors.models_connector import ModelsConnector
 from ayeaye.connectors.multi_connector import MultiConnector
 from ayeaye.connectors.placeholder import PlaceholderDataConnector
 
 
 class Connect:
     """
-    Connect to a dataset.
+    Connect to a dataset or modelset.
 
     A dataset is a grouping of related data. What makes data 'related' will be down to the
     subject-domain. Datasets have a type - it could be a JSON document, a CSV file or a database.
 
+    A modelset is one or more :class:`Model`(s).
+
     The main responsibility of :class:`Connect` is to provide a concrete subclass of
-    :class:`DataConnector` which in turn provides access to operations on that dataset type.
-    e.g. read, write etc.
+    :class:`DataConnector` or :class:`ModelConnector`. :class:`DataConnector` in turn provides
+    access to operations on that dataset type. e.g. read, write etc.
 
     :class:`Connect` can be used standalone (see below) but is really designed to be used as a
     class variable in an :class:`ayeaye.Model`:
@@ -63,8 +66,19 @@ class Connect:
 
         # these are passed to the data type specific connectors
         self.relayed_kwargs = {**self.base_constructor_kwargs, **kwargs}
+
+        # check construction args are valid
+
+        # mutually exclusive args
+        mandatory_args_count = sum([self.relayed_kwargs.get('ref') is not None,
+                                    self.relayed_kwargs.get('engine_url') is not None,
+                                    self.relayed_kwargs.get('models') is not None,
+                                    ])
+        if mandatory_args_count > 1:
+            raise ValueError('The kwargs ref, engine_url and models are mutually exclusive.')
+
         self.ref = self.relayed_kwargs.pop('ref', None)
-        self._standalone_data_connection = None  # see :method:`data`
+        self._standalone_connection = None  # see :method:`data`
         self._parent_model = None
 
     def update(self, **kwargs):
@@ -143,7 +157,10 @@ class Connect:
                                        "hasn't been written yet."
                                        ))
 
-        if 'engine_url' not in self.relayed_kwargs or self.relayed_kwargs['engine_url'] is None:
+        if 'models' in self.relayed_kwargs:
+            connector_cls = ModelsConnector
+
+        elif 'engine_url' not in self.relayed_kwargs or self.relayed_kwargs['engine_url'] is None:
             connector_cls = PlaceholderDataConnector
 
         else:
@@ -164,7 +181,6 @@ class Connect:
 
         detached_args = copy.deepcopy(self.relayed_kwargs)
         connector = connector_cls(**detached_args)
-        connector.uses_dataset_discovery = self.ref is not None
         connector._connect_instance = self
         return connector
 
@@ -184,10 +200,10 @@ class Connect:
         Not yet determined
         """
 
-        if self._parent_model is None and self._standalone_data_connection is None:
+        if self._parent_model is None and self._standalone_connection is None:
             return Connect.ConnectBind.NEW
 
-        if self._standalone_data_connection is not None:
+        if self._standalone_connection is not None:
             return Connect.ConnectBind.STANDALONE
 
         if self._parent_model is not None:
@@ -198,13 +214,13 @@ class Connect:
                )
         raise ValueError(msg)
 
-    def _connect_standalone_dataset(self):
+    def _connect_standalone(self):
 
         if self.connection_bind == Connect.ConnectBind.MODEL:
             raise ValueError("Attempt to connect as standalone when already bound to a model")
 
         if self.connection_bind == Connect.ConnectBind.NEW:
-            self._standalone_data_connection = self._prepare_connection()
+            self._standalone_connection = self._prepare_connection()
 
     def __getattr__(self, attr):
         """
@@ -216,8 +232,8 @@ class Connect:
         if self.connection_bind == Connect.ConnectBind.MODEL:
             raise AttributeError(attrib_error_msg)
 
-        self._connect_standalone_dataset()
-        return getattr(self._standalone_data_connection, attr)
+        self._connect_standalone()
+        return getattr(self._standalone_connection, attr)
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -233,5 +249,5 @@ class Connect:
         for record in Connect(ref="my_dataset"):
             print(record)
         """
-        self._connect_standalone_dataset()
-        yield from self._standalone_data_connection
+        self._connect_standalone()
+        yield from self._standalone_connection

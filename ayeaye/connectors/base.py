@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from enum import Enum
 
 from ayeaye.connect_resolve import connector_resolver
@@ -10,7 +9,28 @@ class AccessMode(Enum):
     READWRITE = 'rw'
 
 
-class DataConnector(ABC):
+class BaseConnector:
+    """
+    Abstract class for factory instances from :class:`Connect`.
+    """
+
+    def __init__(self):
+        # set when :class:`ayeaye.Connect` builds subclass instances
+        self._connect_instance = None  # instance of :class:`ayeaye.Connect`
+        self._parent_model = None  # instance of :class:`ayeaye.Model`
+
+    @property
+    def connect_instance(self):
+        """
+        Instances of subclasses of :class:`DataConnector` and :class:`ModelConnector` are usually
+        built by :class:`ayeaye.Connect`. `connect_instance` is a reference to make it easy to
+        tweak an existing connect on a model. See :method:`TestConnect.test_update_by_replacement`
+        for an example.
+        """
+        return self._connect_instance
+
+
+class DataConnector(BaseConnector):
     engine_type = None  # must be defined by subclasses
     optional_args = {}  # subclasses should specify their optional kwargs. Values in this dict are
     # default values.
@@ -27,15 +47,12 @@ class DataConnector(ABC):
         none are left unprocessed. Any which are specified in optional_args will be set as
         attributes by this super constructor.
         """
+        super().__init__()
         self.access = access
         # engine_urls may need local resolution to find a particular version or to replace
         # placeholders with secrets
         self._unresolved_engine_url = engine_url
         self._fully_resolved_engine_url = None
-
-        # set when :class:`ayeaye.Connect` builds subclass instances
-        self._connect_instance = None  # instance of :class:`ayeaye.Connect`
-        self._parent_model = None  # instance of :class:`ayeaye.Model`
 
         if isinstance(self._unresolved_engine_url, str):
             engine_type = [self.engine_type] if isinstance(self.engine_type, str) \
@@ -49,7 +66,8 @@ class DataConnector(ABC):
 
         # Subclasses should consume any kwargs before this constructor is invoked
         if len(kwargs) > 0:
-            raise ValueError('Unexpected arguments')
+            what_are_these = ", ".join(kwargs.keys())
+            raise ValueError(f'Unexpected arguments: {what_are_these}')
 
     def __del__(self):
         self.close_connection()
@@ -101,7 +119,6 @@ class DataConnector(ABC):
             # remove old Connector, it will be re-built on access
             del self._parent_model._connections[ident]
 
-    @abstractmethod
     def connect(self):
         """
         Open resource handles used to access the dataset. e.g. network or filesystem connection.
@@ -115,11 +132,9 @@ class DataConnector(ABC):
         """
         pass
 
-    @abstractmethod
     def __len__(self):
         raise NotImplementedError("TODO")
 
-    @abstractmethod
     def __getitem__(self, key):
         raise NotImplementedError("TODO")
 
@@ -135,7 +150,6 @@ class DataConnector(ABC):
         return self.data
 
     @property
-    @abstractmethod
     def data(self):
         """
         Return the entire dataset. The returned objects could be lazy evaluated. Use of this method
@@ -154,7 +168,6 @@ class DataConnector(ABC):
         raise NotImplementedError("Not available for all datasets or might need to be written")
 
     @property
-    @abstractmethod
     def schema(self):
         """Return the schema of whatever data source we're interacting with"""
         raise NotImplementedError("TODO")
@@ -174,13 +187,3 @@ class DataConnector(ABC):
         :returns: (float) or None when not available.
         """
         return None
-
-    @property
-    def connect_instance(self):
-        """
-        Instances of subclasses of :class:`DataConnector` are usually built by
-        :class:`ayeaye.Connect`. `connect_instance` is a reference to make it easy to tweak an
-        existing connect on a model. See :method:`TestConnect.test_update_by_replacement` for an
-        example.
-        """
-        return self._connect_instance

@@ -67,7 +67,7 @@ class TestConnect(unittest.TestCase):
         c = Connect(engine_url=engine_url, credentials="hello_world")
         # on demand connection
         self.assertIsNotNone(c.data)
-        self.assertEqual("hello_world", c._standalone_data_connection.credentials)
+        self.assertEqual("hello_world", c._standalone_connection.credentials)
 
     def test_overlay_args(self):
         """
@@ -260,3 +260,15 @@ class TestConnect(unittest.TestCase):
         """
         animals = Connect(engine_url="csv://" + EXAMPLE_CSV_PATH + ";encoding=magic_encoding")
         self.assertEqual("magic_encoding", animals.encoding)
+
+    def test_construction_args(self):
+
+        with self.assertRaises(ValueError, msg="Ref and engine_url are mutually exclusive"):
+            Connect(ref='x', engine_url="tsv://" + EXAMPLE_TSV_PATH)
+
+        model_data_msg = "Ref + engine_url are for DataConnectors and models is for ayeaye.models"
+        with self.assertRaises(ValueError, msg=model_data_msg):
+            Connect(ref='x', models=AbstractFakeModel)
+
+        with self.assertRaises(ValueError, msg=model_data_msg):
+            Connect(engine_url="tsv://" + EXAMPLE_TSV_PATH, models=AbstractFakeModel)
