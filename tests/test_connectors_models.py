@@ -19,7 +19,35 @@ class Three(ayeaye.Model):
     d = ayeaye.Connect(engine_url="csv://d", access=ayeaye.AccessMode.WRITE)
 
 
+class Four(ayeaye.Model):
+    b_copy_paste = ayeaye.Connect(engine_url="csv://b", access=ayeaye.AccessMode.READ)
+    e = ayeaye.Connect(engine_url="csv://e", access=ayeaye.AccessMode.WRITE)
+
+
+class Five(ayeaye.Model):
+    b = One.b.clone(access=ayeaye.AccessMode.READ)
+    f = ayeaye.Connect(engine_url="sqlite:////data/f.db", access=ayeaye.AccessMode.READWRITE)
+
+
+class Six(ayeaye.Model):
+    b = One.b.clone(access=ayeaye.AccessMode.READ)
+    f = Five.f.clone(access=ayeaye.AccessMode.WRITE)
+
+
 class TestModelConnectors(unittest.TestCase):
+
+    @staticmethod
+    def repr_run_order(run_order):
+        """
+        @return: (list of sets) showing a simplified representation of the run_order from
+        :method:`_resolve_run_order` using just the 'model_name' field.
+        """
+        r = []
+        for task_group in run_order:
+            assert isinstance(task_group, set)
+            name_set = set([t.model_name for t in task_group])
+            r.append(name_set)
+        return r
 
     def test_single_standalone_model(self):
         c = ayeaye.Connect(models=One)
@@ -53,7 +81,7 @@ class TestModelConnectors(unittest.TestCase):
             # TODO
             m = ModelsConnector(models=models_choosen_at_runtime)
 
-    def test_resolve_run_order(self):
+    def test_resolve_run_order_linear(self):
         """
         Dataset dependencies used to determine model run order.
         """
@@ -70,14 +98,19 @@ class TestModelConnectors(unittest.TestCase):
 
         msg = "Should be a single linear execution"
         self.assertIsInstance(r.run_order, list, msg)
-        exec_node_names = []
-        for exec_block in r.run_order:
-            self.assertIsInstance(exec_block, set, msg)
-            self.assertEqual(1, len(exec_block), msg)
-            exec_node_names.append(list(exec_block)[0].model_name)
 
-        self.assertEqual(['One', 'Two', 'Three'], exec_node_names, msg)
+        self.assertEqual([{'One'}, {'Two'}, {'Three'}], self.repr_run_order(r.run_order), msg)
+
+    def test_resolve_run_order_one_branch(self):
+        c = ayeaye.Connect(models={One, Two, Four})
+        r = c._resolve_run_order()
+        self.assertEqual([{'One'}, {'Two', 'Four'}], self.repr_run_order(r.run_order))
 
     def test_resolve_run_order_readwrite(self):
-        # TODO
-        pass
+        c = ayeaye.Connect(models={One, Two, Five, Six})
+        r = c._resolve_run_order()
+        msg = ("There is an ambiguity because Six is WRITE and Five is READWRITE to the same "
+               "dataset (f). The write only is happening first. Feels correct but might need "
+               "more thought."
+               )
+        self.assertEqual([{'One'}, {'Two', 'Six'}, {'Five'}], self.repr_run_order(r.run_order), msg)

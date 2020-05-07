@@ -59,6 +59,10 @@ class ModelsConnector(BaseConnector):
                     `nodes` are type :class:`Pinnate` with attributes model_cls, model_name,
                         targets and sources
         """
+        # This algorithm is a bit overly simplistic and sub-optimal. The return is a list of sets
+        # with all models in set needing to be run. But the set is actually the models that were
+        # ready to run when the prior models are complete. So there could be subsequent models that
+        # are only waiting on a subset of each set.
 
         # Find all the datasets in all the model and classify datasets as 'sources' (READ access)
         # and 'targets' (WRITE access) or READWRITE for both.
