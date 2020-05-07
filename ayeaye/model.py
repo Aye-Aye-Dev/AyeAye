@@ -1,6 +1,7 @@
 from datetime import datetime
 from time import time
 
+import ayeaye
 from ayeaye.connectors.base import DataConnector
 
 
@@ -86,11 +87,27 @@ class Model:
         """
         return True
 
+    @classmethod
+    def connects(cls):
+        """
+        :returns (dict) of :class:`Connect` classes declased as class variables for this model.
+                key is class variable name
+                value is :class:`ayeaye.Connect`
+        """
+        # find :class:`ayeaye.Connect` connections to datasets
+        connects = {}
+        for obj_name in dir(cls):
+            obj = getattr(cls, obj_name)
+            if isinstance(obj, ayeaye.Connect):
+                connects[obj_name] = obj
+
+        return connects
+
     def datasets(self):
         """
         :returns (dict) of dataset connections for this model.
                 key is class variable name
-                value is :class:`ayeaye.Connect`
+                value is :class:`ayeaye.DataConnector`
         """
         # find :class:`ayeaye.Connect` connections to datasets
         connections = {}

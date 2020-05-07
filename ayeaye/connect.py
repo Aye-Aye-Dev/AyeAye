@@ -43,6 +43,8 @@ class Connect:
 
     For secrets management @see :class:`ConnectorResolver`.
     """
+    mutually_exclusive_selectors = ['ref', 'engine_url', 'models']
+
     class ConnectBind(Enum):
         MODEL = "MODEL"
         STANDALONE = "STANDALONE"
@@ -70,10 +72,8 @@ class Connect:
         # check construction args are valid
 
         # mutually exclusive args
-        mandatory_args_count = sum([self.relayed_kwargs.get('ref') is not None,
-                                    self.relayed_kwargs.get('engine_url') is not None,
-                                    self.relayed_kwargs.get('models') is not None,
-                                    ])
+        a = [self.relayed_kwargs.get(s) is not None for s in self.mutually_exclusive_selectors]
+        mandatory_args_count = sum(a)
         if mandatory_args_count > 1:
             raise ValueError('The kwargs ref, engine_url and models are mutually exclusive.')
 
@@ -104,6 +104,26 @@ class Connect:
         new_instance = copy.copy(self)
         new_instance._construct(**kwargs)
         return new_instance
+
+    def connect_id(self):
+        """
+        Create an indentity reference which is used when examining if separate Connect instances
+        are actually referring to the same dataset/models.
+
+        @return: (str)
+        """
+        for s in self.mutually_exclusive_selectors:
+            if s in self.relayed_kwargs:
+                return f"{s}:{self.relayed_kwargs[s]}"
+        return "empty:"
+
+    def __hash__(self):
+        return hash(self.connect_id())
+
+    def __eq__(self, other):
+        if type(self) is type(other):
+            return self.connect_id() == other.connect_id()
+        return False
 
     def __copy__(self):
         return self.__class__(**self.base_constructor_kwargs)
