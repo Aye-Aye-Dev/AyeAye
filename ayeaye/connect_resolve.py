@@ -7,8 +7,9 @@ class ConnectorResolver:
 
     >>> from ayeaye.connect_resolve import connector_resolver
 
-    This instance is given `resolver_callable`s at runtime and these are later used at runtime when a
-    DataConnector uses it's .engine_url to substitute parameters within the original engine url.
+    This instance is given `resolver_callable`s at runtime and these are evaluated on demand by
+    subclasses of DataConnector (i.e. connections to datasets) when they access the `engine_url`
+    attribute.
 
     For example, this could be used to resolve a secret:
 
@@ -29,7 +30,11 @@ class ConnectorResolver:
     Example using named attributes-
     >>> import ayeaye
     >>> from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
-    >>> ayeaye.connect_resolve.connector_resolver.add(my_env_resolver)
+    >>> ayeaye.connect_resolve.connector_resolver.add(env_secret_password="supersecret")
+    >>> x = SqlAlchemyDatabaseConnector(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
+    >>> x.engine_url
+    'mysql://root:supersecret@localhost/my_database'
+    >>>
 
     """
 
@@ -57,6 +62,13 @@ class ConnectorResolver:
             if not self.needs_resolution(engine_url):
                 return engine_url
 
+        for k, v in self._attr.items():
+            template_var = f"{{{k}}}"
+            if template_var in engine_url:
+                engine_url = engine_url.replace(template_var, v)
+                if not self.needs_resolution(engine_url):
+                    return engine_url
+
         # warning - don't put the partially resolved engine url into stack trace as it might
         # contain secretes.
         raise ValueError(f"Couldn't fully resolve engine URL. Unresolved: {unresolved_engine_url}")
@@ -67,7 +79,8 @@ class ConnectorResolver:
             to it and must return (str) with anything that can be resolved having been resolved.
             There will be a chain of these resolvers that will be used in turn until there are no
             more parameters that need resolution.
-        @param **kwargs: add named attributes. These could be instances, functions or plain variables.
+        @param **kwargs: add named attributes. The key is the templated variable e.g. "..{key}..."
+            and the value is a variable to substitute into place.
             For an example, see docstring for class.
         """
         for resolver_callable in args:

@@ -1,6 +1,6 @@
 import unittest
 
-from ayeaye.connect_resolve import connector_resolver
+from ayeaye.connect_resolve import ConnectorResolver, connector_resolver
 from ayeaye.connect import Connect
 from ayeaye.connectors.csv_connector import CsvConnector
 from ayeaye.model import Model
@@ -178,3 +178,33 @@ class TestResolve(unittest.TestCase):
         local_context.finish()
 
         self.assertEqual(0, len(connector_resolver.unnamed_callables), msg)
+
+    def test_multiple_unnamed_resolvers(self):
+        """
+        Using ConnectorResolver directly (no as the global/singleton) does chaining unnamed
+        resolvers work?
+        """
+        class IgnoreMissingDict(dict):
+            def __missing__(self, key):
+                return '{' + key + '}'
+
+        def a2x(e):
+            return e.format_map(IgnoreMissingDict(**{'a': 'x'}))
+
+        def b2y(e):
+            return e.format_map(IgnoreMissingDict(**{'b': 'y'}))
+
+        def c2z(e):
+            return e.format_map(IgnoreMissingDict(**{'c': 'z'}))
+
+        cr = ConnectorResolver()
+        cr.add(*[a2x, b2y, c2z])
+        engine_url = cr.resolve_engine_url("{a}{b}{c}")
+        expected_url = "xyz"
+        self.assertEqual(expected_url, engine_url)
+
+    def test_named_variables(self):
+
+        with connector_resolver.context(env_secret_password="supersecret"):
+            x = Connect(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
+            self.assertEqual('mysql://root:supersecret@localhost/my_database', x.engine_url)
