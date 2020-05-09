@@ -198,7 +198,7 @@ class TestResolve(unittest.TestCase):
             return e.format_map(IgnoreMissingDict(**{'c': 'z'}))
 
         cr = ConnectorResolver()
-        cr.add(*[a2x, b2y, c2z])
+        cr.add(a2x, b2y, c2z)
         engine_url = cr.resolve_engine_url("{a}{b}{c}")
         expected_url = "xyz"
         self.assertEqual(expected_url, engine_url)
