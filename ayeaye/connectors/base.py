@@ -1,6 +1,7 @@
 from enum import Enum
 
 from ayeaye.connect_resolve import connector_resolver
+from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
 
 
 class AccessMode(Enum):
@@ -49,15 +50,15 @@ class DataConnector(BaseConnector):
         """
         super().__init__()
         self.access = access
-        # engine_urls may need local resolution to find a particular version or to replace
-        # placeholders with secrets
-        self._unresolved_engine_url = engine_url
-        self._fully_resolved_engine_url = None
 
-        if isinstance(self._unresolved_engine_url, str):
+        # engine_urls may need resolution of templated variables (typically secrets and paths). The
+        # :class:`Ignition` module does this and makes URLs croxx-operating system compatible.
+        self.ignition = Ignition(engine_url)
+
+        if isinstance(engine_url, str):
             engine_type = [self.engine_type] if isinstance(self.engine_type, str) \
                 else self.engine_type
-            if not any([self._unresolved_engine_url.startswith(et) for et in engine_type]):
+            if not any([engine_url.startswith(et) for et in engine_type]):
                 raise ValueError("Engine type mismatch")
 
         # process optional arguments with their defaults
@@ -78,22 +79,20 @@ class DataConnector(BaseConnector):
         A fully resolved engine url contains everything needed to connect to the data source. This
         includes secrets like username and password.
 
-        Don't store the result of this property when locking or similar. @see :method:`engine_url_public` 
+        Don't store the result of this property when locking or similar. @see :method:`engine_url_case`.
 
         @return: (str) the fully resolved engine url.
         """
-        if self._fully_resolved_engine_url is None:
-            if connector_resolver.needs_resolution(self._unresolved_engine_url):
-                # local resolution is still needed
-                resolved = connector_resolver.resolve_engine_url(self._unresolved_engine_url)
-                self._fully_resolved_engine_url = resolved
-            else:
-                self._fully_resolved_engine_url = self._unresolved_engine_url
-
-        return self._fully_resolved_engine_url
+        status, e_url = self.ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+        if status == EngineUrlStatus.OK:
+            return e_url
+        elif status == EngineUrlStatus.NOT_AVAILABLE:
+            raise ValueError("Engine URL not available")
+        else:
+            raise ValueError(f"Engine URL failed to resolve: {status}")
 
     @property
-    def engine_url_public(self):
+    def engine_url_case(self, engine_url_case):
         raise NotImplementedError("TODO")
 
     def update(self, **kwargs):

@@ -47,11 +47,22 @@ class CsvConnector(DataConnector):
 
     @property
     def engine_params(self):
+        """
+        @return: (Pinnate) with .file_path
+                        and optional: .encoding .start and .end
+        """
         if self._engine_params is None:
-            self._engine_params = self._decode_engine_url(self.engine_url)
+            self._engine_params = self.ignition._decode_filesystem_engine_url(
+                self.engine_url,
+                optional_args=['encoding', 'start', 'end']
+            )
 
             if 'encoding' in self._engine_params:
                 self._encoding = self.engine_params.encoding
+
+            for typed_param in ['start', 'end']:
+                if typed_param in self.engine_params:
+                    self.engine_params[typed_param] = int(self.engine_params[typed_param])
 
             if 'start' in self._engine_params or 'end' in self._engine_params:
                 raise NotImplementedError("TODO")
@@ -102,29 +113,6 @@ class CsvConnector(DataConnector):
 
             else:
                 raise ValueError('Unknown access mode')
-
-    def _decode_engine_url(self, engine_url):
-        """
-        Raises value error if there is anything odd in the URL.
-
-        @param engine_url: (str)
-        @return: (Pinnate) with .file_path
-                                and optional: .encoding .start and .end
-        """
-        path_plus = engine_url.split(self.engine_type)[1].split(';')
-        file_path = path_plus[0]
-        d = {'file_path': file_path}
-        if len(path_plus) > 1:
-            for arg in path_plus[1:]:
-                k, v = arg.split("=", 1)
-                if k not in ['encoding', 'start', 'end']:
-                    raise ValueError(f"Unknown option in CSV: {k}")
-                if k in ['start', 'end']:
-                    d[k] = int(v)
-                else:
-                    d[k] = v
-
-        return Pinnate(d)
 
     def __len__(self):
         raise NotImplementedError("TODO")

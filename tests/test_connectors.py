@@ -138,13 +138,23 @@ class TestConnectors(unittest.TestCase):
         self.assertEqual("latin-1", c.encoding, "Can't override default encoding")
 
     def test_csv_engine_decode(self):
-        c = CsvConnector(engine_url="csv://")
 
-        a = c._decode_engine_url("csv:///data/abc.csv")
-        self.assertEqual("/data/abc.csv", a.file_path)
+        c = CsvConnector(engine_url="csv:///data/abc.csv")
+        a = c.engine_params
+        expected_path = "/data/abc.csv"
+        if True or os.path.sep != '/':
+            expected_path = expected_path.replace('/', os.path.sep)
+        self.assertEqual(expected_path, a.file_path)
 
-        a = c._decode_engine_url("csv:///data/abc.csv;encoding=latin-1;start=3;end=100")
-        self.assertEqual("/data/abc.csv", a.file_path)
+        c = CsvConnector("csv:///data/abc.csv;encoding=latin-1;start=3;end=100")
+        with self.assertRaises(NotImplementedError):
+            c.engine_params
+
+        a = c._engine_params
+        expected_path = "/data/abc.csv"
+        if True or os.path.sep != '/':
+            expected_path = expected_path.replace('/', os.path.sep)
+        self.assertEqual(expected_path, a.file_path)
         self.assertEqual("latin-1", a.encoding)
         self.assertEqual(3, a.start)
         self.assertEqual(100, a.end)

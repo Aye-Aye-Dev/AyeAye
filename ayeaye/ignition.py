@@ -1,4 +1,8 @@
 from enum import Enum
+import os.path
+
+from ayeaye.connect_resolve import connector_resolver
+from ayeaye.pinnate import Pinnate
 
 
 class EngineUrlCase(Enum):
@@ -21,7 +25,9 @@ class Ignition:
     - resolving variables at runtime
     - translating path separators so engine_urls are independent of the operating system.
 
-    'engine_urls' are the connection strings used by all subclasses of :class:`DataConnector`. 
+    'engine_urls' are the connection strings used by all subclasses of :class:`DataConnector`.
+
+    This class is only used internally by subclasses of :class:`DataConnector`.
     """
 
     def __init__(self, engine_url):
@@ -37,9 +43,71 @@ class Ignition:
         """
         Get the engine_url in a specific case. e.g. raw, without secrets or fully resolved.
 
+        @raise ValueError: from connector_resolver
         @param engine_url_case: (EngineUrlCase)
-        @return: (EngineUrlStatus, str)
+        @return: (EngineUrlStatus, str or None)
         """
         assert isinstance(engine_url_case, EngineUrlCase)
+
+        if engine_url_case == EngineUrlCase.WITHOUT_SECRETS:
+            raise NotImplementedError("TODO")
+
+        if engine_url_case not in self._engine_url_state:
+            raw_e_url = self._engine_url_state[EngineUrlCase.RAW]
+            if connector_resolver.needs_resolution(raw_e_url):
+                # local resolution is still needed
+                resolved = connector_resolver.resolve_engine_url(raw_e_url)
+                self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = resolved
+            else:
+                # nothing to resolve so fully_resolved = raw
+                self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = \
+                    self._engine_url_state[EngineUrlCase.RAW]
+
         if engine_url_case in self._engine_url_state:
             return EngineUrlStatus.OK, self._engine_url_state[engine_url_case]
+
+        return EngineUrlStatus.NOT_AVAILABLE, None
+
+    @staticmethod
+    def _decode_filesystem_engine_url(engine_url, required_args=None, optional_args=None):
+        """
+        For connectors that access files on a local filesystem break the URL into useful parts.
+
+        URL format is
+        engine_type://filesystem_path[;arg_0=argv_0[;...]]
+
+        Raises value error if there is anything odd in the URL.
+
+        @param engine_url: (str)
+        @param required_args (list of str)
+        @param optional_args (list of str)
+        @return: (Pinnate) with .file_path and .engine_type
+                                and optional and required args
+        """
+        if optional_args is None:
+            optional_args = []
+
+        if required_args is None:
+            required_args = []
+
+        all_args = optional_args + required_args
+
+        # TODO cls.engine_type could be a list. It's normally a string.
+        engine_type, remaining_url = engine_url.split("://", 1)
+        path_plus = remaining_url.split(';')
+        file_path = path_plus[0]
+        d = {'file_path': file_path,
+             'engine_type': engine_type,
+             }
+        if len(path_plus) > 1:
+            for arg in path_plus[1:]:
+                k, v = arg.split("=", 1)
+                if k not in all_args:
+                    raise ValueError(f"Unknown option: {k}")
+                d[k] = v
+
+        if os.path.sep != '/':
+            # urrgh, Windoze
+            d['file_path'] = d['file_path'].replace('/', os.path.sep)
+
+        return Pinnate(d)

@@ -37,10 +37,17 @@ class JsonConnector(DataConnector):
     @property
     def engine_params(self):
         if self._engine_params is None:
-            self._engine_params = self._decode_engine_url(self.engine_url)
+            self._engine_params = self.ignition._decode_filesystem_engine_url(
+                self.engine_url,
+                optional_args=['encoding', 'indent']
+            )
 
             if 'encoding' in self._engine_params:
                 self._encoding = self.engine_params.encoding
+
+            for typed_param in ['indent']:
+                if typed_param in self.engine_params:
+                    self.engine_params[typed_param] = int(self.engine_params[typed_param])
 
         return self._engine_params
 
@@ -53,33 +60,6 @@ class JsonConnector(DataConnector):
             ep = self.engine_params
             self._encoding = ep.encoding if 'encoding' in ep else 'utf-8-sig'
         return self._encoding
-
-    def _decode_engine_url(self, engine_url):
-        """
-        Raises value error if there is anything odd in the URL.
-
-        @param engine_url: (str)
-        @return: (Pinnate) with .file_path
-                                and optional:
-                                    .encoding
-                                    .indent - integer number of spaces for pretty printing.
-                                            only used in write mode.
-        """
-        path_plus = engine_url.split(self.engine_type)[1].split(';')
-        file_path = path_plus[0]
-        d = {'file_path': file_path}
-        if len(path_plus) > 1:
-            for arg in path_plus[1:]:
-                k, v = arg.split("=", 1)
-                if k not in ['encoding', 'indent']:
-                    raise ValueError(f"Unknown option in JSON: {k}")
-                else:
-                    if k == 'indent':
-                        d[k] = int(v)
-                    else:
-                        d[k] = v
-
-        return Pinnate(d)
 
     def close_connection(self):
         self._doc = None

@@ -50,7 +50,9 @@ class ParquetConnector(DataConnector):
 
     def connect(self):
         if self.table is None:
-            file_path = self.engine_url.split(self.engine_type)[1]
+
+            engine_params = self.ignition._decode_filesystem_engine_url(self.engine_url)
+            file_path = engine_params.file_path
             if os.path.isdir(file_path):
                 raise NotImplementedError("Parquet datasets are not yet supported")
 
