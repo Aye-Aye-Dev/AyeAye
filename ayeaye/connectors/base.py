@@ -1,6 +1,5 @@
 from enum import Enum
 
-from ayeaye.connect_resolve import connector_resolver
 from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
 
 

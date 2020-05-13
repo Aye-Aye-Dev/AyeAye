@@ -62,6 +62,10 @@ class ParquetConnector(DataConnector):
             self.table = pq.read_table(file_path)
             self.row_count = self.table.num_rows
 
+    def close_connection(self):
+        self.table = None
+        self.row_count = None
+
     def __len__(self):
         raise NotImplementedError("TODO")
 
