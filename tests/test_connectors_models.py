@@ -1,3 +1,4 @@
+from inspect import isclass
 import unittest
 
 import ayeaye
@@ -114,3 +115,43 @@ class TestModelConnectors(unittest.TestCase):
                "more thought."
                )
         self.assertEqual([{'One'}, {'Two', 'Six'}, {'Five'}], self.repr_run_order(r.run_order), msg)
+
+    def test_model_iterator(self):
+        c = ayeaye.Connect(models={One, Two, Five, Six})
+        models = [m for m in c]
+        # not ordered when a set of models is passed
+        self.assertEqual(4, len(models))
+
+        c = ayeaye.Connect(models=[One, Two, Five, Six])
+        models = [m for m in c]
+        # ordered when a list
+        self.assertEqual([One, Two, Five, Six], models)
+
+    def test_run_order(self):
+        """
+        run order is either specified when list is passed or resolved by examining dataset
+        provenance but that is tested elsewhere.
+        Here, check there is a public method that returns a list and elements within this list
+        are a tree of lists and sets.
+        """
+        def is_run_item(r):
+            if isinstance(r, list):
+                # all items in list must be a set. Set could be one model
+                for r2 in r:
+                    assert isinstance(r2, set)
+                    is_run_item(r2)
+            elif isinstance(r, set):
+                for r2 in r:
+                    assert issubclass(r2, ayeaye.Model) or isinstance(r2, list)
+                    if isinstance(r2, list):
+                        is_run_item(r2)
+            else:
+                raise ValueError("Non list and not set item found")
+            return True
+
+        for c in [ayeaye.Connect(models={One, Two, Five, Six}),
+                  ayeaye.Connect(models=[One, Two, Five, Six])
+                  ]:
+            run_order = c.run_order()
+            self.assertIsInstance(run_order, list)
+            self.assertTrue(is_run_item(run_order))

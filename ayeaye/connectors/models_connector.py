@@ -44,6 +44,16 @@ class ModelsConnector(BaseConnector):
         else:
             raise ValueError(invalid_construction_msg)
 
+    def __len__(self):
+        return len(self.models)
+
+    def __iter__(self):
+        """
+        yield model classes. No ordering when models are a set but does honour order when models
+        is a list
+        """
+        yield from self.models
+
     def _resolve_run_order(self):
         """
         Use the dataset connections in each model to determine the dependencies between models and
@@ -118,3 +128,37 @@ class ModelsConnector(BaseConnector):
                      'run_order': run_order
                      })
         return p
+
+    def run_order(self):
+        """
+        @return: (list) items in the list are either-
+                    (i) sets of subclasses of :class:`ayeaye.Model`
+                    OR
+                    (ii) lists of sets as per (i)
+
+        All models in a set can be run in parallel. Each set must be complete before the next set
+        in the list is run.
+        """
+        if isinstance(self.models, list):
+            # models in 'list' mode are wrapped as single item sets because all items in a set must
+            # complete before next item in a list is run.
+            return [{m} for m in self]
+
+        elif isinstance(self.models, set):
+            # _resolve_run_order returns leaf nodes and the run order is built using Pinnate
+            # instances as nodes. Remove all this with to return a simple run order.
+            resolved_order = self._resolve_run_order()
+
+            def simplify_nodes(n):
+                if isinstance(n, Pinnate):
+                    return n.model_cls
+                if isinstance(n, (set, list)):
+                    rx = [simplify_nodes(nx) for nx in n]
+                    if isinstance(n, set):
+                        return set(rx)
+                    return rx
+
+            return [simplify_nodes(r) for r in resolved_order.run_order]
+
+        else:
+            raise ValueError("Unknown models container.")
