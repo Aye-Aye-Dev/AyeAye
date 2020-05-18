@@ -81,6 +81,10 @@ class Connect:
         self._standalone_connection = None  # see :method:`data`
         self._parent_model = None
 
+    def __repr__(self):
+        args = ', '.join([f"{k}={v}" for k, v in self.base_constructor_kwargs.items()])
+        return f'<Connect({args})>'
+
     def update(self, **kwargs):
         """
         Overlay (and overwrite) kwarg on existing instance.

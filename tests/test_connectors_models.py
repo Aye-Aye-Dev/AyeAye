@@ -35,6 +35,24 @@ class Six(ayeaye.Model):
     f = Five.f.clone(access=ayeaye.AccessMode.WRITE)
 
 
+def find_destination():
+    """Will be called at build() time. In real life this would find out something that should
+    only be looked up during runtime."""
+    # return "csv://g.csv"
+    msg = "The test shouldn't be calling this as the parent model class isn't instantiated"
+    raise Exception(msg)
+
+
+class Seven(ayeaye.Model):
+    b = One.b.clone(access=ayeaye.AccessMode.READ)
+    g = ayeaye.Connect(engine_url=find_destination, access=ayeaye.AccessMode.WRITE)
+
+
+class Eight(ayeaye.Model):
+    g = Seven.g.clone(access=ayeaye.AccessMode.READ)
+    h = ayeaye.Connect(engine_url="csv://h", access=ayeaye.AccessMode.WRITE)
+
+
 class TestModelConnectors(unittest.TestCase):
 
     @staticmethod
@@ -115,6 +133,13 @@ class TestModelConnectors(unittest.TestCase):
                "more thought."
                )
         self.assertEqual([{'One'}, {'Two', 'Six'}, {'Five'}], self.repr_run_order(r.run_order), msg)
+
+    @unittest.skip("needs fix for callable engine_url being called")
+    def test_resolve_with_callable(self):
+        "Seven has a callable to build it's engine_url at build time"
+        c = ayeaye.Connect(models={One, Eight, Seven})
+        r = c._resolve_run_order()
+        self.assertEqual([{'One'}, {'Seven'}], self.repr_run_order(r.run_order))
 
     def test_model_iterator(self):
         c = ayeaye.Connect(models={One, Two, Five, Six})
