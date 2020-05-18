@@ -16,6 +16,7 @@ EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
 EXAMPLE_JSON_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'london_weather.json')
 EXAMPLE_CSV_BROKEN_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_missing_values.csv')
+EXAMPLE_CSV_MICE = os.path.join(PROJECT_TEST_PATH, 'data', 'mice.csv')
 
 
 class TestConnectors(unittest.TestCase):
@@ -200,3 +201,45 @@ class TestConnectors(unittest.TestCase):
         for _ in c:
             self.assertTrue(c.progress > current_position)
             current_position = c.progress
+
+    def test_csv_without_fieldname_header(self):
+
+        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_MICE,
+                         field_names=['common_name', 'scientific_name', 'geo_distribution']
+                         )
+        mice = [mouse.as_dict() for mouse in c]
+
+        expected_line_0 = {'common_name': 'Yellow-necked mouse',
+                           'scientific_name': 'Apodemus flavicollis',
+                           'geo_distribution': 'Europe'
+                           }
+
+        self.assertEqual(3, len(mice))
+        # just checking first line is data with correct field names
+        self.assertEqual(expected_line_0, mice[0])
+
+    def test_csv_without_fieldname_header_write(self):
+        """
+        Specify fields. Without this fields are taken from first record to be added.
+        """
+        data_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(data_dir, "lemurs.csv")
+        c = CsvConnector(engine_url="csv://" + csv_file, access=ayeaye.AccessMode.WRITE,
+                         field_names=['common_name', 'main_colours']
+                         )
+        for lemur in [{'common_name': 'Indri'},
+                      {'common_name': 'Ring tailed', 'main_colours': 'grey, black, white'},
+                      ]:
+            c.add(lemur)
+
+        c.close_connection()
+
+        with open(csv_file, 'r', encoding=c.encoding) as f:
+            csv_content = f.read()
+
+        expected_content = ('common_name,main_colours\n'
+                            'Indri,\n'
+                            'Ring tailed,"grey, black, white"\n'
+                            )
+
+        self.assertEqual(expected_content, csv_content)

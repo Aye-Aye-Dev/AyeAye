@@ -67,7 +67,7 @@ class DataConnector(BaseConnector):
         # Subclasses should consume any kwargs before this constructor is invoked
         if len(kwargs) > 0:
             what_are_these = ", ".join(kwargs.keys())
-            raise ValueError(f'Unexpected arguments: {what_are_these}')
+            raise ValueError(f"Unexpected argument(s): '{what_are_these}'")
 
     def __del__(self):
         self.close_connection()

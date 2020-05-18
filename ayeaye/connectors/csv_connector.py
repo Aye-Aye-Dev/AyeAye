@@ -3,6 +3,7 @@ Created on 14 Jan 2020
 
 @author: si
 '''
+import copy
 import csv
 import os
 
@@ -12,6 +13,7 @@ from ayeaye.pinnate import Pinnate
 
 class CsvConnector(DataConnector):
     engine_type = 'csv://'
+    optional_args = {'field_names': None}
 
     def __init__(self, *args, **kwargs):
         """
@@ -20,7 +22,9 @@ class CsvConnector(DataConnector):
         For args: @see :class:`connectors.base.DataConnector`
 
         additional args for CsvConnector
-         None
+         fieldnames (sequence, probably a list) - Field names to use for all rows in file. The
+                             first line of file isn't the header with field names, it's data.
+                             Note - this option may be merged into schemas (TODO).
 
         Connection information-
             engine_url format is
@@ -28,6 +32,11 @@ class CsvConnector(DataConnector):
         e.g. csv:///data/my_project/all_the_data.csv
         """
         super().__init__(*args, **kwargs)
+
+        # fieldnames are loaded from construction args or from field. This will be unified when
+        # schemas are implemented. For now, keep track so loading fieldnames from file doesn't
+        # make a :emthod:`_reset`
+        self.base_field_names = copy.copy(self.field_names)
 
         self.delimiter = ','
         self._reset()
@@ -38,12 +47,11 @@ class CsvConnector(DataConnector):
     def _reset(self):
         self.file_handle = None
         self.csv = None
-        self.csv_fields = None  # this will change when schemas are implemented
         self._encoding = None
         self._engine_params = None
         self.file_size = None
         self.approx_position = 0
-        self._field_names = None  # place holder for write mode until schemas are supported
+        self.field_names = copy.copy(self.base_field_names)
 
     @property
     def engine_params(self):
@@ -90,8 +98,12 @@ class CsvConnector(DataConnector):
             if self.access == AccessMode.READ:
                 self.file_handle = open(self.engine_params.file_path, 'r', encoding=self.encoding)
                 self.file_size = os.stat(self.engine_params.file_path).st_size
-                self.csv = csv.DictReader(self.file_handle, delimiter=self.delimiter)
-                self.csv_fields = self.csv.fieldnames
+
+                self.csv = csv.DictReader(self.file_handle,
+                                          delimiter=self.delimiter,
+                                          fieldnames=self.field_names,
+                                          )
+                self.field_names = self.csv.fieldnames
 
             elif self.access == AccessMode.WRITE:
 
@@ -107,7 +119,7 @@ class CsvConnector(DataConnector):
                                         )
                 self.csv = csv.DictWriter(self.file_handle,
                                           delimiter=self.delimiter,
-                                          fieldnames=self._field_names,
+                                          fieldnames=self.field_names,
                                           )
                 self.csv.writeheader()
 
@@ -153,11 +165,11 @@ class CsvConnector(DataConnector):
             raise ValueError("Write attempted on dataset opened in READ mode.")
 
         # until schemas are implemented, first row determines fields
-        if self.csv is None:
+        if self.csv is None and self.field_names is None:
             if isinstance(data, dict):
-                self._field_names = list(data.keys())
+                self.field_names = list(data.keys())
             elif isinstance(data, Pinnate):
-                self._field_names = list(data.as_dict().keys())
+                self.field_names = list(data.as_dict().keys())
 
         self.connect()
 
@@ -177,4 +189,6 @@ class TsvConnector(CsvConnector):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # see note in CsvConnector
+        self.base_field_names = copy.copy(self.field_names)
         self.delimiter = '\t'
