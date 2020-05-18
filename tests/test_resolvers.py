@@ -207,4 +207,5 @@ class TestResolve(unittest.TestCase):
 
         with connector_resolver.context(env_secret_password="supersecret"):
             x = Connect(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
+            x.connect_standalone()
             self.assertEqual('mysql://root:supersecret@localhost/my_database', x.engine_url)

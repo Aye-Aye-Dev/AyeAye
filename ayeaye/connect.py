@@ -238,8 +238,16 @@ class Connect:
                )
         raise ValueError(msg)
 
-    def _connect_standalone(self):
+    def connect_standalone(self):
+        """
+        Make a standalone Connect.
 
+        Connect is normally used as part of an class:`ayeaye.Model` and will connect to the target
+        dataset on demand. It's also possible to use Connect as a standalone instance which
+        proxies to the target dataset's instance. The standalone version is also stood up on demand
+        but it can be done explicitly with this method if Connect is short cutting the as-a-proxy
+        incorrectly. See :method:`__getattr__`.
+        """
         if self.connection_bind == Connect.ConnectBind.MODEL:
             raise ValueError("Attempt to connect as standalone when already bound to a model")
 
@@ -256,7 +264,16 @@ class Connect:
         if self.connection_bind == Connect.ConnectBind.MODEL:
             raise AttributeError(attrib_error_msg)
 
-        self._connect_standalone()
+        # Short cut to proxy
+        # avoid instantiating the target DataConnector if the attribute that is being accessed
+        # is known to Connect.
+        # TODO - maybe make a list of permitted non-proxy attribs because the target DataConnector
+        # might do things to certain attribs on construction so the real version would differ.
+        # e.g. ConnectorResolver with engine_urls
+        if self.connection_bind == Connect.ConnectBind.NEW and attr in self.relayed_kwargs:
+            return self.relayed_kwargs[attr]
+
+        self.connect_standalone()
         return getattr(self._standalone_connection, attr)
 
     def __len__(self):
@@ -273,5 +290,5 @@ class Connect:
         for record in Connect(ref="my_dataset"):
             print(record)
         """
-        self._connect_standalone()
+        self.connect_standalone()
         yield from self._standalone_connection

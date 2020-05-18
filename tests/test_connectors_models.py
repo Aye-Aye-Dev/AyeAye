@@ -134,12 +134,11 @@ class TestModelConnectors(unittest.TestCase):
                )
         self.assertEqual([{'One'}, {'Two', 'Six'}, {'Five'}], self.repr_run_order(r.run_order), msg)
 
-    @unittest.skip("needs fix for callable engine_url being called")
     def test_resolve_with_callable(self):
         "Seven has a callable to build it's engine_url at build time"
         c = ayeaye.Connect(models={One, Eight, Seven})
         r = c._resolve_run_order()
-        self.assertEqual([{'One'}, {'Seven'}], self.repr_run_order(r.run_order))
+        self.assertEqual([{'One'}, {'Seven'}, {'Eight'}], self.repr_run_order(r.run_order))
 
     def test_model_iterator(self):
         c = ayeaye.Connect(models={One, Two, Five, Six})
