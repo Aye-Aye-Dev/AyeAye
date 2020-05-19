@@ -111,13 +111,15 @@ class Connect:
 
     def connect_id(self):
         """
-        Create an indentity reference which is used when examining if separate Connect instances
+        Create an identity reference which is used when examining if separate Connect instances
         are actually referring to the same dataset/models.
 
         @return: (str)
         """
         for s in self.mutually_exclusive_selectors:
             if s in self.relayed_kwargs:
+                # note, self.relayed_kwargs[s] could be a callable. Whatever it it needs to
+                # deterministically cast to a string.
                 return f"{s}:{self.relayed_kwargs[s]}"
         return "empty:"
 

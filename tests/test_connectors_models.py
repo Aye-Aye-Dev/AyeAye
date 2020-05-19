@@ -1,4 +1,3 @@
-from inspect import isclass
 import unittest
 
 import ayeaye
@@ -35,12 +34,18 @@ class Six(ayeaye.Model):
     f = Five.f.clone(access=ayeaye.AccessMode.WRITE)
 
 
+failed_callable_msg = "No test should be calling this as the parent model class isn't instantiated"
+
+
 def find_destination():
     """Will be called at build() time. In real life this would find out something that should
     only be looked up during runtime."""
     # return "csv://g.csv"
-    msg = "The test shouldn't be calling this as the parent model class isn't instantiated"
-    raise Exception(msg)
+    raise Exception(failed_callable_msg)
+
+
+def another_find_destination():
+    raise Exception(failed_callable_msg)
 
 
 class Seven(ayeaye.Model):
@@ -50,6 +55,11 @@ class Seven(ayeaye.Model):
 
 class Eight(ayeaye.Model):
     g = Seven.g.clone(access=ayeaye.AccessMode.READ)
+    h = ayeaye.Connect(engine_url="csv://h", access=ayeaye.AccessMode.WRITE)
+
+
+class Nine(ayeaye.Model):
+    i = ayeaye.Connect(engine_url=another_find_destination, access=ayeaye.AccessMode.WRITE)
     h = ayeaye.Connect(engine_url="csv://h", access=ayeaye.AccessMode.WRITE)
 
 
@@ -139,6 +149,11 @@ class TestModelConnectors(unittest.TestCase):
         c = ayeaye.Connect(models={One, Eight, Seven})
         r = c._resolve_run_order()
         self.assertEqual([{'One'}, {'Seven'}, {'Eight'}], self.repr_run_order(r.run_order))
+
+    def test_resolve_with_two_different_callables(self):
+        c = ayeaye.Connect(models={One, Nine, Seven})
+        r = c._resolve_run_order()
+        self.assertEqual([{'One', 'Nine'}, {'Seven'}], self.repr_run_order(r.run_order))
 
     def test_model_iterator(self):
         c = ayeaye.Connect(models={One, Two, Five, Six})

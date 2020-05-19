@@ -3,7 +3,7 @@ Created on 12 Feb 2020
 
 @author: si
 '''
-from ayeaye.connectors.base import DataConnector
+from ayeaye.connectors.base import AccessMode, DataConnector
 from ayeaye.connectors import connector_factory
 
 
@@ -23,8 +23,15 @@ class MultiConnector(DataConnector):
             Not normally initiated with `engine_type://...` url but by giving a list
             of engine_urls which each connect to another subclass of DataConnector
         """
-        super().__init__(*args, **kwargs)
+        # MultiConnector passes a copy of the kwargs to each child connector. It's not known
+        # until after Connect which ones are permitted by the target DataConnector so the
+        # exception wont be raised until usage.
+        base_kwargs = {'engine_url': kwargs.pop('engine_url', None),
+                       'access': kwargs.pop('access', AccessMode.READ)
+                       }
+        super().__init__(*args, **base_kwargs)
 
+        self.connector_kwargs = kwargs
         self._child_data_connectors = None  # on connect
         self._child_dc_mapping = {}
 
@@ -41,7 +48,9 @@ class MultiConnector(DataConnector):
             self._child_data_connectors = []
             for idx, engine_url in enumerate(self.engine_url):
                 connector_cls = connector_factory(engine_url)
-                connector = connector_cls(engine_url=engine_url, access=self.access)
+                connector = connector_cls(engine_url=engine_url,
+                                          access=self.access,
+                                          **self.connector_kwargs)
                 self._child_data_connectors.append(connector)
                 # this is the unresolved engine_url
                 self._child_dc_mapping[engine_url] = idx

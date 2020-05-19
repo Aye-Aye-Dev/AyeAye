@@ -17,6 +17,7 @@ EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
 EXAMPLE_JSON_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'london_weather.json')
 EXAMPLE_CSV_BROKEN_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_missing_values.csv')
 EXAMPLE_CSV_MICE = os.path.join(PROJECT_TEST_PATH, 'data', 'mice.csv')
+EXAMPLE_CSV_SQUIRRELS = os.path.join(PROJECT_TEST_PATH, 'data', 'squirrels.csv')
 
 
 class TestConnectors(unittest.TestCase):
@@ -243,3 +244,30 @@ class TestConnectors(unittest.TestCase):
                             )
 
         self.assertEqual(expected_content, csv_content)
+
+    def test_multi_connector_passes_args(self):
+        """
+        kwargs given to Connect should be passed to each DataConnection created by multi-connect.
+        """
+        # header-less CSVs
+        c = MultiConnector(engine_url=["csv://" + EXAMPLE_CSV_MICE, "csv://" + EXAMPLE_CSV_SQUIRRELS],
+                           access=ayeaye.AccessMode.READ,
+                           field_names=['common_name', 'scientific_name', 'geo_distribution']
+                           )
+        rodents = []
+        for cx in c:
+            rodents.extend([r.as_dict() for r in cx])
+
+        expected_line_0 = {'common_name': 'Yellow-necked mouse',
+                           'scientific_name': 'Apodemus flavicollis',
+                           'geo_distribution': 'Europe'
+                           }
+
+        expected_line_3 = {'common_name': 'American red squirrel',
+                           'scientific_name': 'Tamiasciurus hudsonicus',
+                           'geo_distribution': 'North America'
+                           }
+
+        self.assertEqual(5, len(rodents))
+        self.assertEqual(expected_line_0, rodents[0])
+        self.assertEqual(expected_line_3, rodents[3])
