@@ -159,3 +159,21 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         c.close_connection()
 
         self.assertTrue(os.access(db_file, os.R_OK))
+
+    def test_double_close_sqlite(self):
+        """
+        TODO - can't reproduce the "Cannot operate on a closed database." Sqlite error.
+        """
+        db_file = "{}/fruit.db".format(self.working_directory())
+        c = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
+                                        schema_builder=fruit_schemas,
+                                        access=ayeaye.AccessMode.READWRITE
+                                        )
+        c.connect()
+        c.create_table_schema()
+
+        c.add(c.schema.Pear(variety="Williams"))
+        # c.commit()
+
+        c.close_connection()
+        c.__del__()

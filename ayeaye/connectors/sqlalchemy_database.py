@@ -89,6 +89,12 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         if self.session is not None:
             self.session.close()
 
+    def __del__(self):
+        """
+        SqlAlchemy does it's own deconstruction.
+        """
+        pass
+
     def create_table_schema(self):
         """
         Create the tables defined in self.schema
