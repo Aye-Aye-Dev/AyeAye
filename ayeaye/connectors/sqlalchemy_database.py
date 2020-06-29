@@ -15,7 +15,7 @@ from ayeaye.pinnate import Pinnate
 
 
 class SqlAlchemyDatabaseConnector(DataConnector):
-    engine_type = ['sqlite://', 'mysql://']
+    engine_type = ['sqlite://', 'mysql://', 'postgresql://']
     optional_args = {'schema_builder': None}
     # TODO implement mysql
 
