@@ -5,11 +5,10 @@ Created on 22 Jan 2020
 '''
 import os
 import shutil
-import subprocess
 import tempfile
 import unittest
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import inspect, Column, Integer, String
 from sqlalchemy.exc import OperationalError
 
 import ayeaye
@@ -177,3 +176,42 @@ class TestSqlAlchemyConnector(unittest.TestCase):
 
         c.close_connection()
         c.__del__()
+
+    def test_two_databases(self):
+        """
+        The declarative base is created by each SqlAlchemyDatabaseConnector. Ensure models passed
+        to each Connector stay in their own engines.
+        """
+        db_file = "{}/fruit.db".format(self.working_directory())
+        fruit = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
+                                            schema_builder=fruit_schemas,
+                                            access=ayeaye.AccessMode.READWRITE
+                                            )
+        fruit.create_table_schema()
+
+        db_file = "{}/people.db".format(self.working_directory())
+        people = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
+                                             schema_builder=people_schema,
+                                             access=ayeaye.AccessMode.READWRITE
+                                             )
+        people.create_table_schema()
+
+        # Tables creates in correct DB
+        # ----------------------
+        inspector = inspect(fruit.engine)
+        fruit_tables = {table_name for table_name in inspector.get_table_names()}
+        self.assertEqual({'bananna', 'pear'}, fruit_tables)
+
+        inspector = inspect(people.engine)
+        people_tables = {table_name for table_name in inspector.get_table_names()}
+        self.assertEqual({'person'}, people_tables)
+
+        # Tables can be used in the normal way
+        # ----------------------
+        fruit.add(fruit.schema.Pear(variety="Comice"))
+        fruit.commit()
+        fruit.close_connection()
+
+        people.add({'surname': 'Attenborough'})
+        people.commit()
+        people.close_connection()
