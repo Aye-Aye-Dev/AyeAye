@@ -182,6 +182,7 @@ class Connect:
             raise NotImplementedError(("Sorry! Dataset discovery (looking up engine_url from ref) "
                                        "hasn't been written yet."
                                        ))
+        detached_kwargs = None
 
         if 'models' in self.relayed_kwargs:
             connector_cls = ModelsConnector
@@ -193,8 +194,21 @@ class Connect:
 
             if callable(self.relayed_kwargs['engine_url']):
                 engine_url = self.relayed_kwargs['engine_url']()
-                # make the resolved engine_url available to the final connector
-                self.relayed_kwargs['engine_url'] = engine_url
+
+                # make the resolved engine_url available to the final connector.
+                #
+                # The callable isn't expected to have __deep_copy__ method so a selective copy
+                # happens after the callable has built the engine_url.
+                # The callable is left in place because it's a class variable so could be resolved
+                # again under a different context) and the engine_url used to build the Connector
+                # instance.
+                detached_kwargs = {}
+                for k, v in self.relayed_kwargs.items():
+                    if k == 'engine_url':
+                        detached_kwargs[k] = engine_url
+                    else:
+                        detached_kwargs[k] = copy.deepcopy(v)
+
             else:
                 engine_url = self.relayed_kwargs['engine_url']
 
@@ -205,8 +219,10 @@ class Connect:
             else:
                 connector_cls = connector_factory(engine_url)
 
-        detached_args = copy.deepcopy(self.relayed_kwargs)
-        connector = connector_cls(**detached_args)
+        if not detached_kwargs:
+            detached_kwargs = copy.deepcopy(self.relayed_kwargs)
+
+        connector = connector_cls(**detached_kwargs)
         connector._connect_instance = self
         return connector
 

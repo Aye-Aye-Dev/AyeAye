@@ -209,3 +209,37 @@ class TestResolve(unittest.TestCase):
             x = Connect(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
             x.connect_standalone()
             self.assertEqual('mysql://root:supersecret@localhost/my_database', x.engine_url)
+
+    def test_deferred_results_not_held(self):
+        """
+        Regression test for fix. The results of a callable for engine_url were being persisted on
+        relayed_kwargs in :method:`Connect._prepare_connection`. DeferredResolution was being used
+        in this case and it's a common pattern.
+        """
+        class AnimalsSurvey(Model):
+            rodents = Connect(
+                engine_url=connector_resolver.my_survey.sample_data(rodent_type="mice"))
+
+        class ResolverA:
+            def sample_data(self, rodent_type):
+                if rodent_type == "mice":
+                    return "csv://mice_sample_a.csv"
+                raise ValueError("This line should be unreachable in this test")
+
+        files_at_runtime = ResolverA()
+        with connector_resolver.context(my_survey=files_at_runtime):
+            m = AnimalsSurvey()
+            first_call_engine_url = m.rodents.engine_url
+
+        class ResolverB:
+            def sample_data(self, rodent_type):
+                if rodent_type == "mice":
+                    return "csv://mice_sample_b.csv"
+                raise ValueError("This line should be unreachable in this test")
+
+        files_at_runtime = ResolverB()
+        with connector_resolver.context(my_survey=files_at_runtime):
+            m = AnimalsSurvey()
+            second_call_engine_url = m.rodents.engine_url
+
+        self.assertNotEqual(first_call_engine_url, second_call_engine_url)
