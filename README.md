@@ -27,6 +27,8 @@ The `ln` (symlink) command will make all the modules in the examples directory v
 cd `pipenv --venv`/src/ayeaye/examples
 ```
 
+There are more examples in the [Aye-Aye-Recipes](https://github.com/Aye-Aye-Dev/Aye-Aye-Recipes) git repo.
+
 
 ## Overview
 
@@ -38,12 +40,12 @@ Example:-
 import ayeaye
 
 class PoisonousAnimals(ayeaye.Model):
-    poisonous_animals = ayeaye.Connect(engine_url='flowerpot://data/poisonous_animals.flowerpot')
+    poisonous_animals = ayeaye.Connect(engine_url='ndjson://data/poisonous_animals.ndjson')
 ```
 
 When instantiated, `self.poisonous_animals` will be a *dataset* that ETL operations can be done with.
 
-The `engine_url` parameter passed to `ayeaye.Connect` is specifying the dataset type (flowerpot in this case) and exact location for the data (`data/poisonous_animals.flowerpot` is a relative file path).
+The `engine_url` parameter passed to `ayeaye.Connect` is specifying the dataset type ([new line JSON](http://ndjson.org/) in this case) and exact location for the data (`data/poisonous_animals.flowerpot` is a relative file path).
 
 Instead of `engine_url` you could also specify a `ref` and this uses the data catalogue to lookup the `engine_url`. (TODO this feature is coming soon!). When used this way, `ayeaye.Connect` is responsible for resolving the `ref` to an `engine_url` and passing this to a subclass of `ayeaye.connectors.base.DataConnector` which can read and maybe write this data type.
 
