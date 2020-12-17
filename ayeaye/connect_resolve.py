@@ -39,8 +39,19 @@ class ConnectorResolver:
     """
 
     def __init__(self):
+        self._clear_state()
+
+    def _clear_state(self):
         self.unnamed_callables = []
         self._attr = {}
+
+    def brutal_reset(self):
+        """
+        Discard any callables or attributes that have been set. This method is really for unit
+        tests to stop a failed test effecting the 'clear' state for a subsequent test. Be careful
+        not to call this other times.
+        """
+        self._clear_state()
 
     def __getattr__(self, attr):
         if attr not in self._attr:

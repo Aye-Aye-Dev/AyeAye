@@ -90,7 +90,7 @@ class Model:
     @classmethod
     def connects(cls):
         """
-        :returns (dict) of :class:`Connect` classes declased as class variables for this model.
+        :returns (dict) of :class:`Connect` classes declared as class variables for this model.
                 key is class variable name
                 value is :class:`ayeaye.Connect`
         """

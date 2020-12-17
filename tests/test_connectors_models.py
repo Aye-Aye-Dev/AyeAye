@@ -96,8 +96,8 @@ class TestModelConnectors(unittest.TestCase):
         m = ModelsConnector(models=[One, Two, Three])
         self.assertIsInstance(m.models, list, "Preserves list")
 
-        m = ModelsConnector(models=[One, Two, Three])
-        self.assertIsInstance(m.models, list, "Preserves set")
+        m = ModelsConnector(models=set([One, Two, Three]))
+        self.assertIsInstance(m.models, set, "Preserves set")
 
         with self.assertRaises(ValueError):
             # non-model

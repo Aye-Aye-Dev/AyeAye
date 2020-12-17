@@ -87,7 +87,9 @@ class MultiConnector(DataConnector):
 
     def add_engine_url(self, engine_url):
         """
-        A convenience method for adding engine_urls at run time that returns the resolved connector.
+        A convenience method for adding engine_urls at run time and returning the resolved
+        connector (to the new engine_url) in one call.
+
         multi_connector.engine_url.append(...) could also be used.
 
         @param engine_url: (str) unresolved engine_url (i.e. could contain {params} to be resolved

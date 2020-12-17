@@ -243,3 +243,19 @@ class TestResolve(unittest.TestCase):
             second_call_engine_url = m.rodents.engine_url
 
         self.assertNotEqual(first_call_engine_url, second_call_engine_url)
+
+    def test_reset_connect_resolve(self):
+        """
+        :method:`brutal_reset` can be used to stop a failed unit test effecting another unit test.
+        """
+        connector_resolver.add(x='y')
+        with self.assertRaises(ValueError) as exception_context:
+            connector_resolver.add(x='z')
+
+        self.assertIn("Attempted to set existing attribute: x", str(exception_context.exception))
+
+        connector_resolver.brutal_reset()
+        connector_resolver.add(x='z')
+
+        # don't leave state for other tests
+        connector_resolver.brutal_reset()
