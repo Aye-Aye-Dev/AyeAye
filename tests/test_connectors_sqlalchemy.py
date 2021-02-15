@@ -10,6 +10,7 @@ import unittest
 
 from sqlalchemy import inspect, Column, Integer, String
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.declarative import declarative_base
 
 import ayeaye
 from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
@@ -215,3 +216,36 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         people.add({'surname': 'Attenborough'})
         people.commit()
         people.close_connection()
+
+    def test_schema_builder_model_exclusive(self):
+
+        PeoplCls = people_schema(declarative_base=declarative_base())
+
+        with self.assertRaises(ValueError):
+            SqlAlchemyDatabaseConnector(engine_url="sqlite:////tmp/wontbecreated.db",
+                                        schema_builder=people_schema,
+                                        schema_model=PeoplCls,
+                                        access=ayeaye.AccessMode.READWRITE
+                                        )
+
+    def test_single_model(self):
+        """
+        Instead of passing a callable (i.e. schema_builder argument) pass an SqlAlchemy model
+        which already has a declarative base.
+        """
+        Base = declarative_base()
+
+        class Rodents(Base):
+            __tablename__ = 'rodent'
+            id = Column(Integer, primary_key=True)
+            species = Column(String(250), nullable=False)
+
+        db_file = "{}/rodents.db".format(self.working_directory())
+        rodents = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
+                                              schema_model=Rodents,
+                                              access=ayeaye.AccessMode.READWRITE
+                                              )
+        rodents.create_table_schema()
+        rodents.add({'species': 'Yellow-necked mouse'})
+        rodents.commit()
+        rodents.close_connection()
