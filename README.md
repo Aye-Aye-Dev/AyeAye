@@ -11,6 +11,13 @@ pipenv shell
 pipenv install -e git+https://github.com/Aye-Aye-Dev/AyeAye#egg=ayeaye
 ```
 
+When `venv` is being used, add this line to `requirements.txt`-
+
+```
+git+https://github.com/Aye-Aye-Dev/AyeAye#egg=ayeaye
+```
+
+
 Within the environment created by pipenv above, run one of the examples:-
 
 ```shell

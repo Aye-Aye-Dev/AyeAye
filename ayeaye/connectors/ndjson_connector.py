@@ -34,12 +34,13 @@ class NdjsonConnector(DataConnector):
 
         self._reset()
 
-        if self.access != AccessMode.READ:
-            raise NotImplementedError('Write access not yet implemented')
+        if self.access == AccessMode.READWRITE:
+            raise NotImplementedError('READWRITE access not yet implemented')
 
     def _reset(self):
         self.file_handle = None
         self.reader = None
+        self.writer = None
         self._encoding = None
         self._engine_params = None
         self.file_size = None
@@ -79,12 +80,16 @@ class NdjsonConnector(DataConnector):
         self._reset()
 
     def connect(self):
-        if self.reader is None:
+        if self.reader is None and self.writer is None:
 
             if self.access == AccessMode.READ:
                 self.file_handle = open(self.engine_params.file_path, 'r', encoding=self.encoding)
                 self.file_size = os.stat(self.engine_params.file_path).st_size
                 self.reader = ndjson.reader(self.file_handle)
+
+            elif self.access == AccessMode.WRITE:
+                self.file_handle = open(self.engine_params.file_path, 'w', encoding=self.encoding)
+                self.writer = ndjson.writer(self.file_handle)
 
             else:
                 raise ValueError('Unknown access mode')
@@ -118,3 +123,20 @@ class NdjsonConnector(DataConnector):
             return None
 
         return self.approx_position / self.file_size
+
+    def add(self, data):
+        """
+        Write record to ndjson file.
+        @param data: (dict or Pinnate) - must be safe to serialise to JSON so no dates etc.
+        """
+        if self.access != AccessMode.WRITE:
+            raise ValueError("Write attempted on dataset opened in READ mode.")
+
+        self.connect()
+
+        if isinstance(data, dict):
+            self.writer.writerow(data)
+        elif isinstance(data, Pinnate):
+            self.writer.writerow(data.as_dict())
+        else:
+            raise ValueError("data isn't an accepted type. Only (dict) or (Pinnate) are accepted.")
