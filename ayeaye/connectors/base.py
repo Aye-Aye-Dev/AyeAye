@@ -185,3 +185,10 @@ class DataConnector(BaseConnector):
         :returns: (float) or None when not available.
         """
         return None
+
+    @property
+    def datasource_exists(self):
+        msg = ("Can optionally be implemented by subclasses. "
+               "Contribute if you need it! There is an example in JsonConnector."
+               )
+        raise NotImplementedError(msg)

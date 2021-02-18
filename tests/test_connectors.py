@@ -271,3 +271,10 @@ class TestConnectors(unittest.TestCase):
         self.assertEqual(5, len(rodents))
         self.assertEqual(expected_line_0, rodents[0])
         self.assertEqual(expected_line_3, rodents[3])
+
+    def test_json_datasource_exists(self):
+        c = JsonConnector(engine_url="json://" + EXAMPLE_JSON_PATH)
+        self.assertTrue(c.datasource_exists)
+
+        c = JsonConnector(engine_url="json://this_doesnt_exist.json")
+        self.assertFalse(c.datasource_exists)

@@ -128,5 +128,13 @@ class JsonConnector(DataConnector):
     data = property(fget=_data_read, fset=_data_write)
 
     @property
+    def datasource_exists(self):
+        """
+        Returns:
+            (bool) if the datasource referred to in self.engine_url exists.
+        """
+        return os.path.exists(self.engine_params.file_path)
+
+    @property
     def schema(self):
         raise NotImplementedError("TODO")
