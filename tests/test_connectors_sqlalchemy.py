@@ -228,7 +228,7 @@ class TestSqlAlchemyConnector(unittest.TestCase):
                                         access=ayeaye.AccessMode.READWRITE
                                         )
 
-    def test_single_model(self):
+    def test_schema_model_single(self):
         """
         Instead of passing a callable (i.e. schema_builder argument) pass an SqlAlchemy model
         which already has a declarative base.
@@ -249,6 +249,69 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         rodents.add({'species': 'Yellow-necked mouse'})
         rodents.commit()
         rodents.close_connection()
+
+    def test_schema_model_multiple(self):
+        """
+        see :method:`` but with a list, same idea as how the schema_builder argument can return a
+        single schema or list.
+        """
+        Base = declarative_base()
+
+        class Cats(Base):
+            __tablename__ = 'cat'
+            id = Column(Integer, primary_key=True)
+            name = Column(String(250))
+
+        class Dogs(Base):
+            __tablename__ = 'dog'
+            id = Column(Integer, primary_key=True)
+            name = Column(String(250))
+
+        db_file = "{}/pets.db".format(self.working_directory())
+        pets = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
+                                           schema_model=[Cats, Dogs],
+                                           access=ayeaye.AccessMode.READWRITE
+                                           )
+        pets.create_table_schema()
+
+        with self.assertRaises(ValueError) as context:
+            pets.add({'name': 'Lady'})
+        self.assertIn("Dictionary can only be used in single schema mode", str(context.exception))
+
+        pets.add(pets.schema.Cats(name="Lady"))
+        pets.add(pets.schema.Dogs(name="Lady"))
+
+        pets.commit()
+        pets.close_connection()
+
+    def test_schema_model_multiple_bases(self):
+        """
+        Multiple declarative bases on same Connector should fail.
+        """
+        BaseX = declarative_base()
+        BaseY = declarative_base()
+
+        class Cats(BaseX):
+            __tablename__ = 'cat'
+            id = Column(Integer, primary_key=True)
+            name = Column(String(250))
+
+        class Dogs(BaseY):
+            __tablename__ = 'dog'
+            id = Column(Integer, primary_key=True)
+            name = Column(String(250))
+
+        db_file = "{}/pets.db".format(self.working_directory())
+        c = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
+                                        schema_model=[Cats, Dogs],
+                                        access=ayeaye.AccessMode.READWRITE
+                                        )
+        with self.assertRaises(ValueError) as context:
+            c.connect()
+
+        self.assertIn("Models passed to `schema_model` must share the same declarative base",
+                      str(context.exception)
+                      )
 
     def test_sql_direct(self):
         """

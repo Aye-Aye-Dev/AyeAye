@@ -75,34 +75,57 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         if self.schema_model is not None:
 
             if isinstance(self.schema_model, list):
-                raise NotImplementedError("TODO - multiple models with same declarative base")
-
-            if not isinstance(self.schema_model, DeclarativeMeta):
-                raise TypeError("Not an SqlAlchemy database model")
-
-            # Using method resolution order, find the declarative_base that would be common to
-            # all models.
-            # e.g. in the following, find Base given MyModel
-            #   Base = declarative_base()
-            #   ...
-            #   class MyModel(Base):
-            #       ...
-            #
-            # in single schema_model mode I'm not sure if common ancestor matters
-            resolution_order = self.schema_model.mro()
-            resolution_order.reverse()
-            for m in resolution_order:
-                if isinstance(m, DeclarativeMeta):
-                    break
+                check_schema_models = self.schema_model
             else:
-                raise ValueError("DeclarativeMeta not found in schema_model??")
+                check_schema_models = [self.schema_model]
 
-            self.Base = m
+            if len(check_schema_models) == 0:
+                raise TypeError("No models passed")
+
+            def get_declarative_base(schema_model):
+                """Given a class that inherits from SqlAlchemy's declarative base/meta;
+                return the class
+                """
+                if not isinstance(schema_model, DeclarativeMeta):
+                    raise TypeError("Not an SqlAlchemy database model")
+
+                # Using method resolution order, find the declarative_base that would be common to
+                # all models.
+                # e.g. in the following, find Base given MyModel
+                #   Base = declarative_base()
+                #   ...
+                #   class MyModel(Base):
+                #       ...
+                #
+                # in single schema_model mode I'm not sure if common ancestor matters
+                resolution_order = schema_model.mro()
+                resolution_order.reverse()
+                for m in resolution_order:
+                    if isinstance(m, DeclarativeMeta):
+                        return m
+                else:
+                    raise ValueError("DeclarativeMeta not found in schema_model??")
+
+            bases = [get_declarative_base(s) for s in check_schema_models]
+            for idx in range(len(bases)):
+                if idx == 0:
+                    continue
+                if bases[0] != bases[idx]:
+                    msg = "Models passed to `schema_model` must share the same declarative base"
+                    raise ValueError(msg)
+
+            self.Base = bases[0]
             self.engine = create_engine(self.engine_url)
             self.Base.metadata.bind = self.engine
             DBSession = sessionmaker(bind=self.engine)
             self.session = DBSession()
             self._schema_p = self.schema_model
+
+            if isinstance(self.schema_model, list):
+                as_dict = {c.__name__: c for c in self.schema_model}
+                self._schema_p = Pinnate(as_dict)
+            else:
+                self._schema_p = self.schema_model  # single class
 
         else:
             # SQL direct or with self.schema_builder callable
