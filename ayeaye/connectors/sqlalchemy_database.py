@@ -16,11 +16,10 @@ from ayeaye.pinnate import Pinnate
 
 
 class SqlAlchemyDatabaseConnector(DataConnector):
-    engine_type = ['sqlite://', 'mysql://', 'postgresql://']
+    engine_type = ['sqlite://', 'mysql://', 'mysql+pymysql://', 'postgresql://']
     optional_args = {'schema_builder': None,
                      'schema_model': None,
                      }
-    # TODO implement mysql
 
     def __init__(self, *args, **kwargs):
         """
