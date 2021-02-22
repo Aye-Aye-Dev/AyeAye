@@ -7,6 +7,7 @@ try:
     from sqlalchemy import create_engine
     from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
     from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.sql import text
 except:
     pass
 
@@ -69,27 +70,62 @@ class SqlAlchemyDatabaseConnector(DataConnector):
 
     def connect(self):
 
-        if self.Base is None:
+        if self.Base is not None:
+            return
+
+        if self.schema_model is not None:
+
+            if isinstance(self.schema_model, list):
+                raise NotImplementedError("TODO - multiple models with same declarative base")
+
+            if not isinstance(self.schema_model, DeclarativeMeta):
+                raise TypeError("Not an SqlAlchemy database model")
+
+            # Using method resolution order, find the declarative_base that would be common to
+            # all models.
+            # e.g. in the following, find Base given MyModel
+            #   Base = declarative_base()
+            #   ...
+            #   class MyModel(Base):
+            #       ...
+            #
+            # in single schema_model mode I'm not sure if common ancestor matters
+            resolution_order = self.schema_model.mro()
+            resolution_order.reverse()
+            for m in resolution_order:
+                if isinstance(m, DeclarativeMeta):
+                    break
+            else:
+                raise ValueError("DeclarativeMeta not found in schema_model??")
+
+            self.Base = m
+            self.engine = create_engine(self.engine_url)
+            self.Base.metadata.bind = self.engine
+            DBSession = sessionmaker(bind=self.engine)
+            self.session = DBSession()
+            self._schema_p = self.schema_model
+
+        else:
+            # SQL direct or with self.schema_builder callable
+
+            self.Base = declarative_base()
+            self.engine = create_engine(self.engine_url)
+
+            # Bind the engine to the metadata of the Base class so that the
+            # declaratives can be accessed through a DBSession instance
+            self.Base.metadata.bind = self.engine
+
+            DBSession = sessionmaker(bind=self.engine)
+            # A DBSession() instance establishes all conversations with the database
+            # and represents a "staging zone" for all the objects loaded into the
+            # database session object. Any change made against the objects in the
+            # session won't be persisted into the database until you call
+            # session.commit(). If you're not happy about the changes, you can
+            # revert all of them back to the last commit by calling
+            # session.rollback()
+            self.session = DBSession()
 
             if self.schema_builder is not None:
-
-                self.Base = declarative_base()
-                self.engine = create_engine(self.engine_url)
-
-                # Bind the engine to the metadata of the Base class so that the
-                # declaratives can be accessed through a DBSession instance
-                self.Base.metadata.bind = self.engine
-
-                DBSession = sessionmaker(bind=self.engine)
-                # A DBSession() instance establishes all conversations with the database
-                # and represents a "staging zone" for all the objects loaded into the
-                # database session object. Any change made against the objects in the
-                # session won't be persisted into the database until you call
-                # session.commit(). If you're not happy about the changes, you can
-                # revert all of them back to the last commit by calling
-                # session.rollback()
-                self.session = DBSession()
-
                 # initialise schema
                 schema_classes = self.schema_builder(self.Base) \
                     if self.schema_builder is not None else []
@@ -99,38 +135,6 @@ class SqlAlchemyDatabaseConnector(DataConnector):
                     self._schema_p = Pinnate(as_dict)
                 else:
                     self._schema_p = schema_classes  # single class
-
-            elif self.schema_model is not None:
-
-                if isinstance(self.schema_model, list):
-                    raise NotImplementedError("TODO - multiple models with same declarative base")
-
-                if not isinstance(self.schema_model, DeclarativeMeta):
-                    raise TypeError("Not an SqlAlchemy database model")
-
-                # Using method resolution order, find the declarative_base that would be common to
-                # all models.
-                # e.g. in the following, find Base given MyModel
-                #   Base = declarative_base()
-                #   ...
-                #   class MyModel(Base):
-                #       ...
-                #
-                # in single schema_model mode I'm not sure if common ancestor matters
-                resolution_order = self.schema_model.mro()
-                resolution_order.reverse()
-                for m in resolution_order:
-                    if isinstance(m, DeclarativeMeta):
-                        break
-                else:
-                    raise ValueError("DeclarativeMeta not found in schema_model??")
-
-                self.Base = m
-                self.engine = create_engine(self.engine_url)
-                self.Base.metadata.bind = self.engine
-                DBSession = sessionmaker(bind=self.engine)
-                self.session = DBSession()
-                self._schema_p = self.schema_model
 
     def close_connection(self):
         if self.session is not None:
@@ -217,3 +221,25 @@ class SqlAlchemyDatabaseConnector(DataConnector):
 
         # TODO auto commit
         self.session.commit()
+
+    def sql(self, sql_stmt, **sql_params):
+        """
+        Execute an SQL query against the database engine directly without using the ORM.
+        Parameters in the statement are named and the values are passed in a dictionary. Numbered
+        positions aren't supported.
+
+        Example- also converts to dictionary
+            results = my_db_connector.sql("SELECT * from nice_colours where colour <> :not_really_a_colour",
+                                          not_really_a_colour='black'
+                                         )
+            for r in results:
+              print(dict(r))
+
+
+        @param sql_stmt: (str) SQL statement with
+        @param sql_params: (key value pairs), keys must be strings of parameters in SQL statement
+        @return: (named tuples) if the query returns results.
+        """
+        self.connect()
+        sql = text(sql_stmt)
+        return self.session.execute(sql, sql_params)

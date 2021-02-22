@@ -249,3 +249,19 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         rodents.add({'species': 'Yellow-necked mouse'})
         rodents.commit()
         rodents.close_connection()
+
+    def test_sql_direct(self):
+        """
+        SQL queries without SqlAlchemy ORM models.
+        """
+        c = SqlAlchemyDatabaseConnector(engine_url="sqlite://")
+        c.sql("CREATE TABLE nice_colours (colour varchar(20))")
+        c.sql("INSERT INTO nice_colours values ('blue'), ('green'), ('black')")
+        results = c.sql("SELECT colour FROM nice_colours where colour <> :not_really_a_colour",
+                        not_really_a_colour='black'
+                        )
+        final_colours = set()
+        for r in results:
+            final_colours.add(dict(r)['colour'])
+
+        assert set(['blue', 'green']) == final_colours
