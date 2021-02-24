@@ -1,5 +1,6 @@
 from .bigquery import BigQueryConnector
 from .csv_connector import CsvConnector, TsvConnector
+from .elasticsearch_connector import ElasticsearchConnector
 from .fake import FakeDataConnector
 from .flowerpot import FlowerPotConnector
 from .gcs_flowerpot import GcsFlowerpotConnector, FlowerpotEngine
@@ -20,7 +21,7 @@ def connector_factory(engine_url):
     for connector_cls in [BigQueryConnector, CsvConnector, FlowerPotConnector,
                           FakeDataConnector, KafkaConnector, ParquetConnector,
                           TsvConnector, SqlAlchemyDatabaseConnector, JsonConnector,
-                          NdjsonConnector]:
+                          NdjsonConnector, ElasticsearchConnector]:
         if isinstance(connector_cls.engine_type, list):
             supported_engines = connector_cls.engine_type
         else:

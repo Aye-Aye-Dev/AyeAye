@@ -119,7 +119,6 @@ class SqlAlchemyDatabaseConnector(DataConnector):
             self.Base.metadata.bind = self.engine
             DBSession = sessionmaker(bind=self.engine)
             self.session = DBSession()
-            self._schema_p = self.schema_model
 
             if isinstance(self.schema_model, list):
                 as_dict = {c.__name__: c for c in self.schema_model}

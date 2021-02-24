@@ -3,11 +3,12 @@ import unittest
 
 from ayeaye.connectors.kafka_connector import KafkaConnector
 
-EXAMPLE_ENGINE_URL_0="kafka://localhost/topic=foobar;start=@(2019-05-15 08:00:00);end=@(2019-05-15 18:00:00);"
-EXAMPLE_ENGINE_URL_1="kafka://localhost/topic=foobar;start=@(2019-05-15 15:50:18);end=@(2019-05-15 15:50:24);"
-EXAMPLE_ENGINE_URL_2="kafka://localhost/topic=uas;start=@(2019-05-22 10:42:00);end=@(2019-05-22 10:44:00);"
+EXAMPLE_ENGINE_URL_0 = "kafka://localhost/topic=foobar;start=@(2019-05-15 08:00:00);end=@(2019-05-15 18:00:00);"
+EXAMPLE_ENGINE_URL_1 = "kafka://localhost/topic=foobar;start=@(2019-05-15 15:50:18);end=@(2019-05-15 15:50:24);"
+EXAMPLE_ENGINE_URL_2 = "kafka://localhost/topic=uas;start=@(2019-05-22 10:42:00);end=@(2019-05-22 10:44:00);"
 
-class TestConnect(unittest.TestCase):
+
+class TestKafkaConnector(unittest.TestCase):
 
     def test_engine_decode(self):
         date_format = "%Y-%m-%d %H:%M:%S"
