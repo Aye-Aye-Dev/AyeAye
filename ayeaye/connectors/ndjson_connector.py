@@ -50,7 +50,7 @@ class NdjsonConnector(DataConnector):
     def engine_params(self):
         """
         @return: (Pinnate) with .file_path
-                        and optional: .encoding .start and .end
+                        and optional: .encoding
         """
         if self._engine_params is None:
             self._engine_params = self.ignition._decode_filesystem_engine_url(
