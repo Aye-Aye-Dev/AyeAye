@@ -81,7 +81,20 @@ class Pinnate:
         if attr not in self._attr:
             raise AttributeError("{} instance has no attribute '{}'".format(self.__class__.__name__, attr))
         if isinstance(self._attr[attr], list):
-            return [self.__class__(s) if isinstance(s, (list, dict)) else s for s in self._attr[attr]]
+
+            def list_recurse(item):
+                r = []
+                for s in item:
+                    if isinstance(s, dict):
+                        r.append(self.__class__(s))
+                    elif isinstance(s, list):
+                        r.append(list_recurse(s))
+                    else:
+                        r.append(s)
+                return r
+
+            return list_recurse(self._attr[attr])
+
         elif isinstance(self._attr[attr], dict):
             return self.__class__(self._attr[attr])
         else:

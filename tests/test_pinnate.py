@@ -40,3 +40,25 @@ class TestPinnate(unittest.TestCase):
                     '"recurse_list": [{"abc": "def"}], "recurse_dict": {"ghi": {"jkl": "mno"}}}'
                     )
         self.assertEqual(expected, as_json)
+
+    def test_recursive_lists(self):
+        "bug found with list inside a list"
+
+        d = {'name': 'Stall Street',
+             'type': 'Line',
+             'payload': [[-2.3597675, 51.3797509], [-2.359739, 51.3797783]],
+             'tags': {'name': 'Stall Street',
+                      'oneway': 'yes',
+                      'highway': 'unclassified',
+                      'motor_vehicle:conditional': 'no @ (10:00-18:00)'
+                      }
+             }
+        p = Pinnate(d)
+        # accessing the item triggered the bug
+        self.assertEqual(-2.3597675, p.payload[0][0])
+
+
+        # deeper recurse
+        d = {'a': [[[{'b':'hello'}]]]}
+        p = Pinnate(d)
+        self.assertEqual('hello', p.a[0][0][0].b)
