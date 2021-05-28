@@ -14,7 +14,7 @@ class UncookedConnector(DataConnector):
     def __init__(self, *args, **kwargs):
         """
         Connector to use a raw local file.
-        
+
         The file will be opened on demand. i.e. reading .data or getting the .file_handle. Getting
         the .file_path will not open the file.
 
@@ -22,7 +22,7 @@ class UncookedConnector(DataConnector):
 
         additional args for UncookedConnector
          None
-         
+
         TODO binary open
 
         Connection information-
@@ -34,11 +34,11 @@ class UncookedConnector(DataConnector):
 
         self._reset()
 
-        if self.access != AccessMode.READ:
-            raise NotImplementedError('WRITE and READWRITE access not yet implemented')
+        if self.access == AccessMode.READWRITE:
+            raise NotImplementedError('READWRITE access not yet implemented')
 
     def _reset(self):
-        self._file_handle = None # lazy eval, use self.file_handle
+        self._file_handle = None  # lazy eval, use self.file_handle
         self._encoding = None
         self._engine_params = None
         self.file_size = None
@@ -130,11 +130,24 @@ class UncookedConnector(DataConnector):
         """
         if self.access != AccessMode.READ:
             raise ValueError("Not open in read mode")
-        
+
         file_content = self.file_handle.read()
         return file_content
+
+    @data.setter
+    def data(self, file_content):
+        """
+        attribute based setter.
+
+        e.g.
+        c = UncookedConnector(engine_url="file://mydata_file", access=ayeaye.AccessMode.WRITE)
+        c.data = "hello world!"
+        """
+        if self.access != AccessMode.WRITE:
+            raise ValueError("Not open in write mode")
+
+        file_content = self.file_handle.write(file_content)
 
     @property
     def schema(self):
         raise TypeError("Uncooked connectors don't have rich interfaces like schemas")
-

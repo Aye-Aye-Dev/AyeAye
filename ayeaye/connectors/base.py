@@ -34,6 +34,8 @@ class DataConnector(BaseConnector):
     engine_type = None  # must be defined by subclasses
     optional_args = {}  # subclasses should specify their optional kwargs. Values in this dict are
     # default values.
+    # TODO - make it possible for internal variable name to not match kwarg name, e.g. schema -> self._schema
+    # TODO - these aren't always optional, handling missing mandatory args here
 
     def __init__(self, engine_url=None, access=AccessMode.READ, **kwargs):
         """
@@ -78,7 +80,7 @@ class DataConnector(BaseConnector):
         A fully resolved engine url contains everything needed to connect to the data source. This
         includes secrets like username and password.
 
-        Don't store the result of this property when locking or similar. @see :method:`engine_url_case`.
+        Don't store the result of this property when locking or similar. @see :class:`Ignition`.
 
         @return: (str) the fully resolved engine url.
         """
@@ -89,10 +91,6 @@ class DataConnector(BaseConnector):
             raise ValueError("Engine URL not available")
         else:
             raise ValueError(f"Engine URL failed to resolve: {status}")
-
-    @property
-    def engine_url_case(self, engine_url_case):
-        raise NotImplementedError("TODO")
 
     def update(self, **kwargs):
         """

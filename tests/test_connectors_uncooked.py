@@ -48,17 +48,30 @@ class TestUncookedConnector(unittest.TestCase):
     def test_on_demand(self):
         "File handle and file path are available as attributes"
         c = UncookedConnector(engine_url=f"file://{EXAMPLE_FILE}")
-        
+
         self.assertEqual(EXAMPLE_FILE, c.file_path)
-        
+
         fh = c.file_handle
-        print(type(fh))
         self.assertIsNotNone(fh, "Should be a file handle")
-        
+
         c.close_connection()
-        
+
         self.assertNotEqual(fh, c.file_handle, "A new file handle should have been opened")
 
-    
     def test_write(self):
-        pass
+
+        a_quote = ("More data does not necessarily mean better information."
+                   "Bruce Schnier - Cryptogram Oct. 2013"
+                   )
+
+        data_dir = tempfile.mkdtemp()
+        quotes_file = os.path.join(data_dir, "quotes.notes")
+
+        c = UncookedConnector(engine_url="file://" + quotes_file, access=ayeaye.AccessMode.WRITE)
+        c.data = a_quote
+        c.close_connection()
+
+        with open(quotes_file, 'r', encoding=c.encoding) as f:
+            file_content = f.read()
+
+        self.assertEqual(a_quote, file_content)
