@@ -5,7 +5,10 @@ Created on 17 Dec 2020
 '''
 import os
 
-import ndjson
+try:
+    import ndjson
+except:
+    pass
 
 from ayeaye.connectors.base import DataConnector, AccessMode
 from ayeaye.pinnate import Pinnate

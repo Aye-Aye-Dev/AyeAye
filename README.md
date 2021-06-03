@@ -2,21 +2,22 @@
 
 An ETL (Extract, Transform, Load) framework.
 
+## Quick install
+
+In the virtual environment for the project you’d like to use Aye Aye in, run:-
+
+```shell
+pip install ayeaye
+```
+
 ## Quick start
 
-In the project you’d like to use Aye Aye in, run:-
+Use [Pipenv](https://pipenv.pypa.io/en/latest/) to manage a python virtual environment and package management0
 
 ```shell
 pipenv shell
-pipenv install -e git+https://github.com/Aye-Aye-Dev/AyeAye#egg=ayeaye
+pipenv install ayeaye
 ```
-
-When `venv` is being used, add this line to `requirements.txt`-
-
-```
-git+https://github.com/Aye-Aye-Dev/AyeAye#egg=ayeaye
-```
-
 
 Within the environment created by pipenv above, run one of the examples:-
 
@@ -65,7 +66,22 @@ pipenv install --dev
 pipenv run python -m unittest tests/test_*.py
 ```
 
+## Development version
+
+To use the latest code in editable mode-
+
+```shell
+pipenv install -e git+https://github.com/Aye-Aye-Dev/AyeAye#egg=ayeaye
+```
+
+When `venv` is being used, add this line to `requirements.txt`-
+
+```
+git+https://github.com/Aye-Aye-Dev/AyeAye#egg=ayeaye
+```
+
+
 
 ## License
 
-Aye Aye is distributed under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) and Copyright Progressive Logic Limit 2020 and onwards.
+Aye Aye is distributed under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) and Copyright Progressive Logic Limit 2021 and onwards.

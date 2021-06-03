@@ -1,7 +1,10 @@
 import tarfile
 from typing import Generator, List
 
-import ndjson
+try:
+    import ndjson
+except:
+    pass
 
 from ayeaye.connectors.base import DataConnector
 from ayeaye.pinnate import Pinnate
@@ -65,7 +68,7 @@ class FlowerpotEngine:
         Generator returning each json object in a Flowerpot (across all individual files)
         """
         if file_name:
-            selected_files = file_name if isinstance(file_name, list) else [file_name,]
+            selected_files = file_name if isinstance(file_name, list) else [file_name, ]
         else:
             selected_files = self.file_names
 
