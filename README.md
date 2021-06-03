@@ -22,18 +22,15 @@ pipenv install ayeaye
 Within the environment created by pipenv above, run one of the examples:-
 
 ```shell
-ln -s `pipenv --venv`/src/ayeaye/examples/
-cd examples
+curl "https://raw.githubusercontent.com/Aye-Aye-Dev/AyeAye/master/examples/poisonous_animals.py" \
+  --output poisonous_animals.py
+mkdir data
+curl https://raw.githubusercontent.com/Aye-Aye-Dev/AyeAye/master/examples/data/poisonous_animals.json \
+  --output data/poisonous_animals.ndjson
 python poisonous_animals.py 
 ```
 
 This model takes a small input dataset of animals and collates them by the country they are found. It doesn't write to a dataset, it just outputs a log. The log for this example contains the name of the country and the animals found there.
-
-The `ln` (symlink) command will make all the modules in the examples directory visible. You could just change into this directory with the command:-
-
-```shell
-cd `pipenv --venv`/src/ayeaye/examples
-```
 
 There are more examples in the [Aye-Aye-Recipes](https://github.com/Aye-Aye-Dev/Aye-Aye-Recipes) git repo.
 
@@ -48,12 +45,12 @@ Example:-
 import ayeaye
 
 class PoisonousAnimals(ayeaye.Model):
-    poisonous_animals = ayeaye.Connect(engine_url='ndjson://data/poisonous_animals.ndjson')
+    poisonous_animals = ayeaye.Connect(engine_url='json://data/poisonous_animals.json')
 ```
 
 When instantiated, `self.poisonous_animals` will be a *dataset* that ETL operations can be done with.
 
-The `engine_url` parameter passed to `ayeaye.Connect` is specifying the dataset type ([new line JSON](http://ndjson.org/) in this case) and exact location for the data (`data/poisonous_animals.flowerpot` is a relative file path).
+The `engine_url` parameter passed to `ayeaye.Connect` is specifying the dataset type JSON in this case) and exact location for the data (`data/poisonous_animals.json` is a relative file path).
 
 Instead of `engine_url` you could also specify a `ref` and this uses the data catalogue to lookup the `engine_url`. (TODO this feature is coming soon!). When used this way, `ayeaye.Connect` is responsible for resolving the `ref` to an `engine_url` and passing this to a subclass of `ayeaye.connectors.base.DataConnector` which can read and maybe write this data type.
 
