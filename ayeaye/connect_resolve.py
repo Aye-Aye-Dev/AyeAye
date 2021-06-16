@@ -1,17 +1,33 @@
+import copy
+import re
+import warnings
+
+
 class ConnectorResolver:
     """
-    Lazy substitution of parameters within engine_urls.
+    Lazy substitution of template parameters.
 
     Normal usage of this module is for a single global instance to be available to all instances of
     all the subclasses of :class:`DataConnector`. This is provided as-
 
     >>> from ayeaye.connect_resolve import connector_resolver
 
-    This instance is given `resolver_callable`s at runtime and these are evaluated on demand by
+    This instance is given a mapping (i.e. key value pairs in a dictionary) or it is given a
+    `resolver_callable` that will be called only when needed. This call is most likely to be by a
     subclasses of DataConnector (i.e. connections to datasets) when they access the `engine_url`
     attribute.
 
-    For example, this could be used to resolve a secret:
+    Example using named attributes-
+
+    >>> import ayeaye
+    >>> from ayeaye.connectors.csv_connector import CsvConnector
+    >>> ayeaye.connect_resolve.connector_resolver.add(build_id="20210616A")
+    >>> x = CsvConnector(engine_url="csv:///data/build_{build_id}/product_codes.csv")
+    >>> x.engine_url
+    'csv:///data/build_20210616A/product_codes.csv'
+    >>>
+
+    Example using a callable to resolve a secret:
 
     def my_env_resolver(unresolved_engine_url):
         '''finds params starting like '{env_xxx}' and replaces it with the content of the
@@ -21,19 +37,10 @@ class ConnectorResolver:
 
     >>> import ayeaye
     >>> from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
-    >>> ayeaye.connect_resolve.connector_resolver.add(my_env_resolver)
+    >>> ayeaye.connect_resolve.connector_resolver.add_secret(my_env_resolver)
     >>> x = SqlAlchemyDatabaseConnector(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
     >>> x.engine_url
     'mysql://root:p4ssw0rd@localhost/my_database'
-    >>>
-
-    Example using named attributes-
-    >>> import ayeaye
-    >>> from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
-    >>> ayeaye.connect_resolve.connector_resolver.add(env_secret_password="supersecret")
-    >>> x = SqlAlchemyDatabaseConnector(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
-    >>> x.engine_url
-    'mysql://root:supersecret@localhost/my_database'
     >>>
 
     """
@@ -63,26 +70,40 @@ class ConnectorResolver:
 
     def resolve_engine_url(self, unresolved_engine_url):
         """
-        Fully resolve to an engine_url that contains no further parameters or raise an exception
-        if not possible to resolve all.
+        old name, use :method:`resolve` instead
+        """
+        warnings.warn("'resolve_engine_url' is deprecated use 'resolve' instead", DeprecationWarning)
+        return self.resolve(unresolved_engine_url)
+
+    def resolve(self, unresolved):
+        """
+        Fully resolve template variables to an string that contains no further parameters or raise
+        an exception if not possible to resolve all.
+
+        @param unresolved: (str) with templated variables. e.g. "csv://{my_variable}/abc.csv"
+
         @return: (str) engine_url
         """
-        engine_url = unresolved_engine_url
+        resolving = unresolved
         for r_callable in self.unnamed_callables:
-            engine_url = r_callable(engine_url)
-            if not self.needs_resolution(engine_url):
-                return engine_url
+            resolving = r_callable(resolving)
+            if not self.needs_resolution(resolving):
+                return resolving
 
         for k, v in self._attr.items():
             template_var = f"{{{k}}}"
-            if template_var in engine_url:
-                engine_url = engine_url.replace(template_var, v)
-                if not self.needs_resolution(engine_url):
-                    return engine_url
+            if template_var in resolving:
+                resolving = resolving.replace(template_var, v)
+                if not self.needs_resolution(resolving):
+                    return resolving
 
         # warning - don't put the partially resolved engine url into stack trace as it might
         # contain secretes.
-        raise ValueError(f"Couldn't fully resolve engine URL. Unresolved: {unresolved_engine_url}")
+        missing_vars = ",".join(re.findall('{.+?}', resolving))
+        msg = (f"Couldn't fully resolve engine URL. Unresolved: {unresolved}. "
+               f"Missing template variables are: {missing_vars}"
+               )
+        raise ValueError(msg)
 
     def add(self, *args, **kwargs):
         """
@@ -101,7 +122,48 @@ class ConnectorResolver:
         for attribute_name, attribute_value in kwargs.items():
             if attribute_name in self._attr:
                 raise ValueError(f"Attempted to set existing attribute: {attribute_name}")
+
+            if not isinstance(attribute_name, (int, str)):
+                raise ValueError(
+                    f"templated variable '{attribute_name}' needs to be string or int.")
+
             self._attr[attribute_name] = attribute_value
+
+    def add_secret(self, *args, **kwargs):
+        """
+        When an :class:`ayeaye.Model` is locked secrets shouldn't be included in the locking data.
+        This method is analogous to :method:`add` but keeps a reference to exclude these items
+        from the :method:`capture_context`.
+
+        @see :method:`add` for arguments.
+        """
+        raise NotImplementedError("TODO")
+
+    def capture_context(self):
+        """
+        Return a JSON safe dictionary of context variables.
+
+        The returned dictionary is expected to be serialised as part of :method:`ayeaye.Model.lock`.
+
+        @return (dict)
+        """
+        json_safe_types = (str, int, float, bool)
+
+        # TODO: secrets - these shouldn't be returned
+
+        # work in progress. Can only handle static mappings and not callables.
+        if len(self.unnamed_callables) > 0:
+            # alt approach is for ayeaye.Model to implement load_locking and unload_locking methods
+            # and for the mapper dictionary to support callables and overlay of locking info
+            raise NotImplementedError("Can't serialise callables - alternative approach needed.")
+
+        for attribute_name, attribute_value in self._attr.items():
+            # attrib naames are checked in :method:`add`
+            if not isinstance(attribute_value, json_safe_types):
+                raise ValueError(f"Non-JSON serialisable data type found in '{attribute_name}'")
+
+        # copy to make a snapshot as context manager will change _attr
+        return {'mapper': copy.copy(self._attr)}
 
     def context(self, *args, **kwargs):
         """
@@ -114,6 +176,9 @@ class ConnectorResolver:
         @see :method:`TestConnectors.test_resolve_engine_url` for an example.
 
         @see :method:`add` for args and kwargs
+
+        Warning - not yet thread-safe as the global state is altered for the duration of the
+        context manager. Can be fixed with thread local variables.
         """
         parent = self
 

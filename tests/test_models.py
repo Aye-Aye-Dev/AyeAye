@@ -73,3 +73,13 @@ class TestModels(unittest.TestCase):
                          'Crown of thorns starfish_Golden dart frog'
                          ]
         self.assertEqual(expected_data, output_data)
+
+    def test_locking_with_simple_mapping(self):
+        """
+        Dictionary mapping passed to .context should be in the lock document.
+        """
+        with ayeaye.connector_resolver.context(data_version_id='abc123'):
+            m = FakeModel()
+            lock_doc = m.lock()
+
+        self.assertEqual('abc123', lock_doc['resolve_context']['mapper']['data_version_id'])

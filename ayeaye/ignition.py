@@ -56,7 +56,7 @@ class Ignition:
             raw_e_url = self._engine_url_state[EngineUrlCase.RAW]
             if connector_resolver.needs_resolution(raw_e_url):
                 # local resolution is still needed
-                resolved = connector_resolver.resolve_engine_url(raw_e_url)
+                resolved = connector_resolver.resolve(raw_e_url)
                 self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = resolved
             else:
                 # nothing to resolve so fully_resolved = raw

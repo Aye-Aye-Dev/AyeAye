@@ -3,6 +3,7 @@ from time import time
 
 import ayeaye
 from ayeaye.connectors.base import DataConnector
+from ayeaye.connect_resolve import connector_resolver
 
 
 class Model:
@@ -170,3 +171,50 @@ class Model:
             eta = "{:.2f}".format((running_secs / position_pc) - running_secs)
             self.log(f"{progress_pc} {eta} seconds remaining. {msg}", level="PROGRESS")
             self.progress_logged = time_now
+
+    def fetch_locking(self):
+        """
+        A 'lock' is the information needed by a model to reproduce an output.
+
+        This method is optionally implemented by subclasses that need more than the context
+        provided by `ayeaye.connector_resolver` in order to be repeatable. For example, the model
+        might not be deterministic.
+
+        The value returned will be passed to :method:`apply_locking` if/when a model needs to
+        be repeated.
+
+        @returns something that can be serialised to JSON
+        """
+        return None
+
+    def apply_locking(self, lock_doc):
+        """
+        Use the output from :method:`fetch_locking` to reproduce results from a previous build.
+
+        This method must be implemented if :method:`fetch_locking` has been.
+        """
+        raise NotImplementedError("Missing sub-class method on attempt to re-hydrate locking.")
+
+    def lock(self):
+        """
+        A 'lock' is the information needed by a model to reproduce an output.
+
+        Return a JSON safe dictionary of variables needed to repeat the build.
+
+        The returned dictionary is expected to be serialised and stored.
+
+        @return (dict)
+        """
+        # this is very much work in progress.
+        # coming soon
+        # - code version (git commitishes)
+        # - library code versions (maybe pipenv lock file)
+
+        locking_doc = {'resolve_context': connector_resolver.capture_context()
+                       }
+
+        model_lock = self.fetch_locking()
+        if model_lock is not None:
+            locking_doc['model_locking'] = model_lock
+
+        return locking_doc

@@ -277,9 +277,9 @@ class Connect:
         proxy through to subclass of :class:`DataConnector` when used as a standalone Connect
         (i.e. not a class variable on :class:`ayeaye.Model`).
         """
-        attrib_error_msg = "'{}' object has no attribute '{}'".format(self.__class__.__name__, attr)
-
         if self.connection_bind == Connect.ConnectBind.MODEL:
+            cls_name = self.__class__.__name__
+            attrib_error_msg = f"'{cls_name}' object has no attribute '{attr}'"
             raise AttributeError(attrib_error_msg)
 
         # Short cut to proxy

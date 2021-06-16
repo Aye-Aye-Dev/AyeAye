@@ -161,8 +161,10 @@ class TestResolve(unittest.TestCase):
         with self.assertRaises(ValueError) as exception_context:
             m.get_the_important_engine_url()
 
+        exception_message = str(exception_context.exception)
         msg = "Without a connector_resolver it shouldn't be possible to get the engine_url"
-        self.assertIn("Couldn't fully resolve engine URL", str(exception_context.exception), msg)
+        self.assertIn("Couldn't fully resolve engine URL", exception_message, msg)
+        self.assertIn("Missing template variables are: {file_location}", exception_message)
 
         # using .start() and .finish() instead of a with statement
         local_context = connector_resolver.context(file_location_resolver)
@@ -199,7 +201,7 @@ class TestResolve(unittest.TestCase):
 
         cr = ConnectorResolver()
         cr.add(a2x, b2y, c2z)
-        engine_url = cr.resolve_engine_url("{a}{b}{c}")
+        engine_url = cr.resolve("{a}{b}{c}")
         expected_url = "xyz"
         self.assertEqual(expected_url, engine_url)
 
@@ -259,3 +261,18 @@ class TestResolve(unittest.TestCase):
 
         # don't leave state for other tests
         connector_resolver.brutal_reset()
+
+    @unittest.skip("Callable kwargs not implemented yet")
+    def test_callable_mapper_value(self):
+
+        class CheeseSales(Model):
+            products = Connect(engine_url="csv://my_path_x/data_{data_version}.csv")
+
+        def simple_resolver(*args):
+            return "deep_fried_brie"
+
+        with connector_resolver.context(data_version=simple_resolver):
+            m = CheeseSales()
+            resolved_engine_url = m.products.engine_url
+
+        self.assertEqual('csv://my_path_x/data_deep_fried_brie.csv', resolved_engine_url)
