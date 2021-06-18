@@ -1,9 +1,23 @@
 from datetime import datetime
+from enum import Enum
 from time import time
+import warnings
 
 import ayeaye
 from ayeaye.connectors.base import DataConnector
 from ayeaye.connect_resolve import connector_resolver
+from ayeaye.ignition import EngineUrlCase, EngineUrlStatus
+
+
+class LockingMode(Enum):
+    """
+    How to capture context around datasets in a model. This is used to track data provenance and
+    to make model repeatability possible.
+
+    @see :method:`Model.lock`
+    """
+    CONTEXT = 'context'  # just the ayeaye.connector_resolver context
+    ALL_DATASETS = 'all_datasets'  # the engine_urls for all datasets
 
 
 class Model:
@@ -191,17 +205,22 @@ class Model:
         """
         Use the output from :method:`fetch_locking` to reproduce results from a previous build.
 
-        This method must be implemented if :method:`fetch_locking` has been.
+        This method should be implemented if a model needs to be hydrated with locking details from
+        a previous build.
         """
         raise NotImplementedError("Missing sub-class method on attempt to re-hydrate locking.")
 
-    def lock(self):
+    def lock(self, locking_level=LockingMode.CONTEXT):
         """
         A 'lock' is the information needed by a model to reproduce an output.
 
         Return a JSON safe dictionary of variables needed to repeat the build.
 
         The returned dictionary is expected to be serialised and stored.
+
+        @param locking_level: (LockingMode)        
+            LockingMode.CONTEXT - key values from ayeaye.connector_resolver
+            LockingMode.ALL_DATASETS - CONTEXT + engine_urls from all datasets in model.
 
         @return (dict)
         """
@@ -216,5 +235,23 @@ class Model:
         model_lock = self.fetch_locking()
         if model_lock is not None:
             locking_doc['model_locking'] = model_lock
+
+        if locking_level == LockingMode.ALL_DATASETS:
+            locking_doc['dataset_engine_urls'] = {}
+            for dataset_name, connector in self.datasets().items():
+
+                # TODO: this should be EngineUrlCase.WITHOUT_SECRETS. Secrets shouldn't be in
+                # locking doc. But that's not implemented yet,
+                status, engine_url = connector.ignition.engine_url_at_state(
+                    EngineUrlCase.FULLY_RESOLVED)
+                msg = ("Incomplete implementation: if there are secrets in the engine_url they "
+                       "will be included in locking doc."
+                       )
+                warnings.warn(msg)
+
+                if status != EngineUrlStatus.OK:
+                    raise ValueError(f"Can't lock, engine_url not available for '{dataset_name}'")
+
+                locking_doc['dataset_engine_urls'][dataset_name] = engine_url
 
         return locking_doc

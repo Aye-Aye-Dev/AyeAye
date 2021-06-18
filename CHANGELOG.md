@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3] - 2021-06-18
+### Added
+- alternative locking mode (LockingMode.ALL_DATASETS) to capture engine_urls from all datasets in a model
+- common pattern to use a manifest file - 'ayeaye.common_pattern.manifest.EngineFromManifest'
+
 ## [0.0.2] - 2021-06-16
 ### Added
 - ayeaye.Model.lock() - starting point for model locking 
