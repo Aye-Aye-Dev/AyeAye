@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2021-06-22
+### Fixed
+- missing common patterns package
+
 ## [0.0.4] - 2021-06-22
 ### Added
 - dictionary access via engine_url in MultiConnector
