@@ -105,10 +105,22 @@ class MultiConnector(DataConnector):
         return connector
 
     def __len__(self):
-        raise NotImplementedError("TODO")
+        """
+        How many datasets is this MultiConnector holding
+        """
+        self.connect()
+        return len(self._child_dc_mapping)
 
     def __getitem__(self, key):
-        raise NotImplementedError("TODO")
+        """
+        @param key: (str) engine_url
+
+        @return: (subclass of :class:`DataConnector`)
+        """
+        self.connect()
+        idx = self._child_dc_mapping[key]
+        connector = self._child_data_connectors[idx]
+        return connector
 
     def __iter__(self):
         self.connect()

@@ -85,6 +85,11 @@ class ConnectorResolver:
         @return: (str) engine_url
         """
         resolving = unresolved
+
+        if not self.needs_resolution(resolving):
+            # not a lot to do!
+            return resolving
+
         for r_callable in self.unnamed_callables:
             resolving = r_callable(resolving)
             if not self.needs_resolution(resolving):

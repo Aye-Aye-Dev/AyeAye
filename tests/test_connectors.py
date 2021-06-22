@@ -278,3 +278,19 @@ class TestConnectors(unittest.TestCase):
 
         c = JsonConnector(engine_url="json://this_doesnt_exist.json")
         self.assertFalse(c.datasource_exists)
+
+    def test_multi_connector_by_engine_url(self):
+        """
+        Get a data connection from a multi connector by engine_url
+        """
+        engine_0 = "csv://" + EXAMPLE_CSV_MICE
+        engine_1 = "csv://" + EXAMPLE_CSV_SQUIRRELS
+        c = MultiConnector(engine_url=[engine_0, engine_1],
+                           access=ayeaye.AccessMode.READ,
+                           field_names=['common_name', 'scientific_name', 'geo_distribution']
+                           )
+
+        dataset = c[engine_0]
+        # check access to any dataset property
+        self.assertTrue(dataset.engine_params.file_path.endswith('tests/data/mice.csv'))
+        self.assertEqual(2, len(c))

@@ -14,6 +14,8 @@ class TestManifest(unittest.TestCase):
 
     def test_engine_from_manifest(self):
         """
+        Use list of files from manifest to load other datasets.
+
         @see notes in EngineFromManifest
 
         ./data/manifest_abcd.json contains a list of files, well it could be a list but is just
@@ -27,11 +29,13 @@ class TestManifest(unittest.TestCase):
             invertebrates = Connect(engine_url=EngineFromManifest(manifest, "single_file", "json"))
 
             def build(self):
-                return self.ants.engine_url, self.invertebrates.engine_url
+                return
 
         with connector_resolver.context(build_id="abcd"):
             m = InsectSurvey()
-            ants_engine_url, invertebrates_engine_url = m.build()
+            m.go()  # uses pre_build(), build() etc.
+            ants_engine_url = m.ants.engine_url
+            invertebrates_engine_url = m.invertebrates.engine_url
 
         self.assertEqual(ants_engine_url, ["csv://blue_ants.csv"])
         self.assertEqual(invertebrates_engine_url, "json://worms.json")

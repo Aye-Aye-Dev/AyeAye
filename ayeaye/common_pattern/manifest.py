@@ -44,7 +44,12 @@ class EngineFromManifest:
         :param field_name (str): field within manifest_dataset.data[field_name]
         :param engine_type (str): prefix to engine_url. e.g. 'json' would give 'json://'
         """
-        self.manifest_dataset = manifest_dataset
+        if isinstance(manifest_dataset, ayeaye.Connect):
+            # .clone() is to prevent the .Connect being bound to the parent if it's connected
+            self.manifest_dataset = manifest_dataset.clone()
+        else:
+            self.manifest_dataset = manifest_dataset
+
         self.field_name = field_name
         self.engine_type = engine_type
 
