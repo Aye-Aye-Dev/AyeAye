@@ -106,7 +106,7 @@ class Connect:
         @return (instance of :class:`Connect`)
         """
         new_instance = copy.copy(self)
-        new_instance._construct(**kwargs)
+        new_instance._construct(**{**self.relayed_kwargs, **kwargs})
         return new_instance
 
     def connect_id(self):
@@ -132,7 +132,9 @@ class Connect:
         return False
 
     def __copy__(self):
-        return self.__class__(**self.base_constructor_kwargs)
+        c = self.__class__(**self.base_constructor_kwargs)
+        c.relayed_kwargs = copy.copy(self.relayed_kwargs)
+        return c
 
     def __get__(self, instance, instance_class):
         if instance is None:

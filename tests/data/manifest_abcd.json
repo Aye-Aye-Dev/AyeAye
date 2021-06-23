@@ -1,3 +1,4 @@
 {"source_files": ["blue_ants.csv"],
-"single_file": "worms.json"
+"single_file": "worms.json",
+"more_files": ["x.ndjson", "y.ndjson", "z.ndjson"]
 }

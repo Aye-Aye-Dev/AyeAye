@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2021-06-23
+### Added
+- AbstractManifestMapper and an example demonstrating a useful pattern for mapping between files listed in a mani
+fest
+### Fixed
+- common_pattern.manifest.EngineFromManifest was loading the manifest too early
+- Connect.clone and Connect.copy weren't taking arguments passed to .update()
+
 ## [0.0.5] - 2021-06-22
 ### Fixed
 - missing common patterns package

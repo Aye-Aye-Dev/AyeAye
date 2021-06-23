@@ -1,10 +1,10 @@
 {"animals":
-[{"name": "Blue ringed octopus", "where": "Australia"},
-{"name": "Adder", "where": "United Kingdom"},
-{"name": "King Cobra", "where": "India"},
-{"name": "Gila Monster", "where": "United States of America"},
-{"name": "Indian Krait", "where": "India"},
-{"name": "Box jellyfish", "where": "Australia"},
-{"name": "Eastern brown snake", "where": "Australia"},
-{"name": "Arizona Bark Scorpion", "where": "United States of America"}
+[{"name": "Blue ringed octopus", "where": "Australia", "scientific_classification_class": "Cephalopoda"},
+{"name": "Adder", "where": "United Kingdom", "scientific_classification_class": "Reptilia"},
+{"name": "King Cobra", "where": "India", "scientific_classification_class": "Reptilia"},
+{"name": "Gila Monster", "where": "United States of America", "scientific_classification_class": "Reptilia"},
+{"name": "Indian Krait", "where": "India", "scientific_classification_class": "Reptilia"},
+{"name": "Box jellyfish", "where": "Australia", "scientific_classification_class": "Cubozoa"},
+{"name": "Eastern brown snake", "where": "Australia", "scientific_classification_class": "Reptilia"},
+{"name": "Arizona Bark Scorpion", "where": "United States of America", "scientific_classification_class": "Arachnida"}
 ]}

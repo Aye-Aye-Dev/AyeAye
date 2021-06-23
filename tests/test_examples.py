@@ -9,8 +9,10 @@ import ayeaye
 
 from examples.favourite_colours import FavouriteColours
 from examples.poisonous_animals import PoisonousAnimals
+from examples.manifest_mapper import AustralianAnimals
 
 EXAMPLE_MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples')
+EXAMPLE_DATA = os.path.normpath(os.path.join(EXAMPLE_MODELS_DIR, 'data'))
 
 
 class TestExamples(unittest.TestCase):
@@ -111,3 +113,23 @@ class TestExamples(unittest.TestCase):
         all_the_logs = external_log.read()
         expected = "Total days in input doesn't match total days in output."
         self.assertIn(expected, all_the_logs)
+
+    def test_australian_animal_mapper(self):
+
+        c = {'input_path': EXAMPLE_DATA,
+             'output_path': self.working_directory()
+             }
+
+        with ayeaye.connector_resolver.context(**c):
+            m = AustralianAnimals()
+            m.log_to_stdout = False
+            m.go()
+
+        # two files will be built, only one is checked
+        poisonous_output = os.path.join(c['output_path'], 'australian_poisonous_animals.json')
+        with open(poisonous_output) as f:
+            # just as text, don't de-serialise the JSON
+            poisonous = f.read()
+
+        self.assertIn('Box jellyfish', poisonous)
+        self.assertNotIn('Arizona Bark Scorpion', poisonous)
