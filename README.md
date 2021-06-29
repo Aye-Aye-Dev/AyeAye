@@ -26,7 +26,7 @@ curl "https://raw.githubusercontent.com/Aye-Aye-Dev/AyeAye/master/examples/poiso
   --output poisonous_animals.py
 mkdir data
 curl https://raw.githubusercontent.com/Aye-Aye-Dev/AyeAye/master/examples/data/poisonous_animals.json \
-  --output data/poisonous_animals.ndjson
+  --output data/poisonous_animals.json
 python poisonous_animals.py 
 ```
 
