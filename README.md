@@ -60,6 +60,7 @@ Instead of `engine_url` you could also specify a `ref` and this uses the data ca
 Ensure the working directory is the base Aye Aye directory (i.e. the same directory as the Pipfile):
 ```shell
 pipenv install --dev
+export PYTHONPATH=`pwd`/lib
 pipenv run python -m unittest discover
 ```
 
