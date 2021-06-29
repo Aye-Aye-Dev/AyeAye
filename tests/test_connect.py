@@ -215,7 +215,7 @@ class TestConnect(unittest.TestCase):
 
     def test_steal_model_connect(self):
         """
-        Take a Connect from a model'sclass variables and use it as a standalone Connect.
+        Take a Connect from a model's class variables and use it as a standalone Connect.
         """
         class AnimalsModel(AbstractFakeModel):
             animals = Connect(engine_url="csv://" + EXAMPLE_CSV_PATH)

@@ -33,7 +33,7 @@ class Model:
     """
 
     def __init__(self):
-        self._connections = {}
+        self._connections = {}  # see :class:`ayeaye.Connect` 'descriptors' in doc string.
 
         self.log_to_stdout = True
         self.external_logger = None

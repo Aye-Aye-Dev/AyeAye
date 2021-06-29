@@ -5,6 +5,8 @@ datasets.
 A common pattern is to bootstrap a batched build by listing all the target files used in the build in a
 manifest file. This manifest file is a dataset for any model that works on the target files. 
 """
+import copy
+
 from collections import defaultdict
 from inspect import ismethod
 
@@ -92,7 +94,9 @@ class AbstractManifestMapper:
     access to `.data`. JSON is a good choice for the manifest dataset.
 
     Sub classes implement a method for each map and this method is either a generator or returns
-    a list of (original_manifest_item, engine_url).
+    a list of (original_manifest_item, engine_url). [Note - this doesn't strictly need to be an
+    engine_url if the mapper is used more generally and not just as a helper for ayeaye.Connect
+    as is being demonstrated here].
 
     For example, using xxxx as the map name:
 
@@ -108,7 +112,7 @@ class AbstractManifestMapper:
     class AustralianAnimals(ayeaye.Model):
         animals_manifest = ayeaye.Connect(engine_url="json://{input_data}/animals_manifest.json")
         animals_mapper = FileMapper(animals_manifest)
-        all_files = ayeaye.Connect(engine_url=animals_mapper.all_files) 
+        all_files = ayeaye.Connect(engine_url=animals_mapper.all_files)
     ```
 
     And FileMapper will also be an iterator returning a object with attributes linking to the
@@ -118,6 +122,13 @@ class AbstractManifestMapper:
     https://github.com/Aye-Aye-Dev/AyeAye/blob/master/examples/manifest_mapper.py
 
     The tests in :class:`tests.common_pattern.test_manifest.TestManifest` also demonstrate usage.
+
+    Notes-
+
+    This class is a descriptor as it's expected to be used to declare class variables that are then
+    used within the instance.
+
+    If the subclass changes the constructor's arguments you must implement the __copy__ method.
     """
 
     def __init__(self, manifest_dataset, field_name):
@@ -129,10 +140,29 @@ class AbstractManifestMapper:
         self.manifest_dataset_unresolved = manifest_dataset
         self.field_name = field_name
 
-        # lazy vars
-        self._mapper_methods = None
-        self._full_map = None
-        self._manifest_dataset = None
+    def __copy__(self):
+        c = self.__class__(manifest_dataset=self.manifest_dataset_unresolved,
+                           field_name=self.field_name)
+        return c
+
+    def __get__(self, instance, instance_class):
+        if instance is None:
+            # class method called.
+            # This means `self` is currently an attribute of the class (so NOT an instance
+            # variable).
+            #
+            # see https://docs.python.org/3/howto/descriptor.html
+            return self
+
+        ident = id(self)
+        # dynamically create a place in the parent class to hold descriptor objects
+        if not hasattr(instance, "_abstract_manifes_mapper_vars"):
+            instance._abstract_manifes_mapper_vars = {}
+
+        if ident not in instance._abstract_manifes_mapper_vars:
+            instance._abstract_manifes_mapper_vars[ident] = copy.copy(self)
+
+        return instance._abstract_manifes_mapper_vars[ident]
 
     @property
     def manifest_items(self):
@@ -141,18 +171,18 @@ class AbstractManifestMapper:
         context that is needed before reading the manifest_dataset. That context wouldn't have been
         available during construction.
 
-        Generator yielding each item in the manifest.data[self.field_name] list
+        Generator yielding each item in the manifest datasets's target field.
+        i.e. list of items in manifest.data[self.field_name]
         """
-        if self._manifest_dataset is None:
-            if isinstance(self.manifest_dataset_unresolved, ayeaye.Connect):
-                # .clone() is to prevent the .Connect being bound to the parent if it's connected
-                manifest_dataset = self.manifest_dataset_unresolved.clone()
-            else:
-                manifest_dataset = self.manifest_dataset_unresolved
+        if isinstance(self.manifest_dataset_unresolved, ayeaye.Connect):
+            # .clone() is to prevent the .Connect being bound to the parent if it's connected
+            manifest_dataset = self.manifest_dataset_unresolved.clone()
+        else:
+            manifest_dataset = self.manifest_dataset_unresolved
 
-            # create ephemeral dataset not tied to an ayeaye.Model
-            e_url = ayeaye.connector_resolver.resolve(manifest_dataset.engine_url)
-            self._manifest_dataset = ayeaye.Connect(engine_url=e_url)
+        # create ephemeral dataset not tied to an ayeaye.Model
+        e_url = ayeaye.connector_resolver.resolve(manifest_dataset.engine_url)
+        self._manifest_dataset = ayeaye.Connect(engine_url=e_url)
 
         yield from self._manifest_dataset.data[self.field_name]
 
@@ -175,23 +205,23 @@ class AbstractManifestMapper:
         @returns (dict) map_name -> mapping_method bound to instance
         """
         method_prefix = 'map_'
-        if self._mapper_methods is None:
-            self._mapper_methods = {}
-            for obj_name in dir(self):
 
-                if not obj_name.startswith(method_prefix):
-                    continue
+        mapper_methods = {}
+        for obj_name in dir(self):
 
-                obj = getattr(self, obj_name)
-                if ismethod(obj):
-                    map_name = obj_name[len(method_prefix):]
+            if not obj_name.startswith(method_prefix):
+                continue
 
-                    if map_name == 'manifest_item':
-                        raise ValueError("Reserved method name: manifest_item")
+            obj = getattr(self, obj_name)
+            if ismethod(obj):
+                map_name = obj_name[len(method_prefix):]
 
-                    self._mapper_methods[map_name] = obj
+                if map_name == 'manifest_item':
+                    raise ValueError("Reserved method name: manifest_item")
 
-        return self._mapper_methods
+                mapper_methods[map_name] = obj
+
+        return mapper_methods
 
     @property
     def full_map(self):
@@ -200,20 +230,18 @@ class AbstractManifestMapper:
         manifest_item -> map_name -> [mapped_value[,mapped_value...]]
 
         """
-        if self._full_map is None:
+        # loop through all items in manifest. This ensures at least
+        # an empty map_name dictionary if no mapper targets that item.
+        full_map = {}
+        for manifest_listed_file in self.manifest_items:
+            full_map[manifest_listed_file] = defaultdict(list)
 
-            # loop through all items in manifest. This ensures at least
-            # an empty map_name dictionary if no mapper targets that item.
-            self._full_map = {}
-            for manifest_listed_file in self.manifest_items:
-                self._full_map[manifest_listed_file] = defaultdict(list)
+        for map_name, map_method in self.mapper_methods.items():
 
-            for map_name, map_method in self.mapper_methods.items():
+            for manifest_listed_file, engine_url in map_method():
+                full_map[manifest_listed_file][map_name].append(engine_url)
 
-                for manifest_listed_file, engine_url in map_method():
-                    self._full_map[manifest_listed_file][map_name].append(engine_url)
-
-        return self._full_map
+        return full_map
 
     def __iter__(self):
         """
@@ -228,7 +256,7 @@ class AbstractManifestMapper:
                 # if this isn't intuitive then map_method() should declare what to do here.
                 # e.g.
                 # always return list (possibly with one item) when dealing with multi-connector.
-                m[map_name] = engine_urls[0] if len(engine_urls) > 0 else engine_urls
+                m[map_name] = engine_urls[0] if len(engine_urls) == 1 else engine_urls
 
             yield ayeaye.Pinnate(m)
 

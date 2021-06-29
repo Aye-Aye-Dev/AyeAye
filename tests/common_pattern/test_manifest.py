@@ -122,3 +122,42 @@ class TestManifest(unittest.TestCase):
 
         # ... it's later now. Call it.
         self.assertEqual(expected_engine_urls, call_later())
+
+    def test_abstract_manifest_mapper_not_shared(self):
+        """
+        class variable doesn't share variables between classes
+        """
+        class SeabedMapper(AbstractManifestMapper):
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                print("creating seabedmapper", id(self))
+
+            def map_x(self):
+                return [(f, f"json://{f}") for f in self.manifest_items]
+
+        class SeabedSurvey(Model):
+            manifest = Connect()
+            mapper = SeabedMapper(manifest_dataset=manifest, field_name="more_files")
+            x_files = Connect(engine_url=mapper.x)
+
+            def __init__(self, manifest_file, **kwargs):
+                super().__init__(**kwargs)
+                self.manifest.update(engine_url=f"json://{manifest_file};encoding=utf-8-sig")
+
+            def build(self):
+                return
+
+        s0 = SeabedSurvey(f"{TEST_DATA}/manifest_abcd.json")
+
+        engine_urls = [x.engine_url for x in s0.x_files]
+        self.assertEqual(engine_urls, ['json://x.ndjson', 'json://y.ndjson', 'json://z.ndjson'])
+
+        # manifest file doesn't exist but old use of 'manifest_abcd.json' is still clinging
+        # on to class variable.
+        s0 = SeabedSurvey(f"{TEST_DATA}/manifest_does_not_exist.json")
+        with self.assertRaises(ValueError) as context:
+            engine_urls = [x.engine_url for x in s0.x_files]
+
+        exception_msg = str(context.exception)
+        self.assertTrue(exception_msg.endswith("which isn't readable"))
