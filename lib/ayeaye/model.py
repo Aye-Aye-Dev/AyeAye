@@ -1,3 +1,4 @@
+from collections import namedtuple
 from datetime import datetime
 from enum import Enum
 from time import time
@@ -91,7 +92,13 @@ class Model:
         return True
 
     def build(self):
-        raise NotImplementedError("All models must implement this method")
+        """
+        Do the thing! - build/process/transform - whatever the model does starts here.
+
+        Must be implemented by subclasses. Don't change method argument in subclass as this is
+        called by :method:`go` when running the full model execution.
+        """
+        raise NotImplementedError("All models must implement the build() method")
 
     def post_build_check(self):
         """
@@ -255,3 +262,98 @@ class Model:
                 locking_doc['dataset_engine_urls'][dataset_name] = engine_url
 
         return locking_doc
+
+
+class PartitionedModel(Model):
+    """
+    Similar to :class:`Model` but requires additional methods to be implemented by the subclass to
+    describe how the processing can be split into parallel subtasks.
+
+    A model can suggest to the executor how many parallel tasks could be used and the executor
+    is responsible for orchestrating a level of parallelisation that fits the execution environment.
+
+    The :method:`PartitionedModel.build` can run a model across multiple local processes or an
+    external executor (e.g. Google Cloud Run, Celery, AWS' ECS etc.) could run the tasks across a
+    distributed environment.
+
+    The executor is responsible for re-executing failed tasks. All sub-tasks should be idempotent and
+    therefore safe to execute multiple times, possibly in parallel.
+
+    It works as follows-
+
+    1. The executor asks the model for 'suggestions' of how many sub-tasks the model can be split
+    into (see :method:`partition_plea`).
+
+    2. The executor evaluates the :class:`PartitionOption` returned by :method:`partition_plea`
+    along with the capabilities of the execution environment and requests a mutually compatible
+    number of partition arguments from :method:`partition_slice`.
+
+    3. :method:`partition_slice` returns a list of method names and arguments. Each of which is
+    passed by the executor to an instance of the model that has been instantiated with the same
+    resolver context (see :class:`ConnectorResolver`) as the 'parent' model.
+
+    4. The return value from each subtask is passed to optional :method:`partition_subtask_complete`.
+
+    5. When the executor is satisfied that all sub-tasks are complete the optional
+    :method:`partition_complete` method is called.
+    """
+
+    # Start simple, this will no doubt increase in flexibility. Each are an integer suggesting
+    # how many sub-tasks the execution could be split into.
+    PartitionOption = namedtuple('PartitionOption', ('minimum', 'maximum', 'optimal'))
+
+    def partition_plea(self):
+        """
+        Subclass to suggest possible options for splitting the task execution.
+
+        @return (PartitionOption)
+        """
+        raise NotImplementedError("All models must implement this method")
+
+    def partition_slice(self, slice_count):
+        """
+        Not an iterator - return a list so the sub-class model is simple in terms of concurrency
+        and is ready to accept calls to :method:`partition_subtask_complete`.
+
+        @returns (list of (method name (str), kwargs [i.e. a dict])
+        """
+        raise NotImplementedError("All models must implement this method")
+
+    def partition_subtask_complete(self, subtask_kwargs, subtask_return_value):
+        """
+        Optional method. Takes return values from subtasks.
+        """
+        return None
+
+    def partition_complete(self):
+        """
+        Optional method. called when executor has finished all sub-tasks.
+        """
+        return None
+
+    def build(self):
+        """
+        When not run by an executor in a distributed environment the default behaviour is for
+        :class:`PartitionedModel`s to behave like normal :class:`Model`s but (TODO) using
+        multiprocessing for local parallel execution.
+
+        Subtasks could override this local execution.
+        """
+        partition_option = self.partition_plea()
+
+        # this will become parallel multiprocess later
+        assert partition_option.minimum == 1
+
+        sub_task_method_defs = self.partition_slice(1)
+        assert len(sub_task_method_defs) == 1
+
+        method_name = sub_task_method_defs[0][0]
+        method_kwargs = sub_task_method_defs[0][1]
+
+        sub_task_method = getattr(self, method_name)
+        subtask_return_value = sub_task_method(**method_kwargs)
+
+        self.partition_subtask_complete(subtask_kwargs=method_kwargs,
+                                        subtask_return_value=subtask_return_value)
+
+        self.partition_complete()
