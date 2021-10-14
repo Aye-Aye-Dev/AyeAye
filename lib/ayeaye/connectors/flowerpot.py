@@ -3,7 +3,7 @@ from typing import Generator, List
 
 try:
     import ndjson
-except:
+except ModuleNotFoundError:
     pass
 
 from ayeaye.connectors.base import DataConnector

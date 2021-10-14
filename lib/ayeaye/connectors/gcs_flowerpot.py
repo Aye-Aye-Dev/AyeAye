@@ -5,7 +5,7 @@ try:
     from google.auth.credentials import Credentials
     from google.cloud import storage
     from google.cloud.storage import Blob
-except:
+except ModuleNotFoundError:
     pass
 
 from ayeaye.connectors.base import DataConnector
@@ -33,7 +33,7 @@ class GcsFlowerpotConnector(DataConnector):
         self.project_name, self.bucket_name, self.flowerpot_path = \
             split_gcs_uri(kwargs['engine_url'])
         self.bucket = get_gcs_bucket(self.bucket_name, self.project_name, self.credentials)
-        self._flowerpot = None # loaded on demand
+        self._flowerpot = None  # loaded on demand
 
     def _get_blob(self):
         """Get flowerpot object from its remote path as a GCS blob"""
@@ -80,7 +80,8 @@ def split_gcs_uri(gcs_uri: str) -> Tuple[str, str]:
         tuple: (bucket, key) pair of GCS bucket name and GCS key of item in URL.
     """
     url_prefix = GcsFlowerpotConnector.engine_type
-    assert gcs_uri.startswith(url_prefix), "Google Cloud Storage URIs should start with {}".format(url_prefix)
+    assert gcs_uri.startswith(
+        url_prefix), "Google Cloud Storage URIs should start with {}".format(url_prefix)
     proj_bucket, path = tuple(gcs_uri[len(url_prefix):].split('/', 1))
     if '.' in proj_bucket:
         project, bucket = proj_bucket.split('.', 1)

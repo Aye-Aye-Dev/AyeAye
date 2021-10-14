@@ -9,7 +9,7 @@ from typing import Generator
 try:
     from kafka import KafkaConsumer, KafkaProducer, TopicPartition
     from kafka.structs import OffsetAndTimestamp
-except:
+except ModuleNotFoundError:
     pass
 
 from ayeaye.connectors.base import DataConnector, AccessMode

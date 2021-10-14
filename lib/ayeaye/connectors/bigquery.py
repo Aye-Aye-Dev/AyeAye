@@ -2,7 +2,7 @@
 try:
     from google.cloud import bigquery
     from google.cloud.exceptions import NotFound
-except:
+except ModuleNotFoundError:
     pass
 
 from ayeaye.connectors.base import AccessMode, DataConnector
@@ -47,9 +47,9 @@ class BigQueryConnector(DataConnector):
         self._dataset = self._table_ref = None
 
         # other
-        self.write_buffer_len = 1000 # optimum value not tested for, just guessed
+        self.write_buffer_len = 1000  # optimum value not tested for, just guessed
         self.write_rows_buffer = []
-        self.table_connection = None # different from _table_ref, loaded when needed
+        self.table_connection = None  # different from _table_ref, loaded when needed
 
     def connect(self):
         if self.client is None:
@@ -65,7 +65,7 @@ class BigQueryConnector(DataConnector):
         for param_section in self.engine_url[len(self.__class__.engine_type):].split(';'):
             if len(param_section) == 0:
                 continue
-            k,v = param_section.split('=', 1)
+            k, v = param_section.split('=', 1)
             if k in r:
                 r[k] = v
         return r['projectId'], r['datasetId'], r['tableId']
@@ -196,7 +196,6 @@ class BigQueryConnector(DataConnector):
                 table = bigquery.Table(self.table_ref, schema=auto_schema)
                 self.table_connection = self.client.create_table(table)
 
-
         errors = self.client.insert_rows(self.table_connection, self.write_rows_buffer)
         # TODO log the errors
         self.write_rows_buffer = []
@@ -209,7 +208,7 @@ class BigQueryConnector(DataConnector):
         # super simple for now!
         sample_row = sample_data[0]
         schema = []
-        for k,v in sample_row.items():
+        for k, v in sample_row.items():
             field_type = 'STRING'
             if isinstance(v, int):
                 field_type = 'INTEGER'

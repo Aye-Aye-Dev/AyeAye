@@ -8,7 +8,7 @@ try:
     from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy.sql import text
-except:
+except ModuleNotFoundError:
     pass
 
 from ayeaye.connectors.base import DataConnector, AccessMode

@@ -7,7 +7,7 @@ import os
 
 try:
     import ndjson
-except:
+except ModuleNotFoundError:
     pass
 
 from ayeaye.connectors.base import DataConnector, AccessMode

@@ -10,7 +10,7 @@ Created on 14 Jan 2020
 '''
 try:
     import pyarrow.parquet as pq
-except:
+except ModuleNotFoundError:
     pass
 
 import os
