@@ -5,17 +5,13 @@ import unittest
 
 import ayeaye
 from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
-from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 from ayeaye.connectors.json_connector import JsonConnector
 from ayeaye.connectors.multi_connector import MultiConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'exampleflowerpot.tar.gz')
-EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
-EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
 EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
 EXAMPLE_JSON_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'london_weather.json')
-EXAMPLE_CSV_BROKEN_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_missing_values.csv')
 EXAMPLE_CSV_MICE = os.path.join(PROJECT_TEST_PATH, 'data', 'mice.csv')
 EXAMPLE_CSV_SQUIRRELS = os.path.join(PROJECT_TEST_PATH, 'data', 'squirrels.csv')
 
@@ -58,54 +54,6 @@ class TestConnectors(unittest.TestCase):
         expected = "[('anchor', 'rudder'), ('apple', 'raspberry')]"
         assert expected == str(some_items)
 
-    def test_csv_basics(self):
-        """
-        Iterate all the data items and check each row is being yielded as an instance of
-        :class:`ayeaye.Pinnate`
-        """
-        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_PATH)
-
-        animals_names = ", ".join([deadly_animal.common_name for deadly_animal in c])
-        expected = 'Crown of thorns starfish, Golden dart frog'
-        assert expected == animals_names
-
-    def test_csv_write(self):
-        """
-        Write to a CSV without using a schema.
-        """
-        data_dir = tempfile.mkdtemp()
-        csv_file = os.path.join(data_dir, "fish.csv")
-        c = CsvConnector(engine_url="csv://" + csv_file, access=ayeaye.AccessMode.WRITE)
-
-        # two data types that can be added
-        p = ayeaye.Pinnate({'common_name': 'Angel fish'})
-        c.add(p)
-
-        d = {'common_name': 'Grey reef shark'}
-        c.add(d)
-        c.close_connection()  # flush to disk
-
-        with open(csv_file, 'r', encoding=c.encoding) as f:
-            csv_content = f.read()
-
-        expected_content = ('common_name\n'
-                            'Angel fish\n'
-                            'Grey reef shark\n'
-                            )
-
-        self.assertEqual(expected_content, csv_content)
-
-    def test_tsv_basics(self):
-        """
-        Tab separated, Iterate all the data items and check each row is being yielded as an
-        instance of :class:`ayeaye.Pinnate`
-        """
-        c = TsvConnector(engine_url="tsv://" + EXAMPLE_TSV_PATH)
-
-        monkey_names = ", ".join([monkey.common_name for monkey in c])
-        expected = "Goeldi's marmoset, Common squirrel monkey, Crab-eating macaque"
-        assert expected == monkey_names
-
     def test_multi_connector_append(self):
         """
         Add engine_urls at runtime.
@@ -128,38 +76,6 @@ class TestConnectors(unittest.TestCase):
         all_urls = [connector.engine_url for connector in c]
         expected_urls.append(another_file)
         self.assertEqual(expected_urls, all_urls)
-
-    def test_csv_encoding(self):
-        """
-        Specify character encoding in the URL. This test doesn't ensure data conforms.
-        """
-        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_PATH)
-        self.assertEqual("utf-8-sig", c.encoding, "Unexpected default encoding")
-
-        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_PATH + ";encoding=latin-1")
-        self.assertEqual("latin-1", c.encoding, "Can't override default encoding")
-
-    def test_csv_engine_decode(self):
-
-        c = CsvConnector(engine_url="csv:///data/abc.csv")
-        a = c.engine_params
-        expected_path = "/data/abc.csv"
-        if True or os.path.sep != '/':
-            expected_path = expected_path.replace('/', os.path.sep)
-        self.assertEqual(expected_path, a.file_path)
-
-        c = CsvConnector("csv:///data/abc.csv;encoding=latin-1;start=3;end=100")
-        with self.assertRaises(NotImplementedError):
-            c.engine_params
-
-        a = c._engine_params
-        expected_path = "/data/abc.csv"
-        if True or os.path.sep != '/':
-            expected_path = expected_path.replace('/', os.path.sep)
-        self.assertEqual(expected_path, a.file_path)
-        self.assertEqual("latin-1", a.encoding)
-        self.assertEqual(3, a.start)
-        self.assertEqual(100, a.end)
 
     def test_json_basics(self):
         c = JsonConnector(engine_url="json://" + EXAMPLE_JSON_PATH)
@@ -193,57 +109,6 @@ class TestConnectors(unittest.TestCase):
             with self.assertRaises(TypeError):
                 c.data = unacceptable_data
 
-    def test_csv_missing_values(self):
-        """
-        Approx position in file not working when None values are in the CSV.
-        """
-        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_BROKEN_PATH)
-        current_position = 0
-        for _ in c:
-            self.assertTrue(c.progress > current_position)
-            current_position = c.progress
-
-    def test_csv_without_fieldname_header(self):
-
-        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_MICE,
-                         field_names=['common_name', 'scientific_name', 'geo_distribution']
-                         )
-        mice = [mouse.as_dict() for mouse in c]
-
-        expected_line_0 = {'common_name': 'Yellow-necked mouse',
-                           'scientific_name': 'Apodemus flavicollis',
-                           'geo_distribution': 'Europe'
-                           }
-
-        self.assertEqual(3, len(mice))
-        # just checking first line is data with correct field names
-        self.assertEqual(expected_line_0, mice[0])
-
-    def test_csv_without_fieldname_header_write(self):
-        """
-        Specify fields. Without this fields are taken from first record to be added.
-        """
-        data_dir = tempfile.mkdtemp()
-        csv_file = os.path.join(data_dir, "lemurs.csv")
-        c = CsvConnector(engine_url="csv://" + csv_file, access=ayeaye.AccessMode.WRITE,
-                         field_names=['common_name', 'main_colours']
-                         )
-        for lemur in [{'common_name': 'Indri'},
-                      {'common_name': 'Ring tailed', 'main_colours': 'grey, black, white'},
-                      ]:
-            c.add(lemur)
-
-        c.close_connection()
-
-        with open(csv_file, 'r', encoding=c.encoding) as f:
-            csv_content = f.read()
-
-        expected_content = ('common_name,main_colours\n'
-                            'Indri,\n'
-                            'Ring tailed,"grey, black, white"\n'
-                            )
-
-        self.assertEqual(expected_content, csv_content)
 
     def test_multi_connector_passes_args(self):
         """
@@ -294,3 +159,4 @@ class TestConnectors(unittest.TestCase):
         # check access to any dataset property
         self.assertTrue(dataset.engine_params.file_path.endswith('tests/data/mice.csv'))
         self.assertEqual(2, len(c))
+
