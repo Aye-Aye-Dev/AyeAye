@@ -11,7 +11,6 @@ TEST_DATA = os.path.join(PROJECT_TEST_PATH, "..", "data")
 
 
 class MagicMapper(AbstractManifestMapper):
-
     def map_bijection(self):
         "One to one mapping. Each file in manifest has one corresponding engine_url."
         return [(f, f"json://{f}") for f in self.manifest_items]
@@ -31,7 +30,6 @@ class MagicMapper(AbstractManifestMapper):
 
 
 class TestManifest(unittest.TestCase):
-
     def test_engine_from_manifest(self):
         """
         Use list of files from manifest to load other datasets.
@@ -43,6 +41,7 @@ class TestManifest(unittest.TestCase):
 
         'abcd' is the build serial number.
         """
+
         class InsectSurvey(Model):
             manifest = Connect(engine_url=f"json://{TEST_DATA}/manifest_" + "{build_id}.json")
             ants = Connect(engine_url=EngineFromManifest(manifest, "source_files", "csv"))
@@ -61,7 +60,6 @@ class TestManifest(unittest.TestCase):
         self.assertEqual(invertebrates_engine_url, "json://worms.json")
 
     def test_manifest_mapper_find_mapper_methods(self):
-
         class SuperMapper(AbstractManifestMapper):
             def map_xyz(self):
                 pass
@@ -72,24 +70,31 @@ class TestManifest(unittest.TestCase):
         manifest = Connect(engine_url=f"json://{TEST_DATA}/manifest_abcd.json")
         s = SuperMapper(manifest_dataset=manifest, field_name="more_files")
 
-        key_names = s.mapper_methods.keys()
-        self.assertEqual({'xyz', 'abc'}, set(key_names))
+        key_names = s.methods_mapper.keys()
+        self.assertEqual({"xyz", "abc"}, set(key_names))
 
     def test_manifest_full_map(self):
 
         manifest = Connect(engine_url=f"json://{TEST_DATA}/manifest_abcd.json")
         m = MagicMapper(manifest_dataset=manifest, field_name="more_files")
 
-        expected = {"x.ndjson": {'bijection': ['json://x.ndjson'],
-                                 'collapse_in': ['csv://results_summary.csv'],
-                                 'fanout': ['csv://x.ndjson.csv', 'ndjson://x.ndjson.ndjson']},
-                    "y.ndjson":  {'bijection': ['json://y.ndjson'],
-                                  'collapse_in': ['csv://results_summary.csv'],
-                                  'fanout': ['csv://y.ndjson.csv', 'ndjson://y.ndjson.ndjson']},
-                    "z.ndjson":  {'bijection': ['json://z.ndjson'],
-                                  'collapse_in': ['csv://results_summary.csv'],
-                                  'fanout': ['csv://z.ndjson.csv', 'ndjson://z.ndjson.ndjson']}
-                    }
+        expected = {
+            "x.ndjson": {
+                "bijection": ["json://x.ndjson"],
+                "collapse_in": ["csv://results_summary.csv"],
+                "fanout": ["csv://x.ndjson.csv", "ndjson://x.ndjson.ndjson"],
+            },
+            "y.ndjson": {
+                "bijection": ["json://y.ndjson"],
+                "collapse_in": ["csv://results_summary.csv"],
+                "fanout": ["csv://y.ndjson.csv", "ndjson://y.ndjson.ndjson"],
+            },
+            "z.ndjson": {
+                "bijection": ["json://z.ndjson"],
+                "collapse_in": ["csv://results_summary.csv"],
+                "fanout": ["csv://z.ndjson.csv", "ndjson://z.ndjson.ndjson"],
+            },
+        }
         self.assertEqual(expected, m.full_map)
 
     def test_manifest_iterate(self):
@@ -100,7 +105,7 @@ class TestManifest(unittest.TestCase):
         for engine_set in m:
             # just test results for one mapping (fanout) for one manifest listed file
             if engine_set.manifest_item == "z.ndjson":
-                expected = ['csv://z.ndjson.csv', 'ndjson://z.ndjson.ndjson']
+                expected = ["csv://z.ndjson.csv", "ndjson://z.ndjson.ndjson"]
                 self.assertEqual(engine_set.fanout, expected)
                 break
         else:
@@ -118,7 +123,7 @@ class TestManifest(unittest.TestCase):
 
         # note - self.map_bijection() returns [(manifest_file, engine_url)..] and
         # .bijection just returns the engine_urls
-        expected_engine_urls = ['json://x.ndjson', 'json://y.ndjson', 'json://z.ndjson']
+        expected_engine_urls = ["json://x.ndjson", "json://y.ndjson", "json://z.ndjson"]
 
         # ... it's later now. Call it.
         self.assertEqual(expected_engine_urls, call_later())
@@ -127,12 +132,8 @@ class TestManifest(unittest.TestCase):
         """
         class variable doesn't share variables between classes
         """
+
         class SeabedMapper(AbstractManifestMapper):
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                print("creating seabedmapper", id(self))
-
             def map_x(self):
                 return [(f, f"json://{f}") for f in self.manifest_items]
 
@@ -151,7 +152,7 @@ class TestManifest(unittest.TestCase):
         s0 = SeabedSurvey(f"{TEST_DATA}/manifest_abcd.json")
 
         engine_urls = [x.engine_url for x in s0.x_files]
-        self.assertEqual(engine_urls, ['json://x.ndjson', 'json://y.ndjson', 'json://z.ndjson'])
+        self.assertEqual(engine_urls, ["json://x.ndjson", "json://y.ndjson", "json://z.ndjson"])
 
         # manifest file doesn't exist but old use of 'manifest_abcd.json' is still clinging
         # on to class variable.
@@ -161,3 +162,30 @@ class TestManifest(unittest.TestCase):
 
         exception_msg = str(context.exception)
         self.assertTrue(exception_msg.endswith("which isn't readable"))
+
+    def test_manifest_property_single_variable(self):
+        """
+        Use the AbstractManifestMapper to make a simple callable that will be resolved after the
+        model is instantiated. It takes a value from a manifest file. It doesn't do a two way
+        mapping. The xxxxxxx.xxxxx property could be used to supply a value to a Connect parameter
+        that isn't the engine_url but does support callables.
+        """
+
+        class ManifestProperty(AbstractManifestMapper):
+            def property_bad_weather(self):
+                # if 'london' is in the file name the weather will be bad
+                return "london" in self.manifest_data["survey_weather"]
+
+        class LandAnimalsSurvey(Model):
+            manifest = Connect()
+            build_attributes = ManifestProperty(manifest_dataset=manifest)
+            bad_weather = build_attributes.bad_weather
+
+            def __init__(self, manifest_file, **kwargs):
+                super().__init__(**kwargs)
+                self.manifest.update(engine_url=f"json://{manifest_file};encoding=utf-8-sig")
+
+        survey = LandAnimalsSurvey(f"{TEST_DATA}/manifest_abcd.json")
+        self.assertTrue(callable(survey.bad_weather))
+        msg = 'The manifest contains "survey_weather": "london_weather.json" should should be true'
+        self.assertTrue(survey.bad_weather(), msg)

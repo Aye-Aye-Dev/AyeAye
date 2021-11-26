@@ -15,29 +15,46 @@ import ayeaye
 
 class EngineFromManifest:
     """
+    Make engine_urls stored in a manifest file available to :class:`ayeaye.Connector`s in an
+    :class:`ayeaye.Model`.
+
+    Each engine_url represents a specific version of a source dataset so this pattern can be
+    used to create versioned ETL builds by storing versioning information in a manifest file.
+
+    A manifest file is a dataset which can be retained to re-create ETL builds at a later date
+    and to show data provenence.
+
+    Creating the manifest file itself isn't expected to be a deterministic process as it probably
+    takes a filesystem listing of available datasets and from this determines the most recent
+    versions to use in the manifest file.
+
     Use a subclass of :class:`DataConnector` that supports dictionary access to `.data` as a
     manifest. Use this to build engine_url(s) for passing to another dataset within the
     dataset declarations part of an :class:`ayeaye.Model`.
 
-    JSON is a good choice for the manifest dataset.
+    Tip: JSON is a good choice for the manifest dataset.
 
-    e.g.
+    example-
+
+    The file `products_manifest_20210618.json` contains
+
     ```
+    {"source_files": "products_inventory_2021.csv"}`
+    ```
+
+    ```
+    import ayeaye
+    from ayeaye.common_pattern.manifest import EngineFromManifest
+    from ayeaye.connect_resolve import connector_resolver
+
     class ProductsBuild(ayeaye.Model):
-        manifest = ayeaye.Connect(engine_url=f"json:///data/products_manifest_{build_id}.json")
+        manifest = ayeaye.Connect(engine_url="json://products_manifest_{build_id}.json")
         products = ayeaye.Connect(engine_url=EngineFromManifest(manifest, "source_files", "csv"))
-    ```
 
-    If the resolver_context had `build_id=20210618` and the file `/data/products_manifest_20210618.json`
-    contained
 
-        `{"source_files": "products_inventory_2021.csv"}`
-
-    then ...
-
-    ```
-    m = ProductsBuild()
-    assert m.products.engine_url == "products_inventory_2021.csv"
+    with connector_resolver.context(build_id="20210618"):
+        m = ProductsBuild()
+        assert m.products.engine_url == "csv://products_inventory_2021.csv"
     ```
     """
 
@@ -106,7 +123,7 @@ class AbstractManifestMapper:
             return [(f, f"json://{f}") for f in self.manifest_items]
     ```
 
-    makes a method .xxxx() which returns just the engine_urls. It is used in an ayeaye.Connect-
+    creates a method `.xxxx()` which returns just the engine_urls. It is used in an ayeaye.Connect-
 
     ```
     class AustralianAnimals(ayeaye.Model):
@@ -131,7 +148,7 @@ class AbstractManifestMapper:
     If the subclass changes the constructor's arguments you must implement the __copy__ method.
     """
 
-    def __init__(self, manifest_dataset, field_name):
+    def __init__(self, manifest_dataset, field_name=None):
         """
         :param manifest_dataset (subclass :class:`DataConnector` object): with .data and dictionary
                 access to .data.
@@ -141,8 +158,7 @@ class AbstractManifestMapper:
         self.field_name = field_name
 
     def __copy__(self):
-        c = self.__class__(manifest_dataset=self.manifest_dataset_unresolved,
-                           field_name=self.field_name)
+        c = self.__class__(manifest_dataset=self.manifest_dataset_unresolved, field_name=self.field_name)
         return c
 
     def __get__(self, instance, instance_class):
@@ -184,10 +200,37 @@ class AbstractManifestMapper:
         e_url = ayeaye.connector_resolver.resolve(manifest_dataset.engine_url)
         self._manifest_dataset = ayeaye.Connect(engine_url=e_url)
 
-        yield from self._manifest_dataset.data[self.field_name]
+        if self.field_name is None:
+            yield from self._manifest_dataset.data
+        else:
+            yield from self._manifest_dataset.data[self.field_name]
 
     @property
-    def mapper_methods(self):
+    def manifest_data(self):
+        """
+        This will be called on demand after the global connector_resolver has been setup with any
+        context that is needed before reading the manifest_dataset. That context wouldn't have been
+        available during construction.
+
+        Returns content of manifest's data attribute. Similar to :method:`manifest_items`.
+        """
+        if isinstance(self.manifest_dataset_unresolved, ayeaye.Connect):
+            # .clone() is to prevent the .Connect being bound to the parent if it's connected
+            manifest_dataset = self.manifest_dataset_unresolved.clone()
+        else:
+            manifest_dataset = self.manifest_dataset_unresolved
+
+        # create ephemeral dataset not tied to an ayeaye.Model
+        e_url = ayeaye.connector_resolver.resolve(manifest_dataset.engine_url)
+        self._manifest_dataset = ayeaye.Connect(engine_url=e_url)
+
+        if self.field_name is None:
+            return self._manifest_dataset.data
+        else:
+            return self._manifest_dataset.data[self.field_name]
+
+    @property
+    def methods_mapper(self):
         """
         mapper methods are those with names starting `map_`.
 
@@ -202,11 +245,38 @@ class AbstractManifestMapper:
 
         `xxxx` is the `map_name`.
 
+        mapper methods return a list of tuples.
+
         @returns (dict) map_name -> mapping_method bound to instance
         """
-        method_prefix = 'map_'
+        method_prefix = "map_"
+        return self._method_finder(method_prefix)
 
-        mapper_methods = {}
+    @property
+    def methods_property(self):
+        """
+        property methods are those with names starting `property_`.
+
+        The `property_name` is the part afer `map_`.
+
+        For example-
+
+        ```
+        def property_xxxx(self):
+            ...
+        ```
+
+        `xxxx` is the `property_name`.
+
+        property methods can return any data type.
+
+        @returns (dict) property_name -> property_method bound to instance
+        """
+        method_prefix = "property_"
+        return self._method_finder(method_prefix)
+
+    def _method_finder(self, method_prefix):
+        _methods = {}
         for obj_name in dir(self):
 
             if not obj_name.startswith(method_prefix):
@@ -214,14 +284,14 @@ class AbstractManifestMapper:
 
             obj = getattr(self, obj_name)
             if ismethod(obj):
-                map_name = obj_name[len(method_prefix):]
+                map_name = obj_name[len(method_prefix) :]
 
-                if map_name == 'manifest_item':
+                if map_name == "manifest_item":
                     raise ValueError("Reserved method name: manifest_item")
 
-                mapper_methods[map_name] = obj
+                _methods[map_name] = obj
 
-        return mapper_methods
+        return _methods
 
     @property
     def full_map(self):
@@ -236,7 +306,7 @@ class AbstractManifestMapper:
         for manifest_listed_file in self.manifest_items:
             full_map[manifest_listed_file] = defaultdict(list)
 
-        for map_name, map_method in self.mapper_methods.items():
+        for map_name, map_method in self.methods_mapper.items():
 
             for manifest_listed_file, engine_url in map_method():
                 full_map[manifest_listed_file][map_name].append(engine_url)
@@ -249,7 +319,7 @@ class AbstractManifestMapper:
         attribute `manifest_item`.
         """
         for manifest_item, map_values in self.full_map.items():
-            m = {'manifest_item': manifest_item}
+            m = {"manifest_item": manifest_item}
             for map_name, engine_urls in map_values.items():
 
                 # 1-1 mapping easier to understand when returned as single item
@@ -267,14 +337,17 @@ class AbstractManifestMapper:
         :class`ayeaye.Connect` in the class variable dataset declaration part of an
         :class:`ayeaye.Model` where the mapper will be called later.
         """
-        if attr not in self.mapper_methods:
+        if attr not in self.methods_mapper and attr not in self.methods_property:
             cls_name = self.__class__.__name__
             attrib_error_msg = f"'{cls_name}' object has no attribute '{attr}'"
             raise AttributeError(attrib_error_msg)
 
-        full_map_name_method = self.mapper_methods[attr]
+        if attr in self.methods_mapper:
+            full_map_name_method = self.methods_mapper[attr]
 
-        def engine_url_reducer():
-            return [m[1] for m in full_map_name_method()]
+            def engine_url_reducer():
+                return [m[1] for m in full_map_name_method()]
 
-        return engine_url_reducer
+            return engine_url_reducer
+
+        return self.methods_property[attr]

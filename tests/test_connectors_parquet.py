@@ -1,17 +1,28 @@
-'''
+"""
 Created on 4 Mar 2020
 
 @author: si
-'''
+"""
 import os
+import sys
 import unittest
 
-import pandas as pd
+PANDAS_NOT_INSTALLED = False
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    pd = None
+
+try:
+    import pyarrow.parquet as pq
+except ModuleNotFoundError:
+    pq = None
+
 
 from ayeaye.connectors.parquet_connector import ParquetConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_HELLO = os.path.join(PROJECT_TEST_PATH, 'data', 'hello.parquet')
+EXAMPLE_HELLO = os.path.join(PROJECT_TEST_PATH, "data", "hello.parquet")
 
 """
 Test data built with this-
@@ -29,8 +40,8 @@ pq.write_table(table, 'hello.parquet')
 """
 
 
-class TestSqlAlchemyConnector(unittest.TestCase):
-
+@unittest.skipIf(pd is None, "Parquet not installed")
+class TestParquetConnector(unittest.TestCase):
     def test_read_as_rows(self):
         """
         Iterate through a parqet file row by row for all columns.
@@ -42,16 +53,15 @@ class TestSqlAlchemyConnector(unittest.TestCase):
 
         # there are a couple of other keys as a result of the pandas index. Just check the
         # payload fields
-        wanted = [{'name': 'Alice', 'favorite_colour': 'blue'},
-                  {'name': 'Bob', 'favorite_colour': 'green'}
-                  ]
+        wanted = [{"name": "Alice", "favorite_colour": "blue"}, {"name": "Bob", "favorite_colour": "green"}]
         for idx, expected_row in enumerate(wanted):
             for expected_key, expected_value in expected_row.items():
                 self.assertEqual(expected_value, all_records[idx][expected_key])
 
+    @unittest.skipIf(pd is None, "Pandas not installed")
     def test_read_as_pandas(self):
         c = ParquetConnector(engine_url="parquet://" + EXAMPLE_HELLO)
         p = c.as_pandas()
 
         self.assertIsInstance(p, pd.DataFrame)
-        self.assertEqual('Alice', p['name'][0], "Can't find expected value in Pandas dataframe")
+        self.assertEqual("Alice", p["name"][0], "Can't find expected value in Pandas dataframe")

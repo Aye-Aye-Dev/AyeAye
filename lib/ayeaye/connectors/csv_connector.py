@@ -146,7 +146,15 @@ class CsvConnector(DataConnector):
                         raise ValueError(msg)
 
                 if self.expected_fields is not None and self.expected_fields != self.field_names:
-                    msg = "Expected fields does match fields found in file."
+                    diff_s = set(self.expected_fields).symmetric_difference(set(self.field_names))
+                    diff = ",".join(diff_s)
+                    diff_count= len(diff_s)
+                    msg = f"Expected fields does match fields found in file. There are {diff_count} difference(s):"
+                    msg += f" [{diff}] expected: ["
+                    msg += ",".join(self.expected_fields)
+                    msg += "] but found: ["
+                    msg += ",".join(self.field_names)
+                    msg += "]"
                     raise ValueError(msg)
 
                 if self.alias_fields is not None:
