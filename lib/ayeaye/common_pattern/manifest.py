@@ -250,32 +250,6 @@ class AbstractManifestMapper:
         @returns (dict) map_name -> mapping_method bound to instance
         """
         method_prefix = "map_"
-        return self._method_finder(method_prefix)
-
-    @property
-    def methods_property(self):
-        """
-        property methods are those with names starting `property_`.
-
-        The `property_name` is the part afer `map_`.
-
-        For example-
-
-        ```
-        def property_xxxx(self):
-            ...
-        ```
-
-        `xxxx` is the `property_name`.
-
-        property methods can return any data type.
-
-        @returns (dict) property_name -> property_method bound to instance
-        """
-        method_prefix = "property_"
-        return self._method_finder(method_prefix)
-
-    def _method_finder(self, method_prefix):
         _methods = {}
         for obj_name in dir(self):
 
@@ -337,17 +311,14 @@ class AbstractManifestMapper:
         :class`ayeaye.Connect` in the class variable dataset declaration part of an
         :class:`ayeaye.Model` where the mapper will be called later.
         """
-        if attr not in self.methods_mapper and attr not in self.methods_property:
+        if attr not in self.methods_mapper:
             cls_name = self.__class__.__name__
             attrib_error_msg = f"'{cls_name}' object has no attribute '{attr}'"
             raise AttributeError(attrib_error_msg)
 
-        if attr in self.methods_mapper:
-            full_map_name_method = self.methods_mapper[attr]
+        full_map_name_method = self.methods_mapper[attr]
 
-            def engine_url_reducer():
-                return [m[1] for m in full_map_name_method()]
+        def engine_url_reducer():
+            return [m[1] for m in full_map_name_method()]
 
-            return engine_url_reducer
-
-        return self.methods_property[attr]
+        return engine_url_reducer

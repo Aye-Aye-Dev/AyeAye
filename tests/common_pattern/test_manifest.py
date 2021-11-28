@@ -167,12 +167,12 @@ class TestManifest(unittest.TestCase):
         """
         Use the AbstractManifestMapper to make a simple callable that will be resolved after the
         model is instantiated. It takes a value from a manifest file. It doesn't do a two way
-        mapping. The xxxxxxx.xxxxx property could be used to supply a value to a Connect parameter
-        that isn't the engine_url but does support callables.
+        mapping. The LandAnimalsSurvey.bad_weather callable could be used to supply a value to a
+        Connect parameter that isn't the engine_url but does support callables.
         """
 
         class ManifestProperty(AbstractManifestMapper):
-            def property_bad_weather(self):
+            def bad_weather(self):
                 # if 'london' is in the file name the weather will be bad
                 return "london" in self.manifest_data["survey_weather"]
 
