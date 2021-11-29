@@ -43,7 +43,8 @@ class Connect:
 
     For secrets management @see :class:`ConnectorResolver`.
     """
-    mutually_exclusive_selectors = ['ref', 'engine_url', 'models']
+
+    mutually_exclusive_selectors = ["ref", "engine_url", "models"]
 
     class ConnectBind(Enum):
         MODEL = "MODEL"
@@ -75,15 +76,15 @@ class Connect:
         a = [self.relayed_kwargs.get(s) is not None for s in self.mutually_exclusive_selectors]
         mandatory_args_count = sum(a)
         if mandatory_args_count > 1:
-            raise ValueError('The kwargs ref, engine_url and models are mutually exclusive.')
+            raise ValueError("The kwargs ref, engine_url and models are mutually exclusive.")
 
-        self.ref = self.relayed_kwargs.pop('ref', None)
+        self.ref = self.relayed_kwargs.pop("ref", None)
         self._standalone_connection = None  # see :method:`data`
         self._parent_model = None
 
     def __repr__(self):
-        args = ', '.join([f"{k}={v}" for k, v in self.base_constructor_kwargs.items()])
-        return f'<Connect({args})>'
+        args = ", ".join([f"{k}={v}" for k, v in self.base_constructor_kwargs.items()])
+        return f"<Connect({args})>"
 
     def update(self, **kwargs):
         """
@@ -167,7 +168,7 @@ class Connect:
         """
         if not isinstance(new_connection, self.__class__):
             my_class = self.__class__.__name__
-            raise ValueError(f'Only {my_class} instances can be set')
+            raise ValueError(f"Only {my_class} instances can be set")
 
         self.__init__(**new_connection.relayed_kwargs)
         ident = id(self)
@@ -181,48 +182,42 @@ class Connect:
             possible.
         """
         if self.ref is not None:
-            raise NotImplementedError(("Sorry! Dataset discovery (looking up engine_url from ref) "
-                                       "hasn't been written yet."
-                                       ))
-        detached_kwargs = None
+            raise NotImplementedError(
+                ("Sorry! Dataset discovery (looking up engine_url from ref) " "hasn't been written yet.")
+            )
 
-        if 'models' in self.relayed_kwargs:
+        # Make an independent copy of relay_kwargs because these come from class variables
+        # so could be resolved again under a different context.
+        # TODO: when a list of callables is needed to populate MultiConnector for example then make
+        # this recursive
+        detached_kwargs = {}
+        for k, v in self.relayed_kwargs.items():
+            if callable(v) and k != "models":
+                # any kwarg arg could be a simple callable (i.e. it's called without any arguments)
+                # The callable isn't expected to have __deep_copy__ method. It's time to use the
+                # results of the callable so call it now. Note, the callable is left in place in
+                # `relay_kwargs`.
+                detached_kwargs[k] = v()
+            else:
+                detached_kwargs[k] = copy.deepcopy(v)
+
+        if "models" in self.relayed_kwargs:
+            # could be a callable but shouldn't be instantiated yet, ModelsConnector does that
             connector_cls = ModelsConnector
 
-        elif 'engine_url' not in self.relayed_kwargs or self.relayed_kwargs['engine_url'] is None:
+        elif "engine_url" not in detached_kwargs or detached_kwargs["engine_url"] is None:
+            # engine_url not yet available
             connector_cls = PlaceholderDataConnector
 
         else:
 
-            if callable(self.relayed_kwargs['engine_url']):
-                engine_url = self.relayed_kwargs['engine_url']()
-
-                # make the resolved engine_url available to the final connector.
-                #
-                # The callable isn't expected to have __deep_copy__ method so a selective copy
-                # happens after the callable has built the engine_url.
-                # The callable is left in place because it's a class variable so could be resolved
-                # again under a different context) and the engine_url used to build the Connector
-                # instance.
-                detached_kwargs = {}
-                for k, v in self.relayed_kwargs.items():
-                    if k == 'engine_url':
-                        detached_kwargs[k] = engine_url
-                    else:
-                        detached_kwargs[k] = copy.deepcopy(v)
-
-            else:
-                engine_url = self.relayed_kwargs['engine_url']
-
+            engine_url = detached_kwargs["engine_url"]
             if isinstance(engine_url, list):
                 # compile time list of engine_url strings
                 # might be callable or a dict or set in the future
                 connector_cls = MultiConnector
             else:
                 connector_cls = connector_factory(engine_url)
-
-        if not detached_kwargs:
-            detached_kwargs = copy.deepcopy(self.relayed_kwargs)
 
         connector = connector_cls(**detached_kwargs)
         connector._connect_instance = self
@@ -253,9 +248,10 @@ class Connect:
         if self._parent_model is not None:
             return Connect.ConnectBind.MODEL
 
-        msg = ('Parent already attached and standalone connection is present. This'
-               ' shouldn\'t ever happen. Please let us know how it did!'
-               )
+        msg = (
+            "Parent already attached and standalone connection is present. This"
+            " shouldn't ever happen. Please let us know how it did!"
+        )
         raise ValueError(msg)
 
     def connect_standalone(self):

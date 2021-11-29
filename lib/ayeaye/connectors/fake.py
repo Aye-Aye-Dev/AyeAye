@@ -5,7 +5,11 @@ class FakeDataConnector(DataConnector):
     """
     Fake connector used in unit tests.
     """
-    engine_type = 'fake://'
+
+    engine_type = "fake://"
+    optional_args = {
+        "quantum_accelerator_module": None,
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -15,8 +19,8 @@ class FakeDataConnector(DataConnector):
         """
         :returns: (dict) of parameters needed to connect to engine without secrets.
         """
-        return {'engine_url': 'fake://example.com/abc'}
-    
+        return {"engine_url": "fake://example.com/abc"}
+
     def connect(self):
         pass
 
@@ -28,7 +32,7 @@ class FakeDataConnector(DataConnector):
 
     @property
     def data(self):
-        return [{'fake': 'data'}]
+        return [{"fake": "data"}]
 
     @property
     def schema(self):

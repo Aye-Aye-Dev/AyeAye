@@ -8,8 +8,8 @@ from ayeaye.connectors.fake import FakeDataConnector
 from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
-EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
+EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
+EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "monkeys.tsv")
 
 
 class AbstractFakeModel:
@@ -18,7 +18,6 @@ class AbstractFakeModel:
 
 
 class TestConnect(unittest.TestCase):
-
     def test_connect_standalone(self):
         """
         :class:`ayeaye.Connect` can be used outside of the ETL so data discovery can use the same
@@ -27,7 +26,7 @@ class TestConnect(unittest.TestCase):
         # happy path
         # it works without Connect being part of a ayeaye.Model
         c = Connect(engine_url="fake://MyDataset")
-        self.assertEqual({'fake': 'data'}, c.data[0])
+        self.assertEqual({"fake": "data"}, c.data[0])
 
     def test_connect_spare_kwargs(self):
         """
@@ -36,7 +35,7 @@ class TestConnect(unittest.TestCase):
         it harder for users to make mistakes and typos referring to arguments that never come
         into play.
         """
-        c = Connect(engine_url="fake://foo", doesntexist='oh dear')
+        c = Connect(engine_url="fake://foo", doesntexist="oh dear")
         with self.assertRaises(ValueError):
             # the kwargs are not used until an engine_url is needed
             c._prepare_connection()
@@ -48,6 +47,7 @@ class TestConnect(unittest.TestCase):
         When used as a class variable in an instantiated class, Connect() will store information
         about the dataset within the parent (i.e. Model) class.
         """
+
         class FakeModel(AbstractFakeModel):
             insects = Connect(engine_url="fake://bugsDB")
 
@@ -63,7 +63,7 @@ class TestConnect(unittest.TestCase):
         ayeaye.Connect should relay kwargs to subclasses of DataConnecter
         """
         # using bigquery because it has custom 'credentials' kwarg
-        engine_url = 'bigquery://projectId=my_project;datasetId=nice_food;tableId=cakes;'
+        engine_url = "bigquery://projectId=my_project;datasetId=nice_food;tableId=cakes;"
         c = Connect(engine_url=engine_url, credentials="hello_world")
         # on demand connection
         self.assertIsNotNone(c.data)
@@ -74,6 +74,7 @@ class TestConnect(unittest.TestCase):
         Make an access=AccessMode.READ connection in a model into access=AccessMode.WRITE.
         The engine_url stays the same.
         """
+
         class FakeModel(AbstractFakeModel):
             insects = Connect(engine_url="fake://bugsDB")
 
@@ -84,11 +85,10 @@ class TestConnect(unittest.TestCase):
                 self._connections = {}
 
         f = FakeModelWrite()
-        self.assertEqual('fake://bugsDB', f.insects.engine_url)
+        self.assertEqual("fake://bugsDB", f.insects.engine_url)
         self.assertEqual(AccessMode.WRITE, f.insects.access)
 
     def test_replace_existing_connect(self):
-
         class FakeModel(AbstractFakeModel):
             insects = Connect(engine_url="fake://bugsDB")
 
@@ -108,6 +108,7 @@ class TestConnect(unittest.TestCase):
         Take a connection from a model, make a small tweak and set it back into the model.
         Note is isn't a class tweak (that is tested elsewhere), it's on instances.
         """
+
         class FakeModel(AbstractFakeModel):
             insects = Connect(engine_url="fake://bugsDB")
 
@@ -130,6 +131,7 @@ class TestConnect(unittest.TestCase):
         """
         A change to the `Connect` propagates to build a new DataConnector with a different type.
         """
+
         class FakeModel(AbstractFakeModel):
             insects = Connect(engine_url="fake://bugsDB")
 
@@ -160,12 +162,13 @@ class TestConnect(unittest.TestCase):
 
             all_the_animals += [animal.common_name for animal in data_connector]
 
-        expected = ['Goeldi\'s marmoset',
-                    'Common squirrel monkey',
-                    'Crab-eating macaque',
-                    'Crown of thorns starfish',
-                    'Golden dart frog',
-                    ]
+        expected = [
+            "Goeldi's marmoset",
+            "Common squirrel monkey",
+            "Crab-eating macaque",
+            "Crown of thorns starfish",
+            "Golden dart frog",
+        ]
         self.assertEqual(expected, all_the_animals)
 
     def test_compile_time_multiple_engine_urls_in_a_model(self):
@@ -173,6 +176,7 @@ class TestConnect(unittest.TestCase):
         Check the descriptors are treating children of MultiConnector the same as
         the other DataConnector subclasses.
         """
+
         class AnimalsModel(AbstractFakeModel):
             animals = Connect(engine_url=["tsv://" + EXAMPLE_TSV_PATH, "csv://" + EXAMPLE_CSV_PATH])
 
@@ -182,21 +186,21 @@ class TestConnect(unittest.TestCase):
         for animal_dataset in m.animals:
             all_the_animals += [animal.common_name for animal in animal_dataset]
 
-        expected = ['Goeldi\'s marmoset',
-                    'Common squirrel monkey',
-                    'Crab-eating macaque',
-                    'Crown of thorns starfish',
-                    'Golden dart frog',
-                    ]
+        expected = [
+            "Goeldi's marmoset",
+            "Common squirrel monkey",
+            "Crab-eating macaque",
+            "Crown of thorns starfish",
+            "Golden dart frog",
+        ]
         self.assertEqual(expected, all_the_animals)
 
     def test_callable_engine_url(self):
-
         def pointlessly_deterministic_example_callable():
             return "fake://MyDataset"
 
         c = Connect(engine_url=pointlessly_deterministic_example_callable)
-        self.assertEqual({'fake': 'data'}, c.data[0], "Example data not found")
+        self.assertEqual({"fake": "data"}, c.data[0], "Example data not found")
 
     def test_split_instance_and_connect(self):
         """
@@ -204,11 +208,12 @@ class TestConnect(unittest.TestCase):
         this shouldn't be passed to other instances.
         Bug found in other project.
         """
+
         class AnimalsModel(AbstractFakeModel):
             animals = Connect(engine_url=[])
 
         m1 = AnimalsModel()
-        m1.animals.engine_url.append('hi')
+        m1.animals.engine_url.append("hi")
 
         m2 = AnimalsModel()
         self.assertEqual([], m2.animals.engine_url)
@@ -217,24 +222,26 @@ class TestConnect(unittest.TestCase):
         """
         Take a Connect from a model's class variables and use it as a standalone Connect.
         """
+
         class AnimalsModel(AbstractFakeModel):
             animals = Connect(engine_url="csv://" + EXAMPLE_CSV_PATH)
 
         animals = AnimalsModel.animals
-        self.assertEqual('ConnectBind.NEW', str(animals.connection_bind))
+        self.assertEqual("ConnectBind.NEW", str(animals.connection_bind))
 
         all_the_animals = [animal.common_name for animal in animals]
 
-        expected = ['Crown of thorns starfish', 'Golden dart frog']
+        expected = ["Crown of thorns starfish", "Golden dart frog"]
         self.assertEqual(expected, all_the_animals)
 
-        self.assertEqual('ConnectBind.STANDALONE', str(animals.connection_bind))
+        self.assertEqual("ConnectBind.STANDALONE", str(animals.connection_bind))
 
     def test_standalone_in_non_model_instance(self):
         """
         Make changes to a Connect that doesn't belong to an ayeaye.Model.
-        Also see :method:`TestModels.test_double_usage` for how this behaves with an ayeaye.Model. 
+        Also see :method:`TestModels.test_double_usage` for how this behaves with an ayeaye.Model.
         """
+
         class NonModelClass:
             "doesn't have self._connections"
 
@@ -248,10 +255,10 @@ class TestConnect(unittest.TestCase):
                 return all_the_animals
 
         nmc = NonModelClass()
-        self.assertEqual(['Crown of thorns starfish', 'Golden dart frog'], nmc.go())
+        self.assertEqual(["Crown of thorns starfish", "Golden dart frog"], nmc.go())
 
         nmc.animals.update(engine_url="tsv://" + EXAMPLE_TSV_PATH)
-        expected_values = ["Goeldi's marmoset", 'Common squirrel monkey', 'Crab-eating macaque']
+        expected_values = ["Goeldi's marmoset", "Common squirrel monkey", "Crab-eating macaque"]
         self.assertEqual(expected_values, nmc.go())
 
     def test_standalone_as_proxy(self):
@@ -264,11 +271,36 @@ class TestConnect(unittest.TestCase):
     def test_construction_args(self):
 
         with self.assertRaises(ValueError, msg="Ref and engine_url are mutually exclusive"):
-            Connect(ref='x', engine_url="tsv://" + EXAMPLE_TSV_PATH)
+            Connect(ref="x", engine_url="tsv://" + EXAMPLE_TSV_PATH)
 
         model_data_msg = "Ref + engine_url are for DataConnectors and models is for ayeaye.models"
         with self.assertRaises(ValueError, msg=model_data_msg):
-            Connect(ref='x', models=AbstractFakeModel)
+            Connect(ref="x", models=AbstractFakeModel)
 
         with self.assertRaises(ValueError, msg=model_data_msg):
             Connect(engine_url="tsv://" + EXAMPLE_TSV_PATH, models=AbstractFakeModel)
+
+    def test_connect_callable_kwargs(self):
+        """
+        :class:`ayeaye.connectots.fake.FakeDataConnector` has an optional kwarg-
+        'quantum_accelerator_module' set this using a literal or a callable.
+        """
+
+        c = Connect(engine_url="fake://MyDataset", quantum_accelerator_module="entanglement_v1")
+        self.assertEqual({"fake": "data"}, c.data[0])
+        self.assertEqual("entanglement_v1", c.quantum_accelerator_module)
+
+        def simple_callable():
+            "simple means it doesn't take arguments"
+            return "entanglement_v2"
+
+        # TODO - standalone is only calling the callable after _prepare_connection
+        # this isn't right
+        # c = Connect(engine_url="fake://MyDataset", quantum_accelerator_module=simple_callable)
+        # self.assertEqual({"fake": "data"}, c.data[0])
+
+        class QuatumSort(AbstractFakeModel):
+            source = Connect(engine_url="fake://MyDataset", quantum_accelerator_module=simple_callable)
+
+        m1 = QuatumSort()
+        self.assertEqual("entanglement_v2", m1.source.quantum_accelerator_module)

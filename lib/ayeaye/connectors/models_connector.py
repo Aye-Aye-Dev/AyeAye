@@ -7,7 +7,6 @@ from ayeaye.pinnate import Pinnate
 
 
 class ModelsConnector(BaseConnector):
-
     def __init__(self, models):
         """
         Connector to run :class:`ayeaye.Models`.
@@ -23,14 +22,17 @@ class ModelsConnector(BaseConnector):
         """
         super().__init__()
 
-        invalid_construction_msg = ("models must (class, list, set or callable). All of which "
-                                    "result in one or more :class:`ayeaye.Models` classes (not "
-                                    "instances)."
-                                    )
+        invalid_construction_msg = (
+            "models must be a class, list, set or callable. All of which "
+            "result in one or more :class:`ayeaye.Models` classes (not "
+            "instances)."
+        )
 
         # validate and prepare
         if isclass(models) and issubclass(models, Model):
-            models = [models, ]
+            models = [
+                models,
+            ]
 
         if callable(models):
             # TODO
@@ -85,11 +87,7 @@ class ModelsConnector(BaseConnector):
             if model_name in nodes:
                 raise ValueError(f"Duplicate node found: {model_name}")
 
-            node = Pinnate({'model_cls': model_cls,
-                            'model_name': model_name,
-                            'targets': set(),
-                            'sources': set()
-                            })
+            node = Pinnate({"model_cls": model_cls, "model_name": model_name, "targets": set(), "sources": set()})
             for dataset in model_cls.connects().values():
                 if dataset.access in [AccessMode.READ, AccessMode.READWRITE]:
                     node.sources.add(dataset)
@@ -123,10 +121,7 @@ class ModelsConnector(BaseConnector):
                 completed = completed.union(node.targets)
                 del nodes[ready_node.model_name]
 
-        p = Pinnate({'leaf_sources': leaf_sources,
-                     'leaf_targets': leaf_targets,
-                     'run_order': run_order
-                     })
+        p = Pinnate({"leaf_sources": leaf_sources, "leaf_targets": leaf_targets, "run_order": run_order})
         return p
 
     def run_order(self):
