@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.12] - 2021-11-29
+### Added
+- AbstractManifestMapper, EngineFromManifest to public interface
+
+## [0.0.11] - 2021-11-28
+### Added
+- AbstractManifestMapper more flexible at supporting methods in subclasses by making manifest data available without specifying a fieldname or needing to access via an iterable.
+
+### Fixed
+- unitests are skipped when modules aren't available
+
 ## [0.0.10] - 2021-10-15
 ### Added
 - CsvConnector - added optional arguments: required_fields, expected_fields, alias_fields
