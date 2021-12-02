@@ -186,38 +186,52 @@ class Connect:
                 ("Sorry! Dataset discovery (looking up engine_url from ref) " "hasn't been written yet.")
             )
 
-        # Make an independent copy of relay_kwargs because these come from class variables
-        # so could be resolved again under a different context.
-        # TODO: when a list of callables is needed to populate MultiConnector for example then make
-        # this recursive
-        detached_kwargs = {}
-        for k, v in self.relayed_kwargs.items():
-            if callable(v) and k != "models":
-                # any kwarg arg could be a simple callable (i.e. it's called without any arguments)
-                # The callable isn't expected to have __deep_copy__ method. It's time to use the
-                # results of the callable so call it now. Note, the callable is left in place in
-                # `relay_kwargs`.
-                detached_kwargs[k] = v()
-            else:
-                detached_kwargs[k] = copy.deepcopy(v)
+        engine_url = self.relayed_kwargs.get("engine_url")
+        if callable(engine_url):
+            engine_url = engine_url()
 
         if "models" in self.relayed_kwargs:
             # could be a callable but shouldn't be instantiated yet, ModelsConnector does that
             connector_cls = ModelsConnector
 
-        elif "engine_url" not in detached_kwargs or detached_kwargs["engine_url"] is None:
+        elif engine_url is None:
             # engine_url not yet available
             connector_cls = PlaceholderDataConnector
 
         else:
-
-            engine_url = detached_kwargs["engine_url"]
             if isinstance(engine_url, list):
                 # compile time list of engine_url strings
                 # might be callable or a dict or set in the future
                 connector_cls = MultiConnector
             else:
                 connector_cls = connector_factory(engine_url)
+
+        # Make an independent copy of relay_kwargs because these come from class variables
+        # so could be resolved again under a different context.
+        # TODO: when a list of callables is needed to populate MultiConnector for example then make
+        # this recursive
+        detached_kwargs = {}
+        for k, v in self.relayed_kwargs.items():
+
+            if k == "engine_url":
+                # this might have been a callable above
+                detached_kwargs[k] = copy.deepcopy(engine_url)
+
+            if callable(v) and k != "models":
+
+                if k in connector_cls.preserve_callables:
+                    # reference to the callable is preserved for the `connector_cls` to call. This is
+                    # needed when the `connector_cls` supplies arguments to the callable.
+                    detached_kwargs[k] = v
+
+                else:
+                    # any kwarg arg could be a simple callable (i.e. it's called without any arguments)
+                    # The callable isn't expected to have __deep_copy__ method. It's time to use the
+                    # results of the callable so call it now. Note, the callable is left in place in
+                    # `relay_kwargs`.
+                    detached_kwargs[k] = v()
+            else:
+                detached_kwargs[k] = copy.deepcopy(v)
 
         connector = connector_cls(**detached_kwargs)
         connector._connect_instance = self

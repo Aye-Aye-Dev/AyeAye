@@ -9,7 +9,9 @@ class FakeDataConnector(DataConnector):
     engine_type = "fake://"
     optional_args = {
         "quantum_accelerator_module": None,
+        "quantum_factory": None,
     }
+    preserve_callables = ["quantum_factory"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

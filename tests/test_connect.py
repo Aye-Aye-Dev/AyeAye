@@ -304,3 +304,24 @@ class TestConnect(unittest.TestCase):
 
         m1 = QuatumSort()
         self.assertEqual("entanglement_v2", m1.source.quantum_accelerator_module)
+
+    def test_connect_preserve_callable_kwargs(self):
+        """
+        :class:`ayeaye.connectots.fake.FakeDataConnector` has an optional kwarg-
+        'quantum_accelerator_module' set this using a literal or a callable.
+        The 'quantum_factory' optional arg shouldn't be called by ayeaye.Connect and should still
+        be a callable when used to initiate the FakeDataConnector.
+        """
+
+        def q_fact(my_thing):
+            return "hello " + str(my_thing)
+
+        class QuatumSort(AbstractFakeModel):
+            source = Connect(engine_url="fake://MyDataset", quantum_factory=q_fact)
+
+            def calculate_result(self):
+                return self.source.quantum_factory("quantum dynamics")
+
+        m1 = QuatumSort()
+        self.assertTrue(callable(m1.source.quantum_factory))
+        self.assertEqual("hello quantum dynamics", m1.calculate_result())

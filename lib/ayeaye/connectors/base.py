@@ -32,8 +32,15 @@ class BaseConnector:
 
 class DataConnector(BaseConnector):
     engine_type = None  # must be defined by subclasses
-    optional_args = {}  # subclasses should specify their optional kwargs. Values in this dict are
-    # default values.
+
+    # subclasses should specify their optional kwargs. Values in this dict are default values.
+    optional_args = {}
+
+    # list/set of arg names that are present in optional_args and when they are assigned with a
+    # callable this shouldn't be called by :class:`ayeaye.Connect` but should intead be passed
+    # as is to the target subclass of :class:`ayeaye.DataConnector`.
+    preserve_callables = []
+
     # TODO - make it possible for internal variable name to not match kwarg name, e.g. schema -> self._schema
     # TODO - these aren't always optional, handling missing mandatory args here
 

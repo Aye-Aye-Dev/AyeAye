@@ -1,8 +1,8 @@
-'''
+"""
 Created on 22 Jan 2020
 
 @author: si
-'''
+"""
 try:
     from sqlalchemy import create_engine
     from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
@@ -16,10 +16,12 @@ from ayeaye.pinnate import Pinnate
 
 
 class SqlAlchemyDatabaseConnector(DataConnector):
-    engine_type = ['sqlite://', 'mysql://', 'mysql+pymysql://', 'postgresql://']
-    optional_args = {'schema_builder': None,
-                     'schema_model': None,
-                     }
+    engine_type = ["sqlite://", "mysql://", "mysql+pymysql://", "postgresql://"]
+    optional_args = {
+        "schema_builder": None,
+        "schema_model": None,
+    }
+    preserve_callables = ["schema_builder", "schema_model"]
 
     def __init__(self, *args, **kwargs):
         """
@@ -31,11 +33,13 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         For args: @see :class:`connectors.base.DataConnector`
 
         additional args for SqlalchemyDatabaseConnector
-            schema_builder (optional) (callable) taking declarative base as the single argument.
-            Must return a list of classes or single class with the shared declarative base.
+            schema_builder (optional) (callable) which takes a declarative base as the single
+            argument.
+            This callable must return either a single class or a list of classes which all share a
+            declarative base.
             see https://docs.sqlalchemy.org/en/13/orm/extensions/declarative/api.html
 
-            The behaviour of this connection will differ on single or list being passed.
+            The behaviour of this connection will differ on single or list being returned.
             For example:
               .schema requires the name of the class in multiple mode.
               e.g.  my_connection.schema.OrmClass (for multiple mode)
@@ -44,8 +48,8 @@ class SqlAlchemyDatabaseConnector(DataConnector):
             Can't be passed alongside `schema_model`.
 
             schema_model (optional) SqlAlchemy Model (subclass of
-                function:`sqlalchemy.ext.declarative.declarative_base`). Can be passed along-side
-                `schema_builder`.
+                function:`sqlalchemy.ext.declarative.declarative_base`). Mutually exclusive with
+                `schema_builder` argument.
 
         Connection information-
             engine_url format varied with each engine
@@ -148,8 +152,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
 
             if self.schema_builder is not None:
                 # initialise schema
-                schema_classes = self.schema_builder(self.Base) \
-                    if self.schema_builder is not None else []
+                schema_classes = self.schema_builder(self.Base) if self.schema_builder is not None else []
 
                 if isinstance(schema_classes, list):
                     as_dict = {c.__name__: c for c in schema_classes}
