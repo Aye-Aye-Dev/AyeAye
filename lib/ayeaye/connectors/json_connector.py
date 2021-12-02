@@ -1,8 +1,8 @@
-'''
+"""
 Created on 15 Apr 2020
 
 @author: si
-'''
+"""
 import json
 import os
 
@@ -11,7 +11,7 @@ from ayeaye.pinnate import Pinnate
 
 
 class JsonConnector(DataConnector):
-    engine_type = 'json://'
+    engine_type = "json://"
 
     def __init__(self, *args, **kwargs):
         """
@@ -38,14 +38,13 @@ class JsonConnector(DataConnector):
     def engine_params(self):
         if self._engine_params is None:
             self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url,
-                optional_args=['encoding', 'indent']
+                self.engine_url, optional_args=["encoding", "indent"]
             )
 
-            if 'encoding' in self._engine_params:
+            if "encoding" in self._engine_params:
                 self._encoding = self.engine_params.encoding
 
-            for typed_param in ['indent']:
+            for typed_param in ["indent"]:
                 if typed_param in self.engine_params:
                     self.engine_params[typed_param] = int(self.engine_params[typed_param])
 
@@ -58,7 +57,7 @@ class JsonConnector(DataConnector):
         """
         if self._encoding is None:
             ep = self.engine_params
-            self._encoding = ep.encoding if 'encoding' in ep else 'utf-8-sig'
+            self._encoding = ep.encoding if "encoding" in ep else "utf-8-sig"
         return self._encoding
 
     def close_connection(self):
@@ -75,11 +74,13 @@ class JsonConnector(DataConnector):
         if self._doc is None:
 
             file_path = self.engine_params.file_path
-            if self.access in [AccessMode.READ, AccessMode.READWRITE]\
-                    and os.path.isfile(file_path) \
-                    and os.access(file_path, os.R_OK):
+            if (
+                self.access in [AccessMode.READ, AccessMode.READWRITE]
+                and os.path.isfile(file_path)
+                and os.access(file_path, os.R_OK)
+            ):
 
-                with open(file_path, 'r', encoding=self.encoding) as f:
+                with open(file_path, "r", encoding=self.encoding) as f:
                     as_native = json.load(f)
                     self._doc = Pinnate(as_native)
 
@@ -112,8 +113,8 @@ class JsonConnector(DataConnector):
             raise ValueError("Write attempted on dataset opened in READ mode.")
 
         json_args = {}
-        if 'indent' in self.engine_params:
-            json_args['indent'] = self.engine_params['indent']
+        if "indent" in self.engine_params:
+            json_args["indent"] = self.engine_params["indent"]
 
         if isinstance(new_data, Pinnate):
             as_json = json.dumps(new_data.as_dict(), **json_args)
@@ -122,7 +123,7 @@ class JsonConnector(DataConnector):
 
         # Data is written to disk immediately. The file handle isn't left open.
         # @see :method:`connect`.
-        with open(self.engine_params.file_path, 'w', encoding=self.encoding) as f:
+        with open(self.engine_params.file_path, "w", encoding=self.encoding) as f:
             f.write(as_json)
 
     data = property(fget=_data_read, fset=_data_write)
@@ -134,7 +135,3 @@ class JsonConnector(DataConnector):
             (bool) if the datasource referred to in self.engine_url exists.
         """
         return os.path.exists(self.engine_params.file_path)
-
-    @property
-    def schema(self):
-        raise NotImplementedError("TODO")

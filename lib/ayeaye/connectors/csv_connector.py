@@ -1,8 +1,8 @@
-'''
+"""
 Created on 14 Jan 2020
 
 @author: si
-'''
+"""
 import copy
 import csv
 import os
@@ -12,12 +12,13 @@ from ayeaye.pinnate import Pinnate
 
 
 class CsvConnector(DataConnector):
-    engine_type = 'csv://'
-    optional_args = {'field_names': None,
-                     'required_fields': None,
-                     'expected_fields': None,
-                     'alias_fields': None,
-                     }
+    engine_type = "csv://"
+    optional_args = {
+        "field_names": None,
+        "required_fields": None,
+        "expected_fields": None,
+        "alias_fields": None,
+    }
 
     def __init__(self, *args, **kwargs):
         """
@@ -57,11 +58,11 @@ class CsvConnector(DataConnector):
         # make a :method:`_reset`
         self.base_field_names = copy.copy(self.field_names)
 
-        self.delimiter = ','
+        self.delimiter = ","
         self._reset()
 
         if self.access == AccessMode.READWRITE:
-            raise NotImplementedError('Read+Write access not yet implemented')
+            raise NotImplementedError("Read+Write access not yet implemented")
 
     def _reset(self):
         self.file_handle = None
@@ -80,18 +81,17 @@ class CsvConnector(DataConnector):
         """
         if self._engine_params is None:
             self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url,
-                optional_args=['encoding', 'start', 'end']
+                self.engine_url, optional_args=["encoding", "start", "end"]
             )
 
-            if 'encoding' in self._engine_params:
+            if "encoding" in self._engine_params:
                 self._encoding = self.engine_params.encoding
 
-            for typed_param in ['start', 'end']:
+            for typed_param in ["start", "end"]:
                 if typed_param in self.engine_params:
                     self.engine_params[typed_param] = int(self.engine_params[typed_param])
 
-            if 'start' in self._engine_params or 'end' in self._engine_params:
+            if "start" in self._engine_params or "end" in self._engine_params:
                 raise NotImplementedError("TODO")
 
         return self._engine_params
@@ -103,7 +103,7 @@ class CsvConnector(DataConnector):
         """
         if self._encoding is None:
             ep = self.engine_params
-            self._encoding = ep.encoding if 'encoding' in ep else 'utf-8-sig'
+            self._encoding = ep.encoding if "encoding" in ep else "utf-8-sig"
         return self._encoding
 
     def close_connection(self):
@@ -125,15 +125,15 @@ class CsvConnector(DataConnector):
                 else:
                     extra_args = {}
 
-                self.file_handle = open(self.engine_params.file_path, 'r', encoding=self.encoding)
+                self.file_handle = open(self.engine_params.file_path, "r", encoding=self.encoding)
                 self.file_size = os.stat(self.engine_params.file_path).st_size
 
-                self.csv = csv.DictReader(self.file_handle,
-                                          delimiter=self.delimiter,
-                                          **extra_args,
-                                          )
+                self.csv = csv.DictReader(
+                    self.file_handle,
+                    delimiter=self.delimiter,
+                    **extra_args,
+                )
                 self.field_names = self.csv.fieldnames
-
 
                 if self.required_fields is not None:
 
@@ -148,7 +148,7 @@ class CsvConnector(DataConnector):
                 if self.expected_fields is not None and self.expected_fields != self.field_names:
                     diff_s = set(self.expected_fields).symmetric_difference(set(self.field_names))
                     diff = ",".join(diff_s)
-                    diff_count= len(diff_s)
+                    diff_count = len(diff_s)
                     msg = f"Expected fields does match fields found in file. There are {diff_count} difference(s):"
                     msg += f" [{diff}] expected: ["
                     msg += ",".join(self.expected_fields)
@@ -163,10 +163,11 @@ class CsvConnector(DataConnector):
                         replace_fields = [self.alias_fields.get(f, f) for f in self.csv.fieldnames]
                         self.csv.fieldnames = self.field_names = replace_fields
 
-                    elif not isinstance(self.alias_fields, list) \
-                        or len(self.alias_fields) != len(self.csv.fieldnames):
-                        msg = ("Alias fields must be a dictionary or list with same number of "
-                               "items as fields in the file")
+                    elif not isinstance(self.alias_fields, list) or len(self.alias_fields) != len(self.csv.fieldnames):
+                        msg = (
+                            "Alias fields must be a dictionary or list with same number of "
+                            "items as fields in the file"
+                        )
                         raise ValueError(msg)
 
                     else:
@@ -174,12 +175,15 @@ class CsvConnector(DataConnector):
 
             elif self.access == AccessMode.WRITE:
 
-                if self.required_fields is not None\
-                    or self.expected_fields is not None\
-                    or self.alias_fields is not None:
-                    msg = ("The optional arguments: 'required_fields', 'expected_fields', 'alias_fields' "
-                           "can't be used in WRITE mode."
-                           )
+                if (
+                    self.required_fields is not None
+                    or self.expected_fields is not None
+                    or self.alias_fields is not None
+                ):
+                    msg = (
+                        "The optional arguments: 'required_fields', 'expected_fields', 'alias_fields' "
+                        "can't be used in WRITE mode."
+                    )
                     raise ValueError(msg)
 
                 # auto create directory
@@ -187,19 +191,16 @@ class CsvConnector(DataConnector):
                 if not os.path.exists(file_dir):
                     os.makedirs(file_dir)
 
-                self.file_handle = open(self.engine_params.file_path,
-                                        'w',
-                                        newline='\n',
-                                        encoding=self.encoding
-                                        )
-                self.csv = csv.DictWriter(self.file_handle,
-                                          delimiter=self.delimiter,
-                                          fieldnames=self.field_names,
-                                          )
+                self.file_handle = open(self.engine_params.file_path, "w", newline="\n", encoding=self.encoding)
+                self.csv = csv.DictWriter(
+                    self.file_handle,
+                    delimiter=self.delimiter,
+                    fieldnames=self.field_names,
+                )
                 self.csv.writeheader()
 
             else:
-                raise ValueError('Unknown access mode')
+                raise ValueError("Unknown access mode")
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -218,10 +219,6 @@ class CsvConnector(DataConnector):
 
     @property
     def data(self):
-        raise NotImplementedError("TODO")
-
-    @property
-    def schema(self):
         raise NotImplementedError("TODO")
 
     @property
@@ -260,10 +257,11 @@ class TsvConnector(CsvConnector):
     """
     Tab separated values. See :class:`CsvConnector`
     """
-    engine_type = 'tsv://'
+
+    engine_type = "tsv://"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # see note in CsvConnector
         self.base_field_names = copy.copy(self.field_names)
-        self.delimiter = '\t'
+        self.delimiter = "\t"

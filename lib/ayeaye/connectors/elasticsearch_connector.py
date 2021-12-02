@@ -8,7 +8,7 @@ from ayeaye.connectors.base import DataConnector, AccessMode
 
 
 class ElasticsearchConnector(DataConnector):
-    engine_type = 'elasticsearch://'
+    engine_type = "elasticsearch://"
 
     def __init__(self, *args, **kwargs):
         """
@@ -39,9 +39,9 @@ class ElasticsearchConnector(DataConnector):
     def connect(self):
         if self.client is None:
             self.host, self.port, self.default_index = self._decode_engine_url()
-            es_node_args = {'host': self.host}
+            es_node_args = {"host": self.host}
             if self.port:
-                es_node_args['port'] = self.port
+                es_node_args["port"] = self.port
             self.client = Elasticsearch([es_node_args])
 
     def _decode_engine_url(self):
@@ -52,25 +52,22 @@ class ElasticsearchConnector(DataConnector):
             port is (int)
         """
         r = dict(host=None, port=None, index=None)
-        s_url = self.engine_url[len(self.__class__.engine_type):]
+        s_url = self.engine_url[len(self.__class__.engine_type) :]
 
-        if '/' in s_url:
-            host_port, r['index'] = s_url.split('/', 1)
-            if r['index'] == '':
-                r['index'] = None
+        if "/" in s_url:
+            host_port, r["index"] = s_url.split("/", 1)
+            if r["index"] == "":
+                r["index"] = None
         else:
             host_port = s_url
 
-        if ':' in host_port:
-            r['host'], r['port'] = host_port.split(':', 1)
-            r['port'] = int(r['port'])
+        if ":" in host_port:
+            r["host"], r["port"] = host_port.split(":", 1)
+            r["port"] = int(r["port"])
         else:
-            r['host'] = host_port
+            r["host"] = host_port
 
-        return r['host'], r['port'], r['index']
-
-    def schema(self):
-        raise NotImplementedError("TODO")
+        return r["host"], r["port"], r["index"]
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -101,11 +98,7 @@ class ElasticsearchConnector(DataConnector):
             raise ValueError("Unknown index: must be set in engine_url or as argument")
 
         # index(index, body, doc_type=None, id=None, params=None, headers=None)
-        w = self.client.index(index=resolved_index,
-                              doc_type=document_type,
-                              id=doc_id,
-                              body=document
-                              )
+        w = self.client.index(index=resolved_index, doc_type=document_type, id=doc_id, body=document)
         return w
 
     def fetch(self, doc_id=None, document_type=None, index=None):
@@ -124,4 +117,4 @@ class ElasticsearchConnector(DataConnector):
 
         # get(index, id, doc_type=None, params=None, headers=None)
         r = self.client.get(resolved_index, doc_id, doc_type=document_type)
-        return r['_source']
+        return r["_source"]

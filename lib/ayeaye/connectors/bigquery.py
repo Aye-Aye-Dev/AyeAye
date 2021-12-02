@@ -1,4 +1,3 @@
-
 try:
     from google.cloud import bigquery
     from google.cloud.exceptions import NotFound
@@ -9,9 +8,9 @@ from ayeaye.connectors.base import AccessMode, DataConnector
 
 
 class BigQueryConnector(DataConnector):
-    engine_type = 'bigquery://'
+    engine_type = "bigquery://"
 
-    optional_args = {'credentials': None, 'auto_schema': False}
+    optional_args = {"credentials": None, "auto_schema": False}
 
     def __init__(self, *args, **kwargs):
         """
@@ -62,13 +61,13 @@ class BigQueryConnector(DataConnector):
             project, dataset, table : all are str
         """
         r = dict(projectId=None, datasetId=None, tableId=None)
-        for param_section in self.engine_url[len(self.__class__.engine_type):].split(';'):
+        for param_section in self.engine_url[len(self.__class__.engine_type) :].split(";"):
             if len(param_section) == 0:
                 continue
-            k, v = param_section.split('=', 1)
+            k, v = param_section.split("=", 1)
             if k in r:
                 r[k] = v
-        return r['projectId'], r['datasetId'], r['tableId']
+        return r["projectId"], r["datasetId"], r["tableId"]
 
     def write_truncate_file(self, ndjson_fh):
         """
@@ -81,13 +80,10 @@ class BigQueryConnector(DataConnector):
         job = self.client.load_table_from_file(
             file_obj=ndjson_fh,
             destination=self.table_ref,
-            job_config=self._get_ndjson_load_job_config(append_mode=False)
+            job_config=self._get_ndjson_load_job_config(append_mode=False),
         )
         # wait for it to finish loading
         job.result()
-
-    def schema(self):
-        raise NotImplementedError("TODO")
 
     @property
     def table_ref(self):
@@ -142,7 +138,7 @@ class BigQueryConnector(DataConnector):
         TODO slices
         """
         self.connect()
-        full_qual_table = f'{self.project_id}.{self.dataset_id}.{self.table_id}'
+        full_qual_table = f"{self.project_id}.{self.dataset_id}.{self.table_id}"
         yield from self.client.list_rows(full_qual_table)
 
     def __len__(self):
@@ -209,10 +205,10 @@ class BigQueryConnector(DataConnector):
         sample_row = sample_data[0]
         schema = []
         for k, v in sample_row.items():
-            field_type = 'STRING'
+            field_type = "STRING"
             if isinstance(v, int):
-                field_type = 'INTEGER'
-            schema.append(bigquery.SchemaField(k, field_type, mode='REQUIRED'))
+                field_type = "INTEGER"
+            schema.append(bigquery.SchemaField(k, field_type, mode="REQUIRED"))
 
         return schema
 
@@ -237,8 +233,8 @@ class BigQueryConnector(DataConnector):
         """
         assert self.access == AccessMode.READ or AccessMode.READ in self.access
 
-        sql = kwargs.pop('sql', None)
-        sql_params = kwargs.pop('sql_params', None)
+        sql = kwargs.pop("sql", None)
+        sql_params = kwargs.pop("sql_params", None)
 
         if not sql:
             raise NotImplementedError("Only 'sql' has been implemented.")

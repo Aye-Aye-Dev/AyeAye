@@ -1,13 +1,13 @@
-'''
+"""
 Created on 4 Mar 2020
 
 @author: si
-'''
-'''
+"""
+"""
 Created on 14 Jan 2020
 
 @author: si
-'''
+"""
 try:
     import pyarrow.parquet as pq
 except ModuleNotFoundError:
@@ -20,7 +20,7 @@ from ayeaye.pinnate import Pinnate
 
 
 class ParquetConnector(DataConnector):
-    engine_type = 'parquet://'
+    engine_type = "parquet://"
 
     def __init__(self, *args, **kwargs):
         """
@@ -46,7 +46,7 @@ class ParquetConnector(DataConnector):
         self.row_count = None
 
         if self.access != AccessMode.READ:
-            raise NotImplementedError('Write access not yet implemented')
+            raise NotImplementedError("Write access not yet implemented")
 
     def connect(self):
         if self.table is None:
@@ -110,10 +110,6 @@ class ParquetConnector(DataConnector):
         """
         self.connect()
         return self.table.to_pandas()
-
-    @property
-    def schema(self):
-        raise NotImplementedError("TODO")
 
     @property
     def progress(self):

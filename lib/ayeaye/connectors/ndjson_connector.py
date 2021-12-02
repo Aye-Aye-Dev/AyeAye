@@ -1,8 +1,8 @@
-'''
+"""
 Created on 17 Dec 2020
 
 @author: si
-'''
+"""
 import os
 
 try:
@@ -15,7 +15,7 @@ from ayeaye.pinnate import Pinnate
 
 
 class NdjsonConnector(DataConnector):
-    engine_type = 'ndjson://'
+    engine_type = "ndjson://"
 
     def __init__(self, *args, **kwargs):
         """
@@ -38,7 +38,7 @@ class NdjsonConnector(DataConnector):
         self._reset()
 
         if self.access == AccessMode.READWRITE:
-            raise NotImplementedError('READWRITE access not yet implemented')
+            raise NotImplementedError("READWRITE access not yet implemented")
 
     def _reset(self):
         self.file_handle = None
@@ -57,11 +57,10 @@ class NdjsonConnector(DataConnector):
         """
         if self._engine_params is None:
             self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url,
-                optional_args=['encoding']
+                self.engine_url, optional_args=["encoding"]
             )
 
-            if 'encoding' in self._engine_params:
+            if "encoding" in self._engine_params:
                 self._encoding = self.engine_params.encoding
 
         return self._engine_params
@@ -73,7 +72,7 @@ class NdjsonConnector(DataConnector):
         """
         if self._encoding is None:
             ep = self.engine_params
-            self._encoding = ep.encoding if 'encoding' in ep else 'utf-8-sig'
+            self._encoding = ep.encoding if "encoding" in ep else "utf-8-sig"
 
         return self._encoding
 
@@ -86,16 +85,16 @@ class NdjsonConnector(DataConnector):
         if self.reader is None and self.writer is None:
 
             if self.access == AccessMode.READ:
-                self.file_handle = open(self.engine_params.file_path, 'r', encoding=self.encoding)
+                self.file_handle = open(self.engine_params.file_path, "r", encoding=self.encoding)
                 self.file_size = os.stat(self.engine_params.file_path).st_size
                 self.reader = ndjson.reader(self.file_handle)
 
             elif self.access == AccessMode.WRITE:
-                self.file_handle = open(self.engine_params.file_path, 'w', encoding=self.encoding)
+                self.file_handle = open(self.engine_params.file_path, "w", encoding=self.encoding)
                 self.writer = ndjson.writer(self.file_handle)
 
             else:
-                raise ValueError('Unknown access mode')
+                raise ValueError("Unknown access mode")
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -114,10 +113,6 @@ class NdjsonConnector(DataConnector):
 
     @property
     def data(self):
-        raise NotImplementedError("TODO")
-
-    @property
-    def schema(self):
         raise NotImplementedError("TODO")
 
     @property

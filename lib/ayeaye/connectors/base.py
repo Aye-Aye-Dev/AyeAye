@@ -4,9 +4,9 @@ from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
 
 
 class AccessMode(Enum):
-    READ = 'r'
-    WRITE = 'w'
-    READWRITE = 'rw'
+    READ = "r"
+    WRITE = "w"
+    READWRITE = "rw"
 
 
 class BaseConnector:
@@ -57,8 +57,7 @@ class DataConnector(BaseConnector):
         self.ignition = Ignition(engine_url)
 
         if isinstance(engine_url, str):
-            engine_type = [self.engine_type] if isinstance(self.engine_type, str) \
-                else self.engine_type
+            engine_type = [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
             if not any([engine_url.startswith(et) for et in engine_type]):
                 raise ValueError("Engine type mismatch")
 
@@ -164,11 +163,6 @@ class DataConnector(BaseConnector):
         raise NotImplementedError("Not available for all datasets or might need to be written")
 
     @property
-    def schema(self):
-        """Return the schema of whatever data source we're interacting with"""
-        raise NotImplementedError("TODO")
-
-    @property
     def progress(self):
         """
         Return a number between and including 0 to 1 as simplified representation of how much of
@@ -186,7 +180,8 @@ class DataConnector(BaseConnector):
 
     @property
     def datasource_exists(self):
-        msg = ("Can optionally be implemented by subclasses. "
-               "Contribute if you need it! There is an example in JsonConnector."
-               )
+        msg = (
+            "Can optionally be implemented by subclasses. "
+            "Contribute if you need it! There is an example in JsonConnector."
+        )
         raise NotImplementedError(msg)

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.14] - 2021-12-01
+### Changed
+- .schema property has been removed from :class:`DataConnector` - it should whatever type of object the sub class needs
+
 ## [0.0.13] - 2021-11-29
 ### Changed
 - any kwarg given to ayeaye.Connect can be a callable, not just engine_url. This isn't quite there for stand-alone connectors but fine when used within `ayeaye.Model`.

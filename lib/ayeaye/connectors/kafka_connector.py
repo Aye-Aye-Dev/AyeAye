@@ -1,8 +1,8 @@
-'''
+"""
 Created on 16 May 2019
 
 @author: parkes25
-'''
+"""
 from datetime import datetime
 from typing import Generator
 
@@ -17,7 +17,7 @@ from ayeaye.pinnate import Pinnate
 
 
 class KafkaConnector(DataConnector):
-    engine_type = 'kafka://'
+    engine_type = "kafka://"
 
     def __init__(self, *args, **kwargs):
         """
@@ -41,7 +41,7 @@ class KafkaConnector(DataConnector):
         self.client = None
 
         # publicly readable
-        self.stats = Pinnate({'added': 0})
+        self.stats = Pinnate({"added": 0})
 
         # used during read
         self.approx_position = None
@@ -53,8 +53,7 @@ class KafkaConnector(DataConnector):
 
     def connect(self):
         if self.client is None:
-            self.bootstrap_server, self.topic, self.start_params, self.end_params = \
-                self._decode_engine_url()
+            self.bootstrap_server, self.topic, self.start_params, self.end_params = self._decode_engine_url()
 
             if self.access == AccessMode.READ:
                 self.client = KafkaConsumer(bootstrap_servers=self.bootstrap_server)
@@ -66,7 +65,7 @@ class KafkaConnector(DataConnector):
                 self.client = KafkaProducer(bootstrap_servers=self.bootstrap_server)
 
             else:
-                raise NotImplementedError('Unknown access mode')
+                raise NotImplementedError("Unknown access mode")
 
     def _setup_consumer(self):
         """
@@ -92,10 +91,12 @@ class KafkaConnector(DataConnector):
             starts = self.client.beginning_offsets(topic_partitions)
             ends = self.client.end_offsets(topic_partitions)
 
-            self.start_p_offsets = {tp: OffsetAndTimestamp(
-                offset=offset, timestamp=None) for tp, offset in starts.items()}
-            self.end_p_offsets = {tp: OffsetAndTimestamp(
-                offset=offset - 1, timestamp=None) for tp, offset in ends.items()}
+            self.start_p_offsets = {
+                tp: OffsetAndTimestamp(offset=offset, timestamp=None) for tp, offset in starts.items()
+            }
+            self.end_p_offsets = {
+                tp: OffsetAndTimestamp(offset=offset - 1, timestamp=None) for tp, offset in ends.items()
+            }
 
         else:
             # TODO - this code was inherited from Foxglove and hasn't be checked through
@@ -107,8 +108,7 @@ class KafkaConnector(DataConnector):
             end = int(self.end_params.timestamp() * 1000)
 
             partitions = self.client.partitions_for_topic(self.topic)
-            tx = {TopicPartition(topic=self.topic, partition=p): start
-                  for p in list(partitions)}
+            tx = {TopicPartition(topic=self.topic, partition=p): start for p in list(partitions)}
             self.start_p_offsets = self.client.offsets_for_times(tx)
 
             # if you give a timestamp after the last record it returns None
@@ -116,8 +116,7 @@ class KafkaConnector(DataConnector):
                 if offset_details is None:
                     raise ValueError("Start date outside of available messages")
 
-            tx = {TopicPartition(topic=self.topic, partition=p): end
-                  for p in list(partitions)}
+            tx = {TopicPartition(topic=self.topic, partition=p): end for p in list(partitions)}
             self.end_p_offsets = self.client.offsets_for_times(tx)
 
             # as above - out of range, for end offset give something useful
@@ -138,28 +137,25 @@ class KafkaConnector(DataConnector):
         """
         date_format = "%Y-%m-%d %H:%M:%S"
         r = dict(topic=None, start=None, end=None)
-        s_url = self.engine_url[len(self.__class__.engine_type):]
-        bootstrap_server, r_url = s_url.split('/', 1)
-        for param_section in r_url.split(';'):
+        s_url = self.engine_url[len(self.__class__.engine_type) :]
+        bootstrap_server, r_url = s_url.split("/", 1)
+        for param_section in r_url.split(";"):
             if len(param_section) == 0:
                 continue
-            k, v = param_section.split('=', 1)
+            k, v = param_section.split("=", 1)
             if k in r:
                 r[k] = v
         # resolve to dates if needed
         # partition+offset not implemented so start and end must be None or start with @
         # to resolve to a datetime.
-        for position in ('start', 'end'):
+        for position in ("start", "end"):
             p_marker = r[position]
             if p_marker is not None:
-                assert p_marker.startswith('@(') and p_marker.endswith(')')
+                assert p_marker.startswith("@(") and p_marker.endswith(")")
                 date_str = p_marker[2:-1]
                 r[position] = datetime.strptime(date_str, date_format)
 
-        return bootstrap_server, r['topic'], r['start'], r['end']
-
-    def schema(self):
-        raise NotImplementedError("TODO")
+        return bootstrap_server, r["topic"], r["start"], r["end"]
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -235,7 +231,7 @@ class KafkaConnector(DataConnector):
         self.connect()
 
         # TODO use futures
-        self.client.send(self.topic, value=bytes(data, 'utf-8'))
+        self.client.send(self.topic, value=bytes(data, "utf-8"))
         self.stats.added += 1
 
     def flush(self):
@@ -250,9 +246,7 @@ class KafkaConnector(DataConnector):
 
     @property
     def progress(self):
-        if self.access != AccessMode.READ \
-                or self.items_to_fetch is None \
-                or self.approx_position is None:
+        if self.access != AccessMode.READ or self.items_to_fetch is None or self.approx_position is None:
             return None
 
         return self.approx_position / self.items_to_fetch
