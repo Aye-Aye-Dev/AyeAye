@@ -8,7 +8,7 @@ import ayeaye
 from ayeaye.connectors import UncookedConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_FILE = os.path.join(PROJECT_TEST_PATH, 'data', 'quote.txt')
+EXAMPLE_FILE = os.path.join(PROJECT_TEST_PATH, "data", "quote.txt")
 
 
 class FakeModel(ayeaye.Model):
@@ -19,7 +19,6 @@ class FakeModel(ayeaye.Model):
 
 
 class TestUncookedConnector(unittest.TestCase):
-
     def setUp(self):
         self._working_directory = None
 
@@ -60,18 +59,45 @@ class TestUncookedConnector(unittest.TestCase):
 
     def test_write(self):
 
-        a_quote = ("More data does not necessarily mean better information."
-                   "Bruce Schnier - Cryptogram Oct. 2013"
-                   )
+        a_quote = "More data does not necessarily mean better information." "Bruce Schnier - Cryptogram Oct. 2013"
 
-        data_dir = tempfile.mkdtemp()
-        quotes_file = os.path.join(data_dir, "quotes.notes")
+        quotes_file = os.path.join(self.working_directory(), "quotes.notes")
 
         c = UncookedConnector(engine_url="file://" + quotes_file, access=ayeaye.AccessMode.WRITE)
         c.data = a_quote
         c.close_connection()
 
-        with open(quotes_file, 'r', encoding=c.encoding) as f:
+        with open(quotes_file, "r", encoding=c.encoding) as f:
             file_content = f.read()
 
         self.assertEqual(a_quote, file_content)
+
+    def test_binary_file_mode(self):
+        "Open a file with 'rb' and 'wb' modes"
+
+        binary_file = os.path.join(self.working_directory(), "binary.data")
+
+        writer = UncookedConnector(engine_url=f"file://{binary_file}", access=ayeaye.AccessMode.WRITE, file_mode="b")
+        # Invalid string - it's illegal in both utf-8 and ascii
+        writer.data = b"<ABC> \xca </ABC>"
+        writer.close_connection()
+
+        reader = UncookedConnector(engine_url=f"file://{binary_file}", file_mode="b")
+
+        self.assertIsInstance(reader.data, bytes, "Expecting binary data")
+        self.assertEqual("<ABC>  </ABC>", reader.data.decode("ascii", "ignore"), "Cleaned binary expected")
+
+    def test_encoding(self):
+        "UTF-8 won't read in without encoding being specified"
+
+        unicode_example = "\u4653 hello unicode"
+
+        utf8_file = os.path.join(self.working_directory(), "utf8_file")
+        with open(utf8_file, "w", encoding="utf-8") as f:
+            f.write(unicode_example)
+
+        reader = UncookedConnector(engine_url=f"file://{utf8_file};encoding=latin-1")
+        self.assertNotEqual(unicode_example, reader.data, "Should be garbled by reading as ascii")
+
+        reader = UncookedConnector(engine_url=f"file://{utf8_file}")
+        self.assertEqual(unicode_example, reader.data, "Should be valid unicode")

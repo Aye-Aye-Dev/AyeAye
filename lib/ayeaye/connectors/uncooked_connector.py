@@ -1,15 +1,18 @@
-'''
+"""
 Created on 19 May 2021
 
 @author: si
-'''
+"""
 import os
 
 from ayeaye.connectors.base import DataConnector, AccessMode
 
 
 class UncookedConnector(DataConnector):
-    engine_type = 'file://'
+    engine_type = "file://"
+    optional_args = {
+        "file_mode": "t",
+    }
 
     def __init__(self, *args, **kwargs):
         """
@@ -21,7 +24,10 @@ class UncookedConnector(DataConnector):
         For args: @see :class:`connectors.base.DataConnector`
 
         additional args for UncookedConnector
-         None
+            file_mode (str) - Either 'b' for binary or 't' (default) text. Other modes not yet
+                    supported.
+                    Mode to open the file in. See-
+                    https://docs.python.org/3/library/functions.html#open
 
         TODO binary open
 
@@ -35,13 +41,17 @@ class UncookedConnector(DataConnector):
         self._reset()
 
         if self.access == AccessMode.READWRITE:
-            raise NotImplementedError('READWRITE access not yet implemented')
+            raise NotImplementedError("READWRITE access not yet implemented")
+
+        if self.file_mode not in ["b", "t"]:
+            raise ValueError(f"File mode: {self.file_mode} not supported")
 
     def _reset(self):
         self._file_handle = None  # lazy eval, use self.file_handle
         self._encoding = None
         self._engine_params = None
         self.file_size = None
+        self._file_content = None  # used in read mode
 
     @property
     def file_handle(self):
@@ -66,11 +76,10 @@ class UncookedConnector(DataConnector):
         """
         if self._engine_params is None:
             self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url,
-                optional_args=['encoding']
+                self.engine_url, optional_args=["encoding"]
             )
 
-            if 'encoding' in self._engine_params:
+            if "encoding" in self._engine_params:
                 self._encoding = self.engine_params.encoding
 
         return self._engine_params
@@ -82,7 +91,7 @@ class UncookedConnector(DataConnector):
         """
         if self._encoding is None:
             ep = self.engine_params
-            self._encoding = ep.encoding if 'encoding' in ep else 'utf-8-sig'
+            self._encoding = ep.encoding if "encoding" in ep else None
 
         return self._encoding
 
@@ -94,15 +103,20 @@ class UncookedConnector(DataConnector):
     def connect(self):
         if self._file_handle is None:
 
+            if self.file_mode == "b" and self.encoding is not None:
+                raise ValueError("Binary file mode can't be set with an encoding")
+
             if self.access == AccessMode.READ:
-                self._file_handle = open(self.engine_params.file_path, 'r', encoding=self.encoding)
+                file_mode = "r" + self.file_mode
+                self._file_handle = open(self.engine_params.file_path, file_mode, encoding=self.encoding)
                 self.file_size = os.stat(self.engine_params.file_path).st_size
 
             elif self.access == AccessMode.WRITE:
-                self._file_handle = open(self.engine_params.file_path, 'w', encoding=self.encoding)
+                file_mode = "w" + self.file_mode
+                self._file_handle = open(self.engine_params.file_path, file_mode, encoding=self.encoding)
 
             else:
-                raise ValueError('Unknown access mode')
+                raise ValueError("Unknown access mode")
 
     def __len__(self):
         """
@@ -131,8 +145,10 @@ class UncookedConnector(DataConnector):
         if self.access != AccessMode.READ:
             raise ValueError("Not open in read mode")
 
-        file_content = self.file_handle.read()
-        return file_content
+        if self._file_content is None:
+            self._file_content = self.file_handle.read()
+
+        return self._file_content
 
     @data.setter
     def data(self, file_content):
