@@ -8,8 +8,8 @@ import unittest
 import ayeaye
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
-EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'monkeys.tsv')
+EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
+EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "monkeys.tsv")
 
 
 class FindLongestAnimalName(ayeaye.PartitionedModel):
@@ -17,35 +17,41 @@ class FindLongestAnimalName(ayeaye.PartitionedModel):
     Find the longest common name in a collection of CSV/TSV files. Model suggests to executor how
     to break the task into parallel sub-tasks.
     """
-    animals = ayeaye.Connect(engine_url=[f"csv://{EXAMPLE_CSV_PATH}",
-                                         f"tsv://{EXAMPLE_TSV_PATH}",
-                                         ]
-                             )
+
+    animals = ayeaye.Connect(
+        engine_url=[
+            f"csv://{EXAMPLE_CSV_PATH}",
+            f"tsv://{EXAMPLE_TSV_PATH}",
+        ]
+    )
     animals_output = ayeaye.Connect(access=ayeaye.AccessMode.WRITE)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.common_names_max = []
 
+    def build(self):
+        pass
+
     def partition_plea(self):
         dataset_files_count = len(self.animals)
-        return ayeaye.PartitionedModel.PartitionOption(minimum=1,
-                                                       maximum=dataset_files_count,
-                                                       optimal=dataset_files_count
-                                                       )
+        return ayeaye.PartitionedModel.PartitionOption(
+            minimum=1, maximum=dataset_files_count, optimal=dataset_files_count
+        )
 
     def partition_slice(self, slice_count):
 
-        target_method = 'find_longest_name'  # this is the method subtasks should be running
+        target_method = "find_longest_name"  # this is the method subtasks should be running
         task_sets = defaultdict(list)
         for idx, dataset in enumerate(self.animals):
             task_id = idx % slice_count
             task_sets[task_id].append(dataset.engine_url)
 
-        return [(target_method, {'engine_set': engine_set}) for engine_set in task_sets.values()]
+        return [(target_method, {"engine_set": engine_set}) for engine_set in task_sets.values()]
 
-    def partition_subtask_complete(self, subtask_kwargs, subtask_return_value):
-        self.common_names_max.append(subtask_return_value)
+    def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
+        if subtask_method_name == "find_longest_name":
+            self.common_names_max.append(subtask_return_value)
 
     def partition_complete(self):
         longest_animal_name = max(self.common_names_max, key=len)
@@ -67,7 +73,6 @@ class FindLongestAnimalName(ayeaye.PartitionedModel):
 
 
 class TestPartitionedModel(unittest.TestCase):
-
     def setUp(self):
         self._working_directory = None
 
@@ -82,6 +87,7 @@ class TestPartitionedModel(unittest.TestCase):
     def test_general_checks(self):
 
         m = FindLongestAnimalName()
+        m.log_to_stdout = False
 
         output_file = "{}/animals_summary.json".format(self.working_directory())
         m.animals_output.update(engine_url=f"json://{output_file};indent=4")
@@ -95,17 +101,18 @@ class TestPartitionedModel(unittest.TestCase):
 
             all_engine_urls = []
             for s in slices:
-                self.assertEqual('find_longest_name', s[0])
-                all_engine_urls.extend(s[1]['engine_set'])
+                self.assertEqual("find_longest_name", s[0])
+                all_engine_urls.extend(s[1]["engine_set"])
 
             self.assertEqual(2, len(all_engine_urls))
             squashed_urls = " ".join(all_engine_urls)
-            self.assertIn('deadly_creatures.csv', squashed_urls)
-            self.assertIn('monkeys.tsv', squashed_urls)
+            self.assertIn("deadly_creatures.csv", squashed_urls)
+            self.assertIn("monkeys.tsv", squashed_urls)
 
     def test_happy_partitioned_path(self):
 
         m = FindLongestAnimalName()
+        m.log_to_stdout = False
 
         output_file = "{}/animals_summary.json".format(self.working_directory())
         m.animals_output.update(engine_url=f"json://{output_file};indent=4")
@@ -113,8 +120,8 @@ class TestPartitionedModel(unittest.TestCase):
 
         m.go()
 
-        with open(output_file, 'r', encoding=output_encoding) as f:
+        with open(output_file, "r", encoding=output_encoding) as f:
             output_data = json.load(f)
 
-        expected_data = 'Crown of thorns starfish'
+        expected_data = "Crown of thorns starfish"
         self.assertEqual(expected_data, output_data)
