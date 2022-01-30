@@ -16,15 +16,26 @@ class ProcessPool:
     know if you can see a way with `Pool`.
     """
 
-    def __init__(self, processes):
+    def __init__(self, processes=None, model_initialise=None):
         """
+        Indicate how many worker processes to create with either-
+
         @param processes: (int)
             number of worker processes
+
+            OR
+
+        @param model_initialise (list of args (list) or kwargs (dict))
+            Each item in this list is passed as either *args or **kwargs to the Aye-aye model's
+            :method:`partition_initialise`.
         """
+        assert (processes is None) != (model_initialise is None), "Mutually exclusive arguments."
+
         self.processes = processes
+        self.model_initialise = model_initialise
 
     @staticmethod
-    def run_model(ayeaye_model_cls, subtask_kwargs_queue, return_values_queue):
+    def run_model(ayeaye_model_cls, subtask_kwargs_queue, return_values_queue, initialise):
         """
         @param ayeaye_model_cls: subclass of :class:`ayeaye.PartitionedModel`
             Class, not object/instance.
@@ -37,10 +48,25 @@ class ProcessPool:
         @param return_values_queue: :class:`multiprocessing.Queue` object
             method_name, method_kwargs, subtask_return_value from running are sent back to the
             calling the subtask along this queue.
+
+        @param initialise: None, dict or list
+            args or kwargs for Aye-aye model's :method:`partition_initialise`
         """
 
         model = ayeaye_model_cls()
-        model.partition_initialise()
+
+        init_args = []
+        init_kwargs = {}
+        if initialise is not None:
+            for init_as in initialise:
+                if isinstance(init_as, list):
+                    init_args = init_as
+                elif isinstance(init_as, dict):
+                    init_kwargs = init_as
+                else:
+                    raise ValueError("Unknown initialise variable")
+
+        model.partition_initialise(*init_args, **init_kwargs)
 
         while True:
             method_name, method_kwargs = subtask_kwargs_queue.get()
@@ -61,7 +87,7 @@ class ProcessPool:
             subtask_return_value = sub_task_method(**method_kwargs)
             return_values_queue.put((method_name, method_kwargs, subtask_return_value))
 
-    def run_subtasks(self, model_cls, tasks):
+    def run_subtasks(self, model_cls, tasks, initialise):
         """
         Generator yielding (method_name, method_kwargs, subtask_return_value) from completed
         subtasks.
@@ -73,14 +99,30 @@ class ProcessPool:
 
         @param tasks: list of (method_name, method_kwargs) (str, dict)
             each item defines a subtask to execute in a worker process
+
+        @param initialise: None, or list of tuples (dict and or list)
+            args or kwargs for Aye-aye model's :method:`partition_initialise`.
+            Each item in this list is used to initialise a worker process.
         """
+        subtasks_count = len(tasks)
+
+        # Optionally, a model can pass initialisation variables to workers
+        if initialise is None:
+            worker_init = [None for _ in range(self.processes)]
+        else:
+            if len(initialise) != self.processes:
+                raise ValueError("The numeber of worker 'initialise' items doesn't match number of workers.")
+            worker_init = initialise
 
         subtask_kwargs_queue = Queue()
         return_values_queue = Queue()
 
         proc_table = []
-        for _ in range(self.processes):
-            proc = Process(target=ProcessPool.run_model, args=(model_cls, subtask_kwargs_queue, return_values_queue))
+        for proc_id in range(self.processes):
+            proc = Process(
+                target=ProcessPool.run_model,
+                args=(model_cls, subtask_kwargs_queue, return_values_queue, worker_init[proc_id]),
+            )
             proc_table.append(proc)
 
         for proc in proc_table:
@@ -93,7 +135,7 @@ class ProcessPool:
         for _ in range(self.processes):
             subtask_kwargs_queue.put((None, None))
 
-        for _ in range(len(tasks)):
+        for _ in range(subtasks_count):
             yield return_values_queue.get()
 
         for proc in proc_table:

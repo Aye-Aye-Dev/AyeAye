@@ -338,7 +338,7 @@ class PartitionedModel(Model):
     # how many sub-tasks the execution could be split into.
     PartitionOption = namedtuple("PartitionOption", ("minimum", "maximum", "optimal"))
 
-    def partition_initialise(self):
+    def partition_initialise(self, *args, **kwargs):
         """
         This method will be called when a worker process instantiates a model. This method can
         be overridden but sub-class's method must be called.
@@ -368,6 +368,9 @@ class PartitionedModel(Model):
         of the method name and key word arguments. The method+kwargs will be called on one of the
         workers.
 
+        @param partition_count: (int)
+            The number of workers the executor plans to run.
+
         @returns (list of (method name (str), kwargs [i.e. a dict])
         """
         raise NotImplementedError("All models must implement this method")
@@ -384,6 +387,21 @@ class PartitionedModel(Model):
     def partition_complete(self):
         """
         Optional method. called when executor has finished all sub-tasks.
+        """
+        return None
+
+    def worker_initialise(self, processes):
+        """
+        Optional method. This is called by the executor after the number of workers has been
+        determined if the number of workers is a fixed number.
+
+        @param processes: (int)
+            The number of workers the executor plans to run.
+
+        @return: list of tuples containing args (list) or kwargs (dict) or None when not needed.
+            Each item in this list is used to initialise a single worker. It could contain
+            a worker ID. The number of items must equal the number of partitions. An exception
+            will be raised if this isn't the case.
         """
         return None
 
@@ -423,9 +441,15 @@ class PartitionedModel(Model):
 
         tasks = [("build", None)]  # all subclasses of :class:`Model` must include `build` method
         tasks.extend(self.partition_slice(workers_count))
+        subtasks_count = len(tasks)
+
+        # model can specify arguments for initialising workers
+        worker_init = self.worker_initialise(processes=workers_count)
 
         proc_pool = ProcessPool(processes=workers_count)
-        for subtask_return in proc_pool.run_subtasks(model_cls=self.__class__, tasks=tasks):
+        for subtasks_complete, subtask_return in enumerate(
+            proc_pool.run_subtasks(model_cls=self.__class__, tasks=tasks, initialise=worker_init)
+        ):
 
             method_name, original_method_kwargs, subtask_return_value = subtask_return
             self.partition_subtask_complete(
@@ -433,5 +457,6 @@ class PartitionedModel(Model):
                 subtask_kwargs=original_method_kwargs,
                 subtask_return_value=subtask_return_value,
             )
+            self.log_progress(subtasks_complete / subtasks_count)
 
         self.partition_complete()
