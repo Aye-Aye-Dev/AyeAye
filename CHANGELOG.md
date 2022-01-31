@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.21] - 2022-01-31
+
+### Changed
+- 'executors' now called 'runtime'
+
+### Added
+- A clearer link between runtime environment and PartitionedModel
+- worker_id and number of workers (when using fixed sized pool) to runtime info
+
 ## [0.0.20] - 2022-01-30
 
 ### Added

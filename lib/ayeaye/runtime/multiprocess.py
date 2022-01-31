@@ -35,8 +35,14 @@ class ProcessPool:
         self.model_initialise = model_initialise
 
     @staticmethod
-    def run_model(ayeaye_model_cls, subtask_kwargs_queue, return_values_queue, initialise):
+    def run_model(worker_id, total_workers, ayeaye_model_cls, subtask_kwargs_queue, return_values_queue, initialise):
         """
+        @param worker_id: (int)
+            unique number assigned in ascending order to workers as they start
+
+        @param total_workers: (int)
+            Number of workers in pool or None for dynamic workers
+
         @param ayeaye_model_cls: subclass of :class:`ayeaye.PartitionedModel`
             Class, not object/instance.
             This will be instantiated without arguments and subtasks will be methods executed on
@@ -54,6 +60,9 @@ class ProcessPool:
         """
 
         model = ayeaye_model_cls()
+
+        model.runtime.worker_id = worker_id
+        model.runtime.total_workers = total_workers
 
         init_args = []
         init_kwargs = {}
@@ -86,6 +95,8 @@ class ProcessPool:
             sub_task_method = getattr(model, method_name)
             subtask_return_value = sub_task_method(**method_kwargs)
             return_values_queue.put((method_name, method_kwargs, subtask_return_value))
+
+        model.close_datasets()
 
     def run_subtasks(self, model_cls, tasks, initialise):
         """
@@ -121,7 +132,14 @@ class ProcessPool:
         for proc_id in range(self.processes):
             proc = Process(
                 target=ProcessPool.run_model,
-                args=(model_cls, subtask_kwargs_queue, return_values_queue, worker_init[proc_id]),
+                args=(
+                    proc_id,
+                    self.processes,
+                    model_cls,
+                    subtask_kwargs_queue,
+                    return_values_queue,
+                    worker_init[proc_id],
+                ),
             )
             proc_table.append(proc)
 

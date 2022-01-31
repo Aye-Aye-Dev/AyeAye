@@ -8,7 +8,8 @@ import warnings
 import ayeaye
 from ayeaye.connectors.base import DataConnector
 from ayeaye.connect_resolve import connector_resolver
-from ayeaye.executors.multiprocess import ProcessPool
+from ayeaye.runtime.knowledge import RuntimeKnowledge
+from ayeaye.runtime.multiprocess import ProcessPool
 from ayeaye.ignition import EngineUrlCase, EngineUrlStatus
 
 
@@ -338,6 +339,13 @@ class PartitionedModel(Model):
     # how many sub-tasks the execution could be split into.
     PartitionOption = namedtuple("PartitionOption", ("minimum", "maximum", "optimal"))
 
+    def __init__(self):
+
+        super().__init__()
+
+        # the link between the execution environment and the process
+        self.runtime = RuntimeKnowledge()
+
     def partition_initialise(self, *args, **kwargs):
         """
         This method will be called when a worker process instantiates a model. This method can
@@ -386,7 +394,7 @@ class PartitionedModel(Model):
 
     def partition_complete(self):
         """
-        Optional method. called when executor has finished all sub-tasks.
+        Optional method. Called when executor has finished all sub-tasks.
         """
         return None
 
