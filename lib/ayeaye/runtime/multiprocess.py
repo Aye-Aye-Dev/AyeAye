@@ -3,12 +3,14 @@ Run :class:`ayeaye.PartitionedModel` models across multiple operating system pro
 """
 from multiprocessing import Process, Queue
 
+from ayeaye.connect_resolve import connector_resolver
+
 
 class ProcessPool:
     """
     Like :class:`multiprocessing.Pool` but with instances that persist for as long as the process.
 
-    A worker :class:`multiprocssing.Process` runs methods of an :class:`ayeaye.Model`s instance.
+    A worker :class:`multiprocessing.Process` runs methods of an :class:`ayeaye.Model`s instance.
     The model instance is instantiated when the process starts, from there on just the methods
     requested to run the sub-task are called.
 
@@ -16,7 +18,7 @@ class ProcessPool:
     know if you can see a way with `Pool`.
     """
 
-    def __init__(self, processes=None, model_initialise=None):
+    def __init__(self, processes=None, model_initialise=None, context_kwargs=None):
         """
         Indicate how many worker processes to create with either-
 
@@ -28,14 +30,29 @@ class ProcessPool:
         @param model_initialise (list of args (list) or kwargs (dict))
             Each item in this list is passed as either *args or **kwargs to the Aye-aye model's
             :method:`partition_initialise`.
+
+        @param context_kwargs: (dict)
+            connector_resolver context key value pairs.
+            The connector resolver is a 'globally accessible' object use to resolve engine_urls.
+            It takes key value pairs and callables. This argument is just for the former.
+            @see :class:`ayeaye.ayeaye.connect_resolve.ConnectorResolver`
         """
         assert (processes is None) != (model_initialise is None), "Mutually exclusive arguments."
 
         self.processes = processes
         self.model_initialise = model_initialise
+        self.context_kwargs = context_kwargs
 
     @staticmethod
-    def run_model(worker_id, total_workers, ayeaye_model_cls, subtask_kwargs_queue, return_values_queue, initialise):
+    def run_model(
+        worker_id,
+        total_workers,
+        ayeaye_model_cls,
+        subtask_kwargs_queue,
+        return_values_queue,
+        initialise,
+        context_kwargs,
+    ):
         """
         @param worker_id: (int)
             unique number assigned in ascending order to workers as they start
@@ -57,46 +74,49 @@ class ProcessPool:
 
         @param initialise: None, dict or list
             args or kwargs for Aye-aye model's :method:`partition_initialise`
+
+        @param context_kwargs: (dict)
+            see constructor
         """
+        with connector_resolver.context(**context_kwargs["mapper"]):
+            model = ayeaye_model_cls()
 
-        model = ayeaye_model_cls()
+            model.runtime.worker_id = worker_id
+            model.runtime.total_workers = total_workers
 
-        model.runtime.worker_id = worker_id
-        model.runtime.total_workers = total_workers
+            init_args = []
+            init_kwargs = {}
+            if initialise is not None:
+                for init_as in initialise:
+                    if isinstance(init_as, list):
+                        init_args = init_as
+                    elif isinstance(init_as, dict):
+                        init_kwargs = init_as
+                    else:
+                        raise ValueError("Unknown initialise variable")
 
-        init_args = []
-        init_kwargs = {}
-        if initialise is not None:
-            for init_as in initialise:
-                if isinstance(init_as, list):
-                    init_args = init_as
-                elif isinstance(init_as, dict):
-                    init_kwargs = init_as
-                else:
-                    raise ValueError("Unknown initialise variable")
+            model.partition_initialise(*init_args, **init_kwargs)
 
-        model.partition_initialise(*init_args, **init_kwargs)
+            while True:
+                method_name, method_kwargs = subtask_kwargs_queue.get()
+                if method_name is None:
+                    break
 
-        while True:
-            method_name, method_kwargs = subtask_kwargs_queue.get()
-            if method_name is None:
-                break
+                if method_kwargs is None:
+                    method_kwargs = {}
 
-            if method_kwargs is None:
-                method_kwargs = {}
+                # TODO - :method:`log` for the worker processes should be connected back to the parent
+                # with a queue or pipe and it shouldn't be using stdout
 
-            # TODO - :method:`log` for the worker processes should be connected back to the parent
-            # with a queue or pipe and it shouldn't be using stdout
+                # TODO - supply the connector_resolver context
 
-            # TODO - supply the connector_resolver context
+                # TODO - handle exceptions
 
-            # TODO - handle exceptions
+                sub_task_method = getattr(model, method_name)
+                subtask_return_value = sub_task_method(**method_kwargs)
+                return_values_queue.put((method_name, method_kwargs, subtask_return_value))
 
-            sub_task_method = getattr(model, method_name)
-            subtask_return_value = sub_task_method(**method_kwargs)
-            return_values_queue.put((method_name, method_kwargs, subtask_return_value))
-
-        model.close_datasets()
+            model.close_datasets()
 
     def run_subtasks(self, model_cls, tasks, initialise):
         """
@@ -125,6 +145,8 @@ class ProcessPool:
                 raise ValueError("The numeber of worker 'initialise' items doesn't match number of workers.")
             worker_init = initialise
 
+        context_kwargs = self.context_kwargs or {}
+
         subtask_kwargs_queue = Queue()
         return_values_queue = Queue()
 
@@ -139,6 +161,7 @@ class ProcessPool:
                     subtask_kwargs_queue,
                     return_values_queue,
                     worker_init[proc_id],
+                    context_kwargs,
                 ),
             )
             proc_table.append(proc)

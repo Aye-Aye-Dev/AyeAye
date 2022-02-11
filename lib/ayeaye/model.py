@@ -454,7 +454,9 @@ class PartitionedModel(Model):
         # model can specify arguments for initialising workers
         worker_init = self.worker_initialise(processes=workers_count)
 
-        proc_pool = ProcessPool(processes=workers_count)
+        active_context = connector_resolver.capture_context()
+
+        proc_pool = ProcessPool(processes=workers_count, context_kwargs=active_context)
         for subtasks_complete, subtask_return in enumerate(
             proc_pool.run_subtasks(model_cls=self.__class__, tasks=tasks, initialise=worker_init)
         ):

@@ -66,7 +66,7 @@ class ConnectorResolver:
         return self._attr[attr]
 
     def needs_resolution(self, engine_url):
-        return engine_url is None or (isinstance(engine_url, str) and '{' in engine_url)
+        return engine_url is None or (isinstance(engine_url, str) and "{" in engine_url)
 
     def resolve_engine_url(self, unresolved_engine_url):
         """
@@ -104,10 +104,11 @@ class ConnectorResolver:
 
         # warning - don't put the partially resolved engine url into stack trace as it might
         # contain secretes.
-        missing_vars = ",".join(re.findall('{.+?}', resolving))
-        msg = (f"Couldn't fully resolve engine URL. Unresolved: {unresolved}. "
-               f"Missing template variables are: {missing_vars}"
-               )
+        missing_vars = ",".join(re.findall("{.+?}", resolving))
+        msg = (
+            f"Couldn't fully resolve engine URL. Unresolved: {unresolved}. "
+            f"Missing template variables are: {missing_vars}"
+        )
         raise ValueError(msg)
 
     def add(self, *args, **kwargs):
@@ -129,8 +130,7 @@ class ConnectorResolver:
                 raise ValueError(f"Attempted to set existing attribute: {attribute_name}")
 
             if not isinstance(attribute_name, (int, str)):
-                raise ValueError(
-                    f"templated variable '{attribute_name}' needs to be string or int.")
+                raise ValueError(f"templated variable '{attribute_name}' needs to be string or int.")
 
             self._attr[attribute_name] = attribute_value
 
@@ -168,7 +168,7 @@ class ConnectorResolver:
                 raise ValueError(f"Non-JSON serialisable data type found in '{attribute_name}'")
 
         # copy to make a snapshot as context manager will change _attr
-        return {'mapper': copy.copy(self._attr)}
+        return {"mapper": copy.copy(self._attr)}
 
     def context(self, *args, **kwargs):
         """

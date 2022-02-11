@@ -72,6 +72,35 @@ class FindLongestAnimalName(ayeaye.PartitionedModel):
         return longest
 
 
+class DistributedFakeWork(ayeaye.PartitionedModel):
+    """
+    Distribute a fake calculation and assemble the results.
+    """
+
+    # uses connector_resolver
+    non_existant_data = ayeaye.Connect(engine_url="file://{hello_partitioned_context}")
+
+    def build(self):
+        pass
+
+    def some_work(self, some_number):
+        "add the worker id to a test number and append to fully resolved engine_url"
+        some_data = self.non_existant_data.file_path + str(some_number)
+        return some_data
+
+    def partition_slice(self, _):
+        target_method = "some_work"
+        return [(target_method, {"some_number": x}) for x in range(10)]
+
+    def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
+
+        if not hasattr(self, "resultset"):
+            self.resultset = []
+
+        if subtask_method_name == "some_work":
+            self.resultset.append(subtask_return_value)
+
+
 class TestPartitionedModel(unittest.TestCase):
     def setUp(self):
         self._working_directory = None
@@ -125,3 +154,18 @@ class TestPartitionedModel(unittest.TestCase):
 
         expected_data = "Crown of thorns starfish"
         self.assertEqual(expected_data, output_data)
+
+    def test_partitioned_connector_resolver(self):
+        """
+        Key -> Value pairs set on the global ConnectorResolver should be available to worker
+        processes.
+        Callables aren't yet supported.
+        """
+        build_context = {"hello_partitioned_context": "important_build_data.ndjson"}
+        with ayeaye.connector_resolver.context(**build_context):
+            m = DistributedFakeWork()
+            m.log_to_stdout = False
+            m.go()
+
+        expected_results = set(["important_build_data.ndjson" + str(x) for x in range(10)])
+        self.assertEqual(expected_results, set(m.resultset))
