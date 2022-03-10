@@ -1,6 +1,4 @@
 import os
-import tarfile
-import tempfile
 import unittest
 
 import ayeaye
@@ -10,9 +8,6 @@ import ayeaye
 from ayeaye.connectors.multi_connector import MultiConnector
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-# EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'exampleflowerpot.tar.gz')
-# EXAMPLE_ENGINE_URL = 'gs+flowerpot://fake_flowerpot_bucket/some_file.json'
-# EXAMPLE_JSON_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'london_weather.json')
 EXAMPLE_CSV_MICE = os.path.join(PROJECT_TEST_PATH, "data", "mice.csv")
 EXAMPLE_CSV_SQUIRRELS = os.path.join(PROJECT_TEST_PATH, "data", "squirrels.csv")
 
@@ -88,3 +83,21 @@ class TestMultiConnectors(unittest.TestCase):
         # check access to any dataset property
         self.assertTrue(dataset.engine_params.file_path.endswith("tests/data/mice.csv"))
         self.assertEqual(2, len(c))
+
+    def test_wildcards(self):
+        """
+        When * or ? are used in engine_url a filesystem search should result in a MultiConnector
+        """
+        search_path = os.path.join(PROJECT_TEST_PATH, "data", "m*.?sv")
+        msg = "expected mice.csv and monkeys.tsv"
+
+        wildcard_connector = ayeaye.Connect(engine_url="file://" + search_path)
+
+        resolved_connectors = []
+        for connector in wildcard_connector:
+            resolved_connectors.append(connector.engine_params.file_path)
+
+        self.assertEqual(2, len(resolved_connectors), msg)
+        files = [file_path.split(os.path.sep)[-1] for file_path in resolved_connectors]
+        self.assertIn("mice.csv", files, msg)
+        self.assertIn("monkeys.tsv", files, msg)

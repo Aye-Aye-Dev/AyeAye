@@ -1,5 +1,6 @@
 import copy
 from enum import Enum
+import glob
 
 from ayeaye.connectors import connector_factory
 from ayeaye.connectors.models_connector import ModelsConnector
@@ -203,6 +204,18 @@ class Connect:
                 # compile time list of engine_url strings
                 # might be callable or a dict or set in the future
                 connector_cls = MultiConnector
+            elif "*" in engine_url or "?" in engine_url:
+                # For consistency this must be a multiconnector even when it resolves to one item
+                connector_cls = MultiConnector
+
+                # strip engine type
+                # for now, they all need to have the same engine_type. Maybe engine_url starts
+                # with `://` for auto detect based on file name.
+                engine_type, engine_path_pattern = engine_url.split("://", 1)
+
+                engine_url = []
+                for engine_file in glob.glob(engine_path_pattern):
+                    engine_url.append(f"{engine_type}://{engine_file}")
             else:
                 connector_cls = connector_factory(engine_url)
 
@@ -217,7 +230,7 @@ class Connect:
                 # this might have been a callable above
                 detached_kwargs[k] = copy.deepcopy(engine_url)
 
-            if callable(v) and k != "models":
+            elif callable(v) and k != "models":
 
                 if k in connector_cls.preserve_callables:
                     # reference to the callable is preserved for the `connector_cls` to call. This is
