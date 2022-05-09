@@ -9,28 +9,7 @@ class AccessMode(Enum):
     READWRITE = "rw"
 
 
-class BaseConnector:
-    """
-    Abstract class for factory instances from :class:`Connect`.
-    """
-
-    def __init__(self):
-        # set when :class:`ayeaye.Connect` builds subclass instances
-        self._connect_instance = None  # instance of :class:`ayeaye.Connect`
-        self._parent_model = None  # instance of :class:`ayeaye.Model`
-
-    @property
-    def connect_instance(self):
-        """
-        Instances of subclasses of :class:`DataConnector` and :class:`ModelConnector` are usually
-        built by :class:`ayeaye.Connect`. `connect_instance` is a reference to make it easy to
-        tweak an existing connect on a model. See :method:`TestConnect.test_update_by_replacement`
-        for an example.
-        """
-        return self._connect_instance
-
-
-class DataConnector(BaseConnector):
+class DataConnector:
     engine_type = None  # must be defined by subclasses
 
     # subclasses should specify their optional kwargs. Values in this dict are default values.
@@ -56,7 +35,10 @@ class DataConnector(BaseConnector):
         none are left unprocessed. Any which are specified in optional_args will be set as
         attributes by this super constructor.
         """
-        super().__init__()
+        # set when :class:`ayeaye.Connect` builds subclass instances
+        self._connect_instance = None  # instance of :class:`ayeaye.Connect`
+        self._parent_model = None  # instance of :class:`ayeaye.Model`
+
         self.access = access
 
         # engine_urls may need resolution of templated variables (typically secrets and paths). The
@@ -79,6 +61,16 @@ class DataConnector(BaseConnector):
 
     def __del__(self):
         self.close_connection()
+
+    @property
+    def connect_instance(self):
+        """
+        Instances of subclasses of :class:`DataConnector` and :class:`ModelConnector` are usually
+        built by :class:`ayeaye.Connect`. `connect_instance` is a reference to make it easy to
+        tweak an existing connect on a model. See :method:`TestConnect.test_update_by_replacement`
+        for an example.
+        """
+        return self._connect_instance
 
     @property
     def engine_url(self):

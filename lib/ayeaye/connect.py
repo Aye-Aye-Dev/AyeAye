@@ -3,7 +3,6 @@ from enum import Enum
 import glob
 
 from ayeaye.connectors import connector_factory
-from ayeaye.connectors.models_connector import ModelsConnector
 from ayeaye.connectors.multi_connector import MultiConnector
 from ayeaye.connectors.placeholder import PlaceholderDataConnector
 
@@ -191,11 +190,7 @@ class Connect:
         if callable(engine_url):
             engine_url = engine_url()
 
-        if "models" in self.relayed_kwargs:
-            # could be a callable but shouldn't be instantiated yet, ModelsConnector does that
-            connector_cls = ModelsConnector
-
-        elif engine_url is None:
+        if engine_url is None:
             # engine_url not yet available
             connector_cls = PlaceholderDataConnector
 

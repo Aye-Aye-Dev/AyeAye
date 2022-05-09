@@ -1,7 +1,7 @@
 import unittest
 
 import ayeaye
-from ayeaye.connectors.models_connector import ModelsConnector
+from ayeaye.model_collection import ModelCollection
 
 
 class One(ayeaye.Model):
@@ -63,8 +63,7 @@ class Nine(ayeaye.Model):
     h = ayeaye.Connect(engine_url="csv://h", access=ayeaye.AccessMode.WRITE)
 
 
-class TestModelConnectors(unittest.TestCase):
-
+class TestModelCollection(unittest.TestCase):
     @staticmethod
     def repr_run_order(run_order):
         """
@@ -78,90 +77,83 @@ class TestModelConnectors(unittest.TestCase):
             r.append(name_set)
         return r
 
-    def test_single_standalone_model(self):
-        c = ayeaye.Connect(models=One)
-        msg = ("Attribute access should be proxied through Connect to an instance of "
-               "ModelsConnector which should refer back to the Connect instance that created it."
-               )
-        self.assertEqual(c, c.connect_instance, msg=msg)
-        self.assertEqual(c.models, [One], "Single model should be proxied through Connect.")
-
     def test_construction(self):
         """
-        valid ways to make a ModelsConnector instance.
+        valid ways to make a ModelCollection instance.
         """
-        m = ModelsConnector(models=One)
+        m = ModelCollection(One)
         self.assertIsInstance(m.models, list, "Single model becomes run-list")
 
-        m = ModelsConnector(models=[One, Two, Three])
+        m = ModelCollection([One, Two, Three])
         self.assertIsInstance(m.models, list, "Preserves list")
 
-        m = ModelsConnector(models=set([One, Two, Three]))
+        m = ModelCollection(set([One, Two, Three]))
         self.assertIsInstance(m.models, set, "Preserves set")
 
         with self.assertRaises(ValueError):
             # non-model
-            m = ModelsConnector(models=[One, Two, Three()])
+            m = ModelCollection([One, Two, Three()])
 
         def models_choosen_at_runtime():
             return set([One, Two])
 
         with self.assertRaises(NotImplementedError):
             # TODO
-            m = ModelsConnector(models=models_choosen_at_runtime)
+            m = ModelCollection(models_choosen_at_runtime)
 
     def test_resolve_run_order_linear(self):
         """
         Dataset dependencies used to determine model run order.
         """
-        c = ayeaye.Connect(models={One, Two, Three})
+        c = ModelCollection(models={One, Two, Three})
         r = c._resolve_run_order()
 
-        leaf_sources = set([c.relayed_kwargs['engine_url'] for c in r.leaf_sources])
+        leaf_sources = set([c.relayed_kwargs["engine_url"] for c in r.leaf_sources])
         expected_leaf_sources = {"csv://a"}
         self.assertEqual(expected_leaf_sources, leaf_sources)
 
-        leaf_targets = set([c.relayed_kwargs['engine_url'] for c in r.leaf_targets])
+        leaf_targets = set([c.relayed_kwargs["engine_url"] for c in r.leaf_targets])
         expected_leaf_targets = {"csv://d"}
         self.assertEqual(expected_leaf_targets, leaf_targets)
 
         msg = "Should be a single linear execution"
         self.assertIsInstance(r.run_order, list, msg)
 
-        self.assertEqual([{'One'}, {'Two'}, {'Three'}], self.repr_run_order(r.run_order), msg)
+        self.assertEqual([{"One"}, {"Two"}, {"Three"}], self.repr_run_order(r.run_order), msg)
 
     def test_resolve_run_order_one_branch(self):
-        c = ayeaye.Connect(models={One, Two, Four})
+        c = ModelCollection(models={One, Two, Four})
         r = c._resolve_run_order()
-        self.assertEqual([{'One'}, {'Two', 'Four'}], self.repr_run_order(r.run_order))
+        self.assertEqual([{"One"}, {"Two", "Four"}], self.repr_run_order(r.run_order))
 
     def test_resolve_run_order_readwrite(self):
-        c = ayeaye.Connect(models={One, Two, Five, Six})
+        c = ModelCollection(models={One, Two, Five, Six})
         r = c._resolve_run_order()
-        msg = ("There is an ambiguity because Six is WRITE and Five is READWRITE to the same "
-               "dataset (f). The write only is happening first. Feels correct but might need "
-               "more thought."
-               )
-        self.assertEqual([{'One'}, {'Two', 'Six'}, {'Five'}], self.repr_run_order(r.run_order), msg)
+        msg = (
+            "There is an ambiguity because Six is WRITE and Five is READWRITE to the same "
+            "dataset (f). The write only is happening first. Feels correct but might need "
+            "more thought."
+        )
+        self.assertEqual([{"One"}, {"Two", "Six"}, {"Five"}], self.repr_run_order(r.run_order), msg)
 
     def test_resolve_with_callable(self):
         "Seven has a callable to build it's engine_url at build time"
-        c = ayeaye.Connect(models={One, Eight, Seven})
+        c = ModelCollection(models={One, Eight, Seven})
         r = c._resolve_run_order()
-        self.assertEqual([{'One'}, {'Seven'}, {'Eight'}], self.repr_run_order(r.run_order))
+        self.assertEqual([{"One"}, {"Seven"}, {"Eight"}], self.repr_run_order(r.run_order))
 
     def test_resolve_with_two_different_callables(self):
-        c = ayeaye.Connect(models={One, Nine, Seven})
+        c = ModelCollection(models={One, Nine, Seven})
         r = c._resolve_run_order()
-        self.assertEqual([{'One', 'Nine'}, {'Seven'}], self.repr_run_order(r.run_order))
+        self.assertEqual([{"One", "Nine"}, {"Seven"}], self.repr_run_order(r.run_order))
 
     def test_model_iterator(self):
-        c = ayeaye.Connect(models={One, Two, Five, Six})
+        c = ModelCollection(models={One, Two, Five, Six})
         models = [m for m in c]
         # not ordered when a set of models is passed
         self.assertEqual(4, len(models))
 
-        c = ayeaye.Connect(models=[One, Two, Five, Six])
+        c = ModelCollection(models=[One, Two, Five, Six])
         models = [m for m in c]
         # ordered when a list
         self.assertEqual([One, Two, Five, Six], models)
@@ -173,6 +165,7 @@ class TestModelConnectors(unittest.TestCase):
         Here, check there is a public method that returns a list and elements within this list
         are a tree of lists and sets.
         """
+
         def is_run_item(r):
             if isinstance(r, list):
                 # all items in list must be a set. Set could be one model
@@ -188,9 +181,7 @@ class TestModelConnectors(unittest.TestCase):
                 raise ValueError("Non list and not set item found")
             return True
 
-        for c in [ayeaye.Connect(models={One, Two, Five, Six}),
-                  ayeaye.Connect(models=[One, Two, Five, Six])
-                  ]:
+        for c in [ModelCollection(models={One, Two, Five, Six}), ModelCollection(models=[One, Two, Five, Six])]:
             run_order = c.run_order()
             self.assertIsInstance(run_order, list)
             self.assertTrue(is_run_item(run_order))

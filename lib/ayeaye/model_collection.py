@@ -1,19 +1,17 @@
 import copy
 from inspect import isclass
 
-from ayeaye.connectors.base import AccessMode, BaseConnector
+from ayeaye.connectors.base import AccessMode
 from ayeaye.model import Model
 from ayeaye.pinnate import Pinnate
 
 
-class ModelsConnector(BaseConnector):
+class ModelCollection:
     def __init__(self, models):
         """
-        Connector to run :class:`ayeaye.Models`.
+        Build graphs from a group of subclasses of :class:`ayeaye.Models`
 
-        For args: @see :class:`connectors.base.BaseConnector`
-
-        additional args for ModelsConnector
+        additional args for ModelCollection
          models (class, list, set or callable) all of which are :class:`ayeaye.Models`. They aren't
                     instances of the class but the class itself. A *list* is an explicit ordering
                     that the models should be run in. Models in *set* will be examined to see
