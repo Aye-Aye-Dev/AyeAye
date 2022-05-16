@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.24] - 2022-05-09
+
+### Removed
+- ModelsConnector - it makes better sense outside the ayeaye.Connect(..) declaration
+
+### Added
+- ModelCollection - the old ModelsConnector slightly repackaged
+- ayeaye.common_pattern.build_context.manifest_build_context and examples/manifest_build_context to demonstrate a simple way to list files used in an ayeaye.Model
+
 ## [0.0.23] - 2022-03-10
 
 ### Added
