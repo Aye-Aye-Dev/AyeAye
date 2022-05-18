@@ -22,7 +22,7 @@ class EngineFromManifest:
     used to create versioned ETL builds by storing versioning information in a manifest file.
 
     A manifest file is a dataset which can be retained to re-create ETL builds at a later date
-    and to show data provenence.
+    and to show data provenance.
 
     Creating the manifest file itself isn't expected to be a deterministic process as it probably
     takes a filesystem listing of available datasets and from this determines the most recent

@@ -1,7 +1,7 @@
 import unittest
 
 import ayeaye
-from ayeaye.model_collection import ModelCollection
+from ayeaye.model_collection import ModelCollection, VisualiseModels
 
 
 class One(ayeaye.Model):
@@ -61,6 +61,21 @@ class Eight(ayeaye.Model):
 class Nine(ayeaye.Model):
     i = ayeaye.Connect(engine_url=another_find_destination, access=ayeaye.AccessMode.WRITE)
     h = ayeaye.Connect(engine_url="csv://h", access=ayeaye.AccessMode.WRITE)
+
+
+class X(ayeaye.Model):
+    r = ayeaye.Connect(engine_url="csv://r")
+    s = ayeaye.Connect(engine_url="csv://s", access=ayeaye.AccessMode.WRITE)
+
+
+class Y(ayeaye.Model):
+    s = X.s.clone(access=ayeaye.AccessMode.READ)
+    t = ayeaye.Connect(engine_url="csv://t", access=ayeaye.AccessMode.WRITE)
+
+
+class Z(ayeaye.Model):
+    t = Y.t.clone(access=ayeaye.AccessMode.READ)
+    u = ayeaye.Connect(engine_url="csv://u", access=ayeaye.AccessMode.WRITE)
 
 
 class TestModelCollection(unittest.TestCase):
@@ -185,3 +200,60 @@ class TestModelCollection(unittest.TestCase):
             run_order = c.run_order()
             self.assertIsInstance(run_order, list)
             self.assertTrue(is_run_item(run_order))
+
+    def test_data_provenance_model_classes(self):
+        """
+        without instanciating ayeaye.Model classes find data provenance (aka data lineage)
+        """
+        c = ModelCollection(models={One, Two, Three})
+        dataset_graphs = c.dataset_provenance()
+
+        msg = "{One,Two,Three} use datasets (a,b,c,d} so are all inter-related into single graph"
+        self.assertEqual(1, len(dataset_graphs), msg)
+
+        msg = "There are 4 datasets so there should be 4 edges"
+        graph_edges = dataset_graphs[0]
+        self.assertEqual(4, len(graph_edges), msg)
+
+        models = set()
+        for edge in graph_edges:
+            models.add(edge.model_a)
+            models.add(edge.model_b)
+
+        msg = "None indicates leaf node"
+        self.assertIn(None, models, msg)
+        models.remove(None)
+
+        msg = "There are 3 models"
+        self.assertEqual(3, len(models), msg)
+
+    def test_data_provenance_multiple_graphs(self):
+        """
+        The set of models contains two separate (none-connected) graphs.
+        """
+        c = ModelCollection(models={One, Two, Three, X, Y, Z})
+        dataset_graphs = c.dataset_provenance()
+
+        msg = "{One,Two,Three} and {X,Y,Z} are separate graphs"
+        self.assertEqual(2, len(dataset_graphs), msg)
+
+        ordered_models = set()
+        for graph in dataset_graphs:
+            models = set()
+            for graph_edge in graph:
+                for edge_model in [graph_edge.model_a, graph_edge.model_b]:
+                    models.add(edge_model.__name__ if edge_model is not None else "Leaf")
+
+            models = list(models)
+            models.sort()
+            ordered_models.add(",".join(models))
+
+        msg = "Models should be grouped into graphs. Nodes are the models."
+        expected_models = {"Leaf,X,Y,Z", "Leaf,One,Three,Two"}
+        self.assertEqual(expected_models, ordered_models, msg)
+
+    # def test_mermaid_run_order(self):
+    #     "Visualisation experiment"
+    #     v = VisualiseModels()
+    #
+    #     print(v.mermaid_run_order())

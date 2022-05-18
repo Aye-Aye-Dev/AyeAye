@@ -4,4 +4,5 @@ from ayeaye.connect import Connect
 from ayeaye.connectors import connector_registry
 from ayeaye.connectors.base import AccessMode
 from ayeaye.model import LockingMode, Model, PartitionedModel
+from ayeaye.model_collection import ModelCollection
 from ayeaye.pinnate import Pinnate
