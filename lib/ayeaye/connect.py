@@ -9,12 +9,10 @@ from ayeaye.connectors.placeholder import PlaceholderDataConnector
 
 class Connect:
     """
-    Connect to a dataset or modelset.
+    Connect to a dataset.
 
     A dataset is a grouping of related data. What makes data 'related' will be down to the
     subject-domain. Datasets have a type - it could be a JSON document, a CSV file or a database.
-
-    A modelset is one or more :class:`Model`(s).
 
     The main responsibility of :class:`Connect` is to provide a concrete subclass of
     :class:`DataConnector` or :class:`ModelConnector`. :class:`DataConnector` in turn provides
@@ -44,7 +42,7 @@ class Connect:
     For secrets management @see :class:`ConnectorResolver`.
     """
 
-    mutually_exclusive_selectors = ["ref", "engine_url", "models"]
+    mutually_exclusive_selectors = ["ref", "engine_url"]
 
     class ConnectBind(Enum):
         MODEL = "MODEL"
@@ -76,7 +74,8 @@ class Connect:
         a = [self.relayed_kwargs.get(s) is not None for s in self.mutually_exclusive_selectors]
         mandatory_args_count = sum(a)
         if mandatory_args_count > 1:
-            raise ValueError("The kwargs ref, engine_url and models are mutually exclusive.")
+            mut_ex_field = " and ".join(self.mutually_exclusive_selectors)
+            raise ValueError(f"For kwargs, {mut_ex_field} values are mutually exclusive.")
 
         self.ref = self.relayed_kwargs.pop("ref", None)
         self._standalone_connection = None  # see :method:`data`
@@ -113,7 +112,7 @@ class Connect:
     def connect_id(self):
         """
         Create an identity reference which is used when examining if separate Connect instances
-        are actually referring to the same dataset/models.
+        are actually referring to the same datasets.
 
         @return: (str)
         """
@@ -225,7 +224,7 @@ class Connect:
                 # this might have been a callable above
                 detached_kwargs[k] = copy.deepcopy(engine_url)
 
-            elif callable(v) and k != "models":
+            elif callable(v):
 
                 if k in connector_cls.preserve_callables:
                     # reference to the callable is preserved for the `connector_cls` to call. This is

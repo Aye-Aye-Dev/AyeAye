@@ -4,14 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased - 2022-05-16
+## Unreleased - 2022-06-08
+
+### Added
+- ModelCollection is top level public class
+- ModelCollection can now build data provenance graphs for simple model collections - i.e. those that
+ don't need any resolver context or locking info
+
+## [0.0.25] - 2022-06-08
 
 ### Added
 - manifest_build_context() common pattern - make values from a manifest file available in the resolver context
 - example usage for ayeaye.common_pattern.build_context.manifest_build_context
-- ModelCollection is total level public class
-- ModelCollection can now build data provenance graphs for simple model collections - i.e. those that
- don't need any resolver context or locking info
 
 ### Changed
 - ayeaye.connect_resolve supports lists, dict and anything else JSON serialisable. Previously just simple variables.
