@@ -4,12 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased - 2022-06-08
+## Unreleased - 2022-06-09
 
 ### Added
 - ModelCollection is top level public class
 - ModelCollection can now build data provenance graphs for simple model collections - i.e. those that
  don't need any resolver context or locking info
+
+
+## [0.0.26] - 2022-06-09
+
+### Fixed
+- multiprocess support for ayeaye.PartitionedModel had different behaviour on OSX and Linux because of parent memory after fork() with resolver context
 
 ## [0.0.25] - 2022-06-08
 
