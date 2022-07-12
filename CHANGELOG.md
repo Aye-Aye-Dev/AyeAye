@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ModelCollection is top level public class
 - ModelCollection can now build data provenance graphs for simple model collections - i.e. those that
  don't need any resolver context or locking info
-
+- ModelCollection is incomplete and has a failing test
 
 ## [0.0.26] - 2022-06-09
 

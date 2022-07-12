@@ -1,7 +1,7 @@
 import unittest
 
 import ayeaye
-from ayeaye.model_collection import ModelCollection, VisualiseModels
+from ayeaye.model_collection import ModelCollection, ModelDataset, VisualiseModels
 
 
 class One(ayeaye.Model):
@@ -123,11 +123,11 @@ class TestModelCollection(unittest.TestCase):
         c = ModelCollection(models={One, Two, Three})
         r = c._resolve_run_order()
 
-        leaf_sources = set([c.relayed_kwargs["engine_url"] for c in r.leaf_sources])
+        leaf_sources = set([c.connector.relayed_kwargs["engine_url"] for c in r.leaf_sources])
         expected_leaf_sources = {"csv://a"}
         self.assertEqual(expected_leaf_sources, leaf_sources)
 
-        leaf_targets = set([c.relayed_kwargs["engine_url"] for c in r.leaf_targets])
+        leaf_targets = set([c.connector.relayed_kwargs["engine_url"] for c in r.leaf_targets])
         expected_leaf_targets = {"csv://d"}
         self.assertEqual(expected_leaf_targets, leaf_targets)
 
@@ -196,7 +196,10 @@ class TestModelCollection(unittest.TestCase):
                 raise ValueError("Non list and not set item found")
             return True
 
-        for c in [ModelCollection(models={One, Two, Five, Six}), ModelCollection(models=[One, Two, Five, Six])]:
+        for c in [
+            ModelCollection(models={One, Two, Five, Six}),
+            ModelCollection(models=[One, Two, Five, Six]),
+        ]:
             run_order = c.run_order()
             self.assertIsInstance(run_order, list)
             self.assertTrue(is_run_item(run_order))
@@ -252,8 +255,25 @@ class TestModelCollection(unittest.TestCase):
         expected_models = {"Leaf,X,Y,Z", "Leaf,One,Three,Two"}
         self.assertEqual(expected_models, ordered_models, msg)
 
-    # def test_mermaid_run_order(self):
-    #     "Visualisation experiment"
-    #     v = VisualiseModels()
-    #
-    #     print(v.mermaid_run_order())
+    def test_modeldataset(self):
+        """
+        ModelDataset should act as a proxy to ayeaye.Connect when comparisons are made.
+        """
+
+        c0 = ayeaye.Connect(engine_url="csv://a0", access=ayeaye.AccessMode.READ)
+        c1 = ayeaye.Connect(engine_url="csv://a0", access=ayeaye.AccessMode.WRITE)
+        self.assertEqual(c0, c1)
+
+        md_0 = ModelDataset(model_attrib_label="a0_read", connector=c0)
+        md_1 = ModelDataset(model_attrib_label="a0_write", connector=c1)
+        msg = "Different attrib label and write mode shouldn't matter, these are the same dataset"
+        self.assertEqual(md_0, md_1, msg)
+
+    def test_mermaid_run_order(self):
+        "Visualisation experiment - incomplete"
+
+        c = ModelCollection(models={One, Two, Three})
+        visual = VisualiseModels(model_collection=c)
+        mermaid_content = visual.mermaid_data_provenance()
+
+        self.assertIn("One-->|b| Two", mermaid_content)

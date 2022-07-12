@@ -5,6 +5,7 @@ from inspect import isclass
 import itertools
 
 from ayeaye.connectors.base import AccessMode
+from ayeaye.connectors.multi_connector import MultiConnector
 from ayeaye.model import Model
 from ayeaye.pinnate import Pinnate
 
@@ -78,14 +79,36 @@ class ModelCollection:
                 raise ValueError(f"Duplicate node found: {model_name}")
 
             node = Pinnate({"model_cls": model_cls, "model_name": model_name, "targets": set(), "sources": set()})
-            for dataset in model_cls.connects().values():
-                if dataset.access in [AccessMode.READ, AccessMode.READWRITE]:
-                    node.sources.add(dataset)
-                    all_sources.add(dataset)
 
-                if dataset.access in [AccessMode.WRITE, AccessMode.WRITE]:
-                    node.targets.add(dataset)
-                    all_targets.add(dataset)
+            # as instantiated model
+            # model_obj = model_cls()
+
+            for class_attrib_label, ds_connector in model_cls.connects().items():
+                # for class_attrib_label, ds_connector in model_obj.datasets().items():
+
+                # if isinstance(ds_connector, Connect):
+                #
+                #     if isinstance(ds_connector, list):
+                #         # experiment with Connector prior to instantiation as MultiConnector
+                #         m_connectors = [Connect()]
+
+                if isinstance(ds_connector, MultiConnector):
+                    m_connectors = ds_connector.data
+                else:
+                    m_connectors = [ds_connector]
+
+                for dataset_connector in m_connectors:
+                    dataset_container = ModelDataset(
+                        model_attrib_label=class_attrib_label, connector=dataset_connector
+                    )
+
+                    if dataset_connector.access in [AccessMode.READ, AccessMode.READWRITE]:
+                        node.sources.add(dataset_container)
+                        all_sources.add(dataset_container)
+
+                    if dataset_connector.access in [AccessMode.WRITE, AccessMode.WRITE]:
+                        node.targets.add(dataset_container)
+                        all_targets.add(dataset_container)
 
             nodes[model_cls] = node
 
@@ -180,96 +203,84 @@ class ModelCollection:
             graphs are a set of edges
             edges are :class:`ModelGraphEdge` objects.
         """
-
-        @dataclass
-        class DatasetConnections:
-            consumers: set  # models that read from this dataset
-            producers: set  # models that write to this dataset
-
         all_targets, all_sources, nodes = self._base_graph()
         leaf_sources = all_sources - all_targets
         leaf_targets = all_targets - all_sources
 
-        dataset_model_map = defaultdict(lambda: DatasetConnections(consumers=set(), producers=set()))
-        all_models = set()
+        # lookup to sources for each dataset
+        dataset_sources = defaultdict(list)
+        for node in nodes.values():
+            for dataset_container in node.sources:
+                dataset_sources[dataset_container].append(node.model_cls)
+
+        def dataset_source(target_dataset_container):
+            "generator yielding model classes"
+            for source_model_cls in dataset_sources[target_dataset_container]:
+
+                for source_dataset_container in nodes[source_model_cls].sources:
+                    if source_dataset_container == target_dataset_container:
+                        yield source_model_cls, source_dataset_container
+
+        edge_set = set()
         for node in nodes.values():
 
-            all_models.add(node.model_cls)
+            # print(node.model_cls.__name__, len(node.targets))
 
-            for dataset in node.targets:
-                dataset_model_map[dataset].producers.add(node.model_cls)
+            for dataset_container_a in node.sources:
 
-            for dataset in node.sources:
-                dataset_model_map[dataset].consumers.add(node.model_cls)
+                if dataset_container_a in leaf_sources:
+                    dataset_label = dataset_container_a.model_attrib_label
+                    mge = ModelGraphEdge(model_a=None, model_b=node.model_cls, dataset_label=dataset_label)
+                    edge_set.add(mge)
 
-        for dataset in leaf_sources:
-            dataset_model_map[dataset].producers.add(None)
+            for dataset_container_a in node.targets:
 
-        for dataset in leaf_targets:
-            dataset_model_map[dataset].consumers.add(None)
+                if dataset_container_a in leaf_targets:
+                    dataset_label = dataset_container_a.model_attrib_label
+                    mge = ModelGraphEdge(model_a=node.model_cls, model_b=None, dataset_label=dataset_label)
+                    edge_set.add(mge)
 
-        def traverse_graph(model_cls, models_visited):
-            """
-            recurse to build graph of everything connected to model_cls
-            @return: (models_visited, ModelGraph) - (set, obj)
-            """
-            if model_cls is None:
-                return models_visited, ModelGraph(model=None, sources=[], targets=[])
+                for model_b, dataset_container_b in dataset_source(dataset_container_a):
 
-            models_visited.add(model_cls)
+                    # print(node.model_cls, dataset_container_a, model_b, dataset_container_b)
 
-            targets = []
-            for ds in nodes[model_cls].targets:
-                for model in dataset_model_map[ds].consumers:
+                    dataset_label = dataset_container_a.model_attrib_label
+                    # models might each use different attrib names
+                    if dataset_container_b is not None and dataset_label != dataset_container_b.model_attrib_label:
+                        dataset_label += " / " + dataset_container_b.model_attrib_label
 
-                    if model not in models_visited:
-                        models_visited, model_graph = traverse_graph(model, models_visited)
-                        targets.append((model_graph, ds))
+                    mge = ModelGraphEdge(model_a=node.model_cls, model_b=model_b, dataset_label=dataset_label)
+                    edge_set.add(mge)
 
-            sources = []
-            for ds in nodes[model_cls].sources:
-                for model in dataset_model_map[ds].producers:
-
-                    if model not in models_visited:
-                        models_visited, model_graph = traverse_graph(model, models_visited)
-                        sources.append((model_graph, ds))
-
-            return models_visited, ModelGraph(model=model_cls, sources=sources, targets=targets)
-
-        # put each node into a ModelGraph
-        sub_graphs = []
-        models_visited = set()
-
-        while True:
-
-            unvisited_models = list(all_models - models_visited)
-
-            if len(unvisited_models) == 0:
-                break
-
-            model_cls = unvisited_models[0]
-            # models_visited.add(model_cls)
-            models_visited_traverse, model_graph = traverse_graph(model_cls, models_visited)
-            sub_graphs.append(model_graph)
-
-            # find all models visited in that graph
-            models_visited.update(models_visited_traverse)
-
-        graph_set = []
-        for graph in sub_graphs:
-            sub_graph_edges = set()
-            for dataset in graph.all_datasets:
-
-                # every model that writes to the dataset
-                for model_a in dataset_model_map[dataset].producers:
-                    # every model that reads from the dataset
-                    for model_b in dataset_model_map[dataset].consumers:
-                        mge = ModelGraphEdge(model_a=model_a, model_b=model_b, dataset=dataset)
-                        sub_graph_edges.add(mge)
-
-            graph_set.append(sub_graph_edges)
-
+        # TODO - are sub graphs needed?
+        graph_set = list()
+        graph_set.append(list(edge_set))
         return graph_set
+
+
+@dataclass
+class ModelDataset:
+    """
+    Container for attributes associated with a dataset that belongs to a model.
+
+    A dataset could be a :class:`ayeaye.Connect` or it could have been resolved to a subclass of
+    :class:`DataConnector`. Hold these (todo) and other associated info about the dataset.
+    """
+
+    model_attrib_label: str  # name of class variable in parent model
+    connector: object  #  ayeaye.Connect
+
+    def __hash__(self):
+        """
+        super critical to graphs being able to build is equating two datasets are the same thing
+        without the name (i.e. model_attrib_label) mattering.
+        """
+        return self.connector.__hash__()
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return self.connector == other.connector
+        return False
 
 
 @dataclass
@@ -283,52 +294,10 @@ class ModelGraphEdge:
 
     model_a: Model
     model_b: Model
-    dataset: object
+    dataset_label: str
 
     def __hash__(self):
-        return hash((self.model_a, self.model_b, self.dataset))
-
-
-@dataclass
-class ModelGraph:
-    """
-    Connections between :class:`ayeaye.Model` objects..
-
-    Each node has a model and links to other nodes via edges .sources and .targets.
-    Each item in .sources and .targets lists are tuples (ModelGraph, Connect/DataConnector).
-    """
-
-    model: Model
-    sources: list  # graph edge of (ModelGraph, Connect/DataConnector)
-    targets: list  # graph edge of (ModelGraph, Connect/DataConnector)
-
-    def traverse_tree(self):
-        """
-        generator yielding all edges (ModelGraph, dataset) in graph.
-        """
-        for model_graph, dataset in itertools.chain(self.sources, self.targets):
-            yield model_graph, dataset
-            yield from model_graph.traverse_tree()
-
-    @property
-    def datasets(self):
-        """
-        @return: set of all datasets/connections from sources and targets connected to this node.
-        """
-        source_ds = [dataset for _, dataset in self.sources]
-        target_ds = [dataset for _, dataset in self.targets]
-        return set(source_ds + target_ds)
-
-    @property
-    def all_datasets(self):
-        """
-        @return: set of all datasets connected within this graph. i.e. does contain leaf nodes
-        """
-        datasets = self.datasets
-        for _, dataset in self.traverse_tree():
-            datasets.add(dataset)
-
-        return datasets
+        return hash((self.model_a, self.model_b, self.dataset_label))
 
 
 class VisualiseModels:
@@ -338,23 +307,41 @@ class VisualiseModels:
         """
         @param model_collection - instance of :class:`ModelCollection`
         """
+        self.model_collection = model_collection
 
-    def mermaid_run_order(self):
+    def mermaid_data_provenance(self):
         """
         @return (str)
-            mermaid format (see https://github.com/mermaid-js/mermaid#readme) to visualise model
-            execution order.
+            mermaid format (see https://github.com/mermaid-js/mermaid#readme) to visualise model's
+            data dependencies.
         """
-        # gantt
-        #     section Section
-        #     Completed :done,    des1, 2014-01-06,2014-01-08
-        #     Active        :active,  des2, 2014-01-07, 3d
-        #     Parallel 1   :         des3, after des1, 1d
-        #     Parallel 2   :         des4, after des1, 1d
-        #     Parallel 3   :         des5, after des3, 1d
-        #     Parallel 4   :         des6, after des4, 1d
-        #
 
-        out = ["gantt"]
+        def _leaf_label():
+            "return name (str) for a leaf node"
+            r = 0
+            while True:
+                yield f"leaf_{r}([ ])"
+                r += 1
+
+        # no idea if leaves are the same dataset or not
+        leaf_label = _leaf_label()
+
+        graphset = self.model_collection.dataset_provenance()
+        if len(graphset) == 0:
+            return ""
+
+        # if len(graphset) > 1:
+        #     raise NotImplementedError("Multiple graphs within one collection of models is not yet implemented!")
+
+        out = ["graph LR"]
+        for graph in graphset:
+            # graphs don't need to be separate for Mermaid
+            for edge in graph:
+
+                model_a = edge.model_a.__name__ if edge.model_a is not None else next(leaf_label)
+                model_b = edge.model_b.__name__ if edge.model_b is not None else next(leaf_label)
+
+                edge_fmt = f"{model_a}-->|{edge.dataset_label}| {model_b}"
+                out.append(edge_fmt)
 
         return "\n".join(out)
