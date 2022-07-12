@@ -27,7 +27,7 @@ class CsvConnector(DataConnector):
         For args: @see :class:`connectors.base.DataConnector`
 
         additional args for CsvConnector
-            fieldnames (sequence, probably a list (str) - Field names for all rows in file.
+            field_names (sequence, probably a list (str) - Field names for all rows in file.
                     Using this argument when reading forces the CSV module to treat the first line
                     of the file as data, not as a header. When used in write mode it is the order
                     of fields in the output csv file.

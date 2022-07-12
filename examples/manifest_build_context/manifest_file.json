@@ -1,0 +1,6 @@
+{
+"dataset_id" : "abc123",
+"sensor_readings" : ["/data/build/file_a.csv",
+                     "/data/build/file_b.csv"
+                    ]
+}

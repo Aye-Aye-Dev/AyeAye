@@ -76,8 +76,19 @@ class ProcessPool:
             args or kwargs for Aye-aye model's :method:`partition_initialise`
 
         @param context_kwargs: (dict)
-            see constructor
+            Output from :method:`connect_resolve.ConnectorResolver.capture_context` - so needs the
+            'mapper' key with dict. as value.
+            key/values that are made available to the model. These are likely to be taken from
+            `self` and passed to this static method as it alone runs in the :class:`Process`.
+            @see :class:`connect_resolve.ConnectorResolver`
         """
+        # brutal reset but needs a test to ensure threads don't share
+
+        # Depending on OS's fork() the parent process's memory could be available to this Process. Clear
+        # all context so only `context_kwargs` is used.
+        # For more detail see unittest TestRuntimeMultiprocess.test_resolver_context_not_inherited
+        connector_resolver.brutal_reset()
+
         with connector_resolver.context(**context_kwargs["mapper"]):
             model = ayeaye_model_cls()
 
@@ -142,7 +153,9 @@ class ProcessPool:
             worker_init = [None for _ in range(self.processes)]
         else:
             if len(initialise) != self.processes:
-                raise ValueError("The numeber of worker 'initialise' items doesn't match number of workers.")
+                raise ValueError(
+                    "The numeber of worker 'initialise' items doesn't match number of workers."
+                )
             worker_init = initialise
 
         context_kwargs = self.context_kwargs or {}
@@ -173,6 +186,7 @@ class ProcessPool:
         for sub_task in tasks:
             subtask_kwargs_queue.put(sub_task)
 
+        # instruct worker process to terminate
         for _ in range(self.processes):
             subtask_kwargs_queue.put((None, None))
 

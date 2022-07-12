@@ -1,4 +1,5 @@
 import copy
+import json
 import re
 import warnings
 
@@ -163,8 +164,14 @@ class ConnectorResolver:
             raise NotImplementedError("Can't serialise callables - alternative approach needed.")
 
         for attribute_name, attribute_value in self._attr.items():
-            # attrib naames are checked in :method:`add`
-            if not isinstance(attribute_value, json_safe_types):
+            # attrib names are checked in :method:`add`
+            if isinstance(attribute_value, json_safe_types):
+                continue
+
+            try:
+                # sure fire way to check if it can be serialised into JSON
+                _ = json.dumps(attribute_value)
+            except TypeError:
                 raise ValueError(f"Non-JSON serialisable data type found in '{attribute_name}'")
 
         # copy to make a snapshot as context manager will change _attr

@@ -273,13 +273,6 @@ class TestConnect(unittest.TestCase):
         with self.assertRaises(ValueError, msg="Ref and engine_url are mutually exclusive"):
             Connect(ref="x", engine_url="tsv://" + EXAMPLE_TSV_PATH)
 
-        model_data_msg = "Ref + engine_url are for DataConnectors and models is for ayeaye.models"
-        with self.assertRaises(ValueError, msg=model_data_msg):
-            Connect(ref="x", models=AbstractFakeModel)
-
-        with self.assertRaises(ValueError, msg=model_data_msg):
-            Connect(engine_url="tsv://" + EXAMPLE_TSV_PATH, models=AbstractFakeModel)
-
     def test_connect_callable_kwargs(self):
         """
         :class:`ayeaye.connectots.fake.FakeDataConnector` has an optional kwarg-
