@@ -11,6 +11,7 @@ from .json_connector import JsonConnector
 from .kafka_connector import KafkaConnector
 from .ndjson_connector import NdjsonConnector
 from .parquet_connector import ParquetConnector
+from .restful_connector import RestfulConnector
 from .sqlalchemy_database import SqlAlchemyDatabaseConnector
 from .uncooked_connector import UncookedConnector
 
@@ -35,6 +36,7 @@ class ConnectorPluginsRegistry:
             NdjsonConnector,
             ElasticsearchConnector,
             UncookedConnector,
+            RestfulConnector,
         ]
 
     def register_connector(self, connector_cls):
