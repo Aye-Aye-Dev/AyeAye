@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased - 2022-07-12
+## Unreleased
+
+## [0.0.27] - 2022-07-14
 
 ### Added
+- New RestfulConnector for access JSON RestFul APIs. Code kindly contributed by Bluefield Services
+- Added package extra ayeaye[api] to include requests library
 - ModelCollection is top level public class
 - ModelCollection can now build data provenance graphs for simple model collections - i.e. those that
  don't need any resolver context or locking info

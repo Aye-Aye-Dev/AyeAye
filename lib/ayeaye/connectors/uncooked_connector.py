@@ -29,8 +29,6 @@ class UncookedConnector(DataConnector):
                     Mode to open the file in. See-
                     https://docs.python.org/3/library/functions.html#open
 
-        TODO binary open
-
         Connection information-
             engine_url format is
             file://<filesystem absolute path>[;encoding=<character encoding>]
@@ -108,12 +106,16 @@ class UncookedConnector(DataConnector):
 
             if self.access == AccessMode.READ:
                 file_mode = "r" + self.file_mode
-                self._file_handle = open(self.engine_params.file_path, file_mode, encoding=self.encoding)
+                self._file_handle = open(
+                    self.engine_params.file_path, file_mode, encoding=self.encoding
+                )
                 self.file_size = os.stat(self.engine_params.file_path).st_size
 
             elif self.access == AccessMode.WRITE:
                 file_mode = "w" + self.file_mode
-                self._file_handle = open(self.engine_params.file_path, file_mode, encoding=self.encoding)
+                self._file_handle = open(
+                    self.engine_params.file_path, file_mode, encoding=self.encoding
+                )
 
             else:
                 raise ValueError("Unknown access mode")
