@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.28] - 2022-07-19
+
+### Removed
+- Pinnate.merge - it wasn't doing anything that .update does
+
+### Added
+- Pinnate now supports top level lists and sets. Thanks @burnleyrob
+
 ## [0.0.27] - 2022-07-14
 
 ### Added
