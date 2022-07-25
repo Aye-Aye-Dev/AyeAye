@@ -144,6 +144,19 @@ class TestPinnate(unittest.TestCase):
         p.x = "y"
         self.assertEqual(p["x"], "y")
 
+        # dict with set item
+        p = Pinnate()
+        p["x"] = "y"
+        self.assertEqual(p["x"], "y")
+
+    def test_set_item_list(self):
+        "positional access to a list. .__setitem__ also used with dictionaries"
+        p = Pinnate(["a", "b", "c"])
+        self.assertEqual("a", p[0])
+
+        p[0] = "x"
+        self.assertEqual("x", p[0])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -214,6 +214,10 @@ class Pinnate:
         return self._attr[key]
 
     def __setitem__(self, key, value):
+        if self.payload_undefined:
+            # if key is an integer the datatype *could* also be list
+            self._attr = {}
+
         self._attr[key] = value
 
     def get(self, key, default=None):
