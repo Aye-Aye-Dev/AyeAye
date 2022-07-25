@@ -99,7 +99,7 @@ class Pinnate:
 
     def __contains__(self, key):
         if self.payload_undefined:
-            raise TypeError("Payload data hasn't been set")
+            return False
 
         if self.is_payload(dict, set):
             return key in self._attr

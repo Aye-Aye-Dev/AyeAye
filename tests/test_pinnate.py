@@ -149,6 +149,10 @@ class TestPinnate(unittest.TestCase):
         p["x"] = "y"
         self.assertEqual(p["x"], "y")
 
+        # nothing there so 'in' must be false
+        p = Pinnate()
+        self.assertFalse("x" in p)
+
     def test_set_item_list(self):
         "positional access to a list. .__setitem__ also used with dictionaries"
         p = Pinnate(["a", "b", "c"])

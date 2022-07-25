@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.30] - 2022-07-25
+
+### Fixed
+- Pinnate top level not correctly initialised when __contains__ is first accessor method
+
 ## [0.0.29] - 2022-07-25
 
 ### Fixed
