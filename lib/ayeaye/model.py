@@ -447,7 +447,9 @@ class PartitionedModel(Model):
         # workers_count =  1
         self.log(f"Using {workers_count} worker processes")
 
-        tasks = [("build", None)]  # all subclasses of :class:`Model` must include `build` method
+        self.build()
+
+        tasks = []
         tasks.extend(self.partition_slice(workers_count))
         subtasks_count = len(tasks)
 
