@@ -449,8 +449,7 @@ class PartitionedModel(Model):
 
         self.build()
 
-        tasks = []
-        tasks.extend(self.partition_slice(workers_count))
+        tasks = self.partition_slice(workers_count)
         subtasks_count = len(tasks)
 
         # model can specify arguments for initialising workers
