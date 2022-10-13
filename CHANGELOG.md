@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.31] - 2022-10-13
+
+### Added
+- 'method_overlay' to ayeaye.Connect/DataConnector so it's possible to dynamically add methods to a data connector without needing inheritance.
+
+### Fixed
+- RestfulConnector exception when returned doc. isn't JSON
+
 ## [0.0.30] - 2022-07-25
 
 ### Fixed

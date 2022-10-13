@@ -197,7 +197,7 @@ class RestfulConnector(DataConnector):
                 r = self._requests.get(url_, params=_params, headers=self.headers)
             except requests.ConnectionError as c:
                 msg = f"Failed to GET from {url_}"
-                raise RestfulConnectorConnectionError(msg, details=c.message)
+                raise RestfulConnectorConnectionError(msg, details=str(c))
 
         self._post_request_checks(r)
         serialised_request = Pinnate(r.json())

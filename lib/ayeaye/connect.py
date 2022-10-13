@@ -51,7 +51,9 @@ class Connect:
 
     def __init__(self, **kwargs):
         """
-        typical kwargs are 'ref', 'engine_url', 'access' TODO
+        kwargs common to all connectors. See :class:`DataConnector` constructor for expected key
+        value pairs.
+        Note- 'ref' - label for a dataset. Not fully in use so is removed below
         """
         self.base_constructor_kwargs = copy.copy(kwargs)
         self._construct(**kwargs)
@@ -182,7 +184,10 @@ class Connect:
         """
         if self.ref is not None:
             raise NotImplementedError(
-                ("Sorry! Dataset discovery (looking up engine_url from ref) " "hasn't been written yet.")
+                (
+                    "Sorry! Dataset discovery (looking up engine_url from ref) "
+                    "hasn't been written yet."
+                )
             )
 
         engine_url = self.relayed_kwargs.get("engine_url")
@@ -223,6 +228,11 @@ class Connect:
             if k == "engine_url":
                 # this might have been a callable above
                 detached_kwargs[k] = copy.deepcopy(engine_url)
+
+            elif k == "method_overlay":
+                # This is either a list of callables or a callable. Each callable is suitable as a method
+                # i.e. has `self` as the first arg. No need to copy as they are references.
+                detached_kwargs[k] = v
 
             elif callable(v):
 

@@ -1,4 +1,5 @@
 from enum import Enum
+import types
 
 from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
 
@@ -23,12 +24,18 @@ class DataConnector:
     # TODO - make it possible for internal variable name to not match kwarg name, e.g. schema -> self._schema
     # TODO - these aren't always optional, handling missing mandatory args here
 
-    def __init__(self, engine_url=None, access=AccessMode.READ, **kwargs):
+    def __init__(self, engine_url=None, access=AccessMode.READ, method_overlay=None, **kwargs):
         """
         API to interact with AyeAye-compatible data sources
         :param engine_url (string): The file or URI to the location of the dataset
         :param access (AccessMode): Whether the dataset accessed through this Connector is for
                 input or output
+        :param method_overlay (callable or list of callables): Callables are patched onto `self` as methods.
+                e.g.
+                    my_dataset = ayeaye.Connect(..., method_overlay=[accessor_method])
+                    ...
+                    my_dataset.accessor_method() now exists
+
         **kwargs are any params needed by subclasses
 
         Note that subclasses must call this constructor and should 'pop' their arguments so that
@@ -41,12 +48,21 @@ class DataConnector:
 
         self.access = access
 
+        # dynamically add methods to `self`
+        if method_overlay:
+            overlays = [method_overlay] if callable(method_overlay) else method_overlay
+            for m_overlay in overlays:
+                method_name = m_overlay.__name__
+                setattr(self, method_name, types.MethodType(m_overlay, self))
+
         # engine_urls may need resolution of templated variables (typically secrets and paths). The
         # :class:`Ignition` module does this and makes URLs croxx-operating system compatible.
         self.ignition = Ignition(engine_url)
 
         if isinstance(engine_url, str):
-            engine_type = [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
+            engine_type = (
+                [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type
+            )
             if not any([engine_url.startswith(et) for et in engine_type]):
                 raise ValueError("Engine type mismatch")
 

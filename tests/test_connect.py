@@ -293,7 +293,9 @@ class TestConnect(unittest.TestCase):
         # self.assertEqual({"fake": "data"}, c.data[0])
 
         class QuatumSort(AbstractFakeModel):
-            source = Connect(engine_url="fake://MyDataset", quantum_accelerator_module=simple_callable)
+            source = Connect(
+                engine_url="fake://MyDataset", quantum_accelerator_module=simple_callable
+            )
 
         m1 = QuatumSort()
         self.assertEqual("entanglement_v2", m1.source.quantum_accelerator_module)
@@ -318,3 +320,30 @@ class TestConnect(unittest.TestCase):
         m1 = QuatumSort()
         self.assertTrue(callable(m1.source.quantum_factory))
         self.assertEqual("hello quantum dynamics", m1.calculate_result())
+
+    def test_method_overlay(self):
+        """
+        Add methods to a connector at runtime without inheritance.
+        """
+
+        def field_name_aliases(self):
+            """
+            vanity iterator to alias the 'common_name' field to 'animal_name'
+            """
+            for r in self:
+                r.animal_name = r.common_name
+                yield r
+
+        class AnimalsModel(AbstractFakeModel):
+            animals = Connect(
+                engine_url="csv://" + EXAMPLE_CSV_PATH,
+                method_overlay=field_name_aliases,
+            )
+
+        m = AnimalsModel()
+
+        # note the use of `field_name_aliases` and `animal_name`
+        all_the_animals = [animal.animal_name for animal in m.animals.field_name_aliases()]
+
+        expected = ["Crown of thorns starfish", "Golden dart frog"]
+        self.assertEqual(expected, all_the_animals)
