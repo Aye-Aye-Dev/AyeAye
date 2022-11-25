@@ -9,9 +9,7 @@ from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
 EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "monkeys.tsv")
-EXAMPLE_CSV_BROKEN_PATH = os.path.join(
-    PROJECT_TEST_PATH, "data", "deadly_missing_values.csv"
-)
+EXAMPLE_CSV_BROKEN_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_missing_values.csv")
 EXAMPLE_CSV_MICE = os.path.join(PROJECT_TEST_PATH, "data", "mice.csv")
 EXAMPLE_CSV_SQUIRRELS = os.path.join(PROJECT_TEST_PATH, "data", "squirrels.csv")
 EXAMPLE_CSV_DUPLICATE_FIELDNAMES = os.path.join(
@@ -153,10 +151,36 @@ class TestConnectorsCsv(unittest.TestCase):
 
         self.assertEqual(expected_content, csv_content)
 
+    def test_csv_extra_fields_with_write(self):
+        """
+        When the optional 'field_names' argument is used when writing to a CSV any additional
+        fields in the data passed to :method:`add` will be ignored.
+        """
+        data_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(data_dir, "bird_names.csv")
+        c = CsvConnector(
+            engine_url="csv://" + csv_file,
+            access=ayeaye.AccessMode.WRITE,
+            field_names=["common_name"],
+        )
+        for bird in [
+            {"common_name": "Bull finch", "habitat": "Orchards"},
+            {"common_name": "Ringed Plover", "main_colours": "grey, black, white"},
+        ]:
+            c.add(bird)
+
+        c.close_connection()
+
+        with open(csv_file, "r", encoding=c.encoding) as f:
+            csv_content = f.read()
+
+        expected_content = "common_name\nBull finch\nRinged Plover\n"
+        self.assertEqual(expected_content, csv_content)
+
     def test_required_fields(self):
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_PATH,
-            required_fields=['common_name'],
+            required_fields=["common_name"],
         )
         r = next(iter(c))
         # doesn't raise an exception as given required field is present
@@ -164,7 +188,7 @@ class TestConnectorsCsv(unittest.TestCase):
 
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_PATH,
-            required_fields=['common_name', 'native_to', 'unknown_field'],
+            required_fields=["common_name", "native_to", "unknown_field"],
         )
         # missing required field
         with self.assertRaises(ValueError):
@@ -173,7 +197,7 @@ class TestConnectorsCsv(unittest.TestCase):
     def test_expected_fields(self):
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_PATH,
-            expected_fields=['common_name', 'native_to'],
+            expected_fields=["common_name", "native_to"],
         )
         r = next(iter(c))
         # doesn't raise an exception as fields are exactly as given in file's header
@@ -181,17 +205,16 @@ class TestConnectorsCsv(unittest.TestCase):
 
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_PATH,
-            expected_fields=['common_name'],
+            expected_fields=["common_name"],
         )
         # missing field
         with self.assertRaises(ValueError):
             next(iter(c))
 
-
     def test_alias_fields_dictionary(self):
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_PATH,
-            alias_fields={'common_name': 'animal_name'},
+            alias_fields={"common_name": "animal_name"},
         )
         r = next(iter(c))
         self.assertEqual("Crown of thorns starfish", r.animal_name)
@@ -202,9 +225,7 @@ class TestConnectorsCsv(unittest.TestCase):
             alias_fields=["animal_name", "lives"],
         )
         actual = next(iter(c))
-        expected = {"animal_name": "Crown of thorns starfish",
-                    "lives": "Indo-Pacific"
-                    } 
+        expected = {"animal_name": "Crown of thorns starfish", "lives": "Indo-Pacific"}
         self.assertEqual(expected, actual.as_dict())
 
     def test_duplicate_fieldnames(self):
@@ -228,42 +249,44 @@ class TestConnectorsCsv(unittest.TestCase):
             ],
         )
         actual = next(iter(c))
-        
-        expected = {"species": "Tiger shark",
-                    "habitat_type": "Tropical",
-                    "habitat_description": ("Populations are found in many tropical and temperate"
-                                            " waters, especially around central Pacific islands."),
-                    "ovi-vivi": "Ovoviviparous",
-                    "ov_description": ("Eggs hatch internally and the young are born live when "
-                                       "fully developed"),
-                }
+
+        expected = {
+            "species": "Tiger shark",
+            "habitat_type": "Tropical",
+            "habitat_description": (
+                "Populations are found in many tropical and temperate"
+                " waters, especially around central Pacific islands."
+            ),
+            "ovi-vivi": "Ovoviviparous",
+            "ov_description": (
+                "Eggs hatch internally and the young are born live when " "fully developed"
+            ),
+        }
         self.assertEqual(expected, actual.as_dict())
 
     def test_incompatible_optional_args(self):
-        
+
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_MICE,
             field_names=["common_name", "scientific_name", "geo_distribution"],
-            alias_fields=["a", "b", "c"]
+            alias_fields=["a", "b", "c"],
         )
 
         # Can't have both field_names and alias_fields, just use alias field!
         with self.assertRaises(ValueError):
             next(iter(c))
 
-
     def test_optional_args_with_write(self):
-        """Read only connector arguments raise exception when called in write mode.
-        """
+        """Read only connector arguments raise exception when called in write mode."""
         data_dir = tempfile.mkdtemp()
         csv_file = os.path.join(data_dir, "garden_insects.csv")
-                        
-        for optional_field in ['required_fields', 'expected_fields', 'alias_fields']:
+
+        for optional_field in ["required_fields", "expected_fields", "alias_fields"]:
 
             c = CsvConnector(
                 engine_url="csv://" + csv_file,
                 access=ayeaye.AccessMode.WRITE,
-                **{optional_field: 'xyz'},
+                **{optional_field: "xyz"},
             )
             with self.assertRaises(ValueError):
                 c.add({"common_name": "Grasshopper"})

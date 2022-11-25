@@ -30,7 +30,9 @@ class CsvConnector(DataConnector):
             field_names (sequence, probably a list (str) - Field names for all rows in file.
                     Using this argument when reading forces the CSV module to treat the first line
                     of the file as data, not as a header. When used in write mode it is the order
-                    of fields in the output csv file.
+                    of fields in the output csv file and the :method:`add` can be given a record
+                    with additional fields (i.e. not in the `field_names` list) that will be
+                    silently ignored and not written to the output file.
 
             required_fields (sequence, set or list (str)) - fields must be present in header. Other
                     fields may also exist. Raises ValueError if not.
@@ -163,7 +165,9 @@ class CsvConnector(DataConnector):
                         replace_fields = [self.alias_fields.get(f, f) for f in self.csv.fieldnames]
                         self.csv.fieldnames = self.field_names = replace_fields
 
-                    elif not isinstance(self.alias_fields, list) or len(self.alias_fields) != len(self.csv.fieldnames):
+                    elif not isinstance(self.alias_fields, list) or len(self.alias_fields) != len(
+                        self.csv.fieldnames
+                    ):
                         msg = (
                             "Alias fields must be a dictionary or list with same number of "
                             "items as fields in the file"
@@ -186,12 +190,14 @@ class CsvConnector(DataConnector):
                     )
                     raise ValueError(msg)
 
-                # auto create directory
+                # auto create directory - could be relative path in current working directory
                 file_dir = os.path.dirname(self.engine_params.file_path)
-                if not os.path.exists(file_dir):
+                if file_dir and not os.path.exists(file_dir):
                     os.makedirs(file_dir)
 
-                self.file_handle = open(self.engine_params.file_path, "w", newline="\n", encoding=self.encoding)
+                self.file_handle = open(
+                    self.engine_params.file_path, "w", newline="\n", encoding=self.encoding
+                )
                 self.csv = csv.DictWriter(
                     self.file_handle,
                     delimiter=self.delimiter,
@@ -246,11 +252,21 @@ class CsvConnector(DataConnector):
         self.connect()
 
         if isinstance(data, dict):
-            self.csv.writerow(data)
+            _d = data
         elif isinstance(data, Pinnate):
-            self.csv.writerow(data.as_dict())
+            _d = data.as_dict()
         else:
             raise ValueError("data isn't an accepted type. Only (dict) or (Pinnate) are accepted.")
+
+        if self.field_names:
+            # the CSV module needs the dictionary passed to write row to match the fieldnames. It's
+            # a common scenario to extract just a few fields, these have already been passed to
+            # the CsvConnector so just extract the fields needed.
+            data_extract = {fn: _d[fn] for fn in self.field_names if fn in _d}
+        else:
+            data_extract = _d
+
+        self.csv.writerow(data_extract)
 
 
 class TsvConnector(CsvConnector):

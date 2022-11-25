@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.32] - 2022-11-25
+
+### Added
+- Silently ignore fields not in `field_names` list when writing CSV data with :method:`add`
+
+### Fixed
+- auto create CSV directory when using a relative path
+
 ## [0.0.31] - 2022-10-13
 
 ### Added
