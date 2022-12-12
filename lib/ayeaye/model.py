@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from datetime import datetime
 from enum import Enum
 import os
@@ -47,6 +47,9 @@ class Model:
         # stats
         self.start_build_time = None
         self.progress_logged = None  # time last logged
+        # subclasses can store counters etc. here. When used, the model will log these when
+        # it finishes
+        self.stats = defaultdict(int)
 
     def go(self):
         """
@@ -80,6 +83,10 @@ class Model:
             self.close_datasets()
             return False
         self.close_datasets()
+
+        if len(self.stats) > 0:
+            for stat_field, stat_value in self.stats.items():
+                self.log(f"Statistic: {stat_field} = {stat_value}", "INFO")
 
         return True
 
@@ -193,7 +200,8 @@ class Model:
         time_now = time()
 
         if position_pc > 0.0001 and (
-            self.progress_logged is None or self.progress_logged + self.progress_log_interval < time_now
+            self.progress_logged is None
+            or self.progress_logged + self.progress_log_interval < time_now
         ):
 
             if msg is None:
@@ -260,7 +268,9 @@ class Model:
 
                 # TODO: this should be EngineUrlCase.WITHOUT_SECRETS. Secrets shouldn't be in
                 # locking doc. But that's not implemented yet,
-                status, engine_url = connector.ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+                status, engine_url = connector.ignition.engine_url_at_state(
+                    EngineUrlCase.FULLY_RESOLVED
+                )
                 msg = (
                     "Incomplete implementation: if there are secrets in the engine_url they "
                     "will be included in locking doc."

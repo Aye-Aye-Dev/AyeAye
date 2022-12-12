@@ -15,11 +15,11 @@ except ModuleNotFoundError:
 
 import os
 
-from ayeaye.connectors.base import DataConnector, AccessMode
+from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
 
 
-class ParquetConnector(DataConnector):
+class ParquetConnector(DataConnector, FilesystemEnginePatternMixin):
     engine_type = "parquet://"
 
     def __init__(self, *args, **kwargs):

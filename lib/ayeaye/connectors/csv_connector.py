@@ -7,11 +7,11 @@ import copy
 import csv
 import os
 
-from ayeaye.connectors.base import DataConnector, AccessMode
+from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
 
 
-class CsvConnector(DataConnector):
+class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
     engine_type = "csv://"
     optional_args = {
         "field_names": None,

@@ -6,11 +6,11 @@ Created on 15 Apr 2020
 import json
 import os
 
-from ayeaye.connectors.base import DataConnector, AccessMode
+from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
 
 
-class JsonConnector(DataConnector):
+class JsonConnector(DataConnector, FilesystemEnginePatternMixin):
     engine_type = "json://"
 
     def __init__(self, *args, **kwargs):

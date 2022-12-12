@@ -1,4 +1,5 @@
 from enum import Enum
+import glob
 import types
 
 from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
@@ -10,6 +11,65 @@ class AccessMode(Enum):
     READWRITE = "rw"
 
 
+class AbstractExpandEnginePattern:
+    """
+    Mixin to support wildcard engine_urls.
+    https://www.pythontutorial.net/python-oop/python-mixin/
+
+    When an engine_url contains pattern matching characters the :class:`MultiConnector` should
+    be used after the :class:`ConnectorResolver` singleton has resolved context variables.
+
+    Subclasses of this abstract class are given responsibility to pattern match as filesystems
+    and blob services use different methodologies to do this.
+    """
+
+    def has_multi_engine_pattern(self):
+        """
+        @return: bool
+            the engine_url for the class implementing this mixin has a pattern
+        """
+        raise NotImplementedError("Must be implemented by subclasses")
+
+    def expand_pattern(self):
+        """
+        @return: list of str
+            engine_urls, each one becomes a connector (subclass of :class:`DataConnector`) in a
+            :class:`MultiConnector`
+        """
+        raise NotImplementedError("Must be implemented by subclasses")
+
+
+class FilesystemEnginePatternMixin(AbstractExpandEnginePattern):
+    """
+    Pattern match files and directories. @see :class:`AbstractExpandEnginePattern`
+    """
+
+    # List of characters that when found in an engine_url indicate it's a pattern matching url that
+    # will result in multiple engine_urls. i.e. file:///data/*.csv
+    # A :class:`MultiConnector` should be used.
+    # Optionally defined by subclasses.
+    pattern_characters = ["*", "?"]
+
+    def has_multi_engine_pattern(self):
+        for pattern_indicating_character in self.pattern_characters:
+            if pattern_indicating_character in self.engine_url:
+                return True
+        return False
+
+    def expand_pattern(self):
+
+        # strip engine type
+        # for now, they all need to have the same engine_type. Maybe engine_url starts
+        # with `://` for auto detect based on file name.
+        engine_type, engine_path_pattern = self.engine_url.split("://", 1)
+
+        engine_url = []
+        for engine_file in glob.glob(engine_path_pattern):
+            engine_url.append(f"{engine_type}://{engine_file}")
+
+        return engine_url
+
+
 class DataConnector:
     engine_type = None  # must be defined by subclasses
 
@@ -17,7 +77,7 @@ class DataConnector:
     optional_args = {}
 
     # list/set of arg names that are present in optional_args and when they are assigned with a
-    # callable this shouldn't be called by :class:`ayeaye.Connect` but should intead be passed
+    # callable this shouldn't be called by :class:`ayeaye.Connect` but should instead be passed
     # as is to the target subclass of :class:`ayeaye.DataConnector`.
     preserve_callables = []
 

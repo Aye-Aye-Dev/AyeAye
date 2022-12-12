@@ -1,3 +1,4 @@
+from io import StringIO
 import json
 import os
 import shutil
@@ -7,7 +8,7 @@ import unittest
 import ayeaye
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, 'data', 'deadly_creatures.csv')
+EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
 
 
 class FakeModel(ayeaye.Model):
@@ -19,7 +20,6 @@ class FakeModel(ayeaye.Model):
 
 
 class TestModels(unittest.TestCase):
-
     def setUp(self):
         self._working_directory = None
 
@@ -44,6 +44,7 @@ class TestModels(unittest.TestCase):
         Use Connect as a callable to make a second iterable. Make the cartesian product to
         demonstrate they are independent.
         """
+
         class AnimalsModel(ayeaye.Model):
             animals_a = ayeaye.Connect(engine_url="csv://" + EXAMPLE_CSV_PATH)
             animals_b = animals_a.clone()
@@ -66,10 +67,34 @@ class TestModels(unittest.TestCase):
 
         m.go()
 
-        with open(output_file, 'r', encoding=output_encoding) as f:
+        with open(output_file, "r", encoding=output_encoding) as f:
             output_data = json.load(f)
 
-        expected_data = ['Crown of thorns starfish_Crown of thorns starfish',
-                         'Crown of thorns starfish_Golden dart frog'
-                         ]
+        expected_data = [
+            "Crown of thorns starfish_Crown of thorns starfish",
+            "Crown of thorns starfish_Golden dart frog",
+        ]
         self.assertEqual(expected_data, output_data)
+
+    def test_record_stats(self):
+        """
+        Use model.stats to store a counter and a set of strings.
+        """
+        external_log = StringIO()
+
+        m = FakeModel()
+        m.log_to_stdout = False
+        m.set_logger(external_log)
+
+        # example of common stats when running an ETL
+        m.stats["records_processed"] += 100
+        # default dict uses 'int' as the default. This check ensures re-assign is possible
+        m.stats["categories_seen"] = set(["new_customers", "existing_customers"])
+        m.go()
+
+        external_log.seek(0)
+        all_the_logs = external_log.read()
+
+        msg = "stat field names and values should be logged when the model finishes"
+        self.assertIn("records_processed", all_the_logs, msg)
+        self.assertIn("existing_customers", all_the_logs, msg)

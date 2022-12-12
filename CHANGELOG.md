@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.33] - 2022-12-12
+
+### Added
+- Use of wildcards in engine_url param of :class:`ayeaye.Connect` to be pattern matched after the context variables are resolved. This means `engine_url="csv://{my_data}/*.csv"` will result in a MultiConnector after 'my_data' has been resolved into a runtime specified path.
+- Connectors which use the filesystem will all have the wildcard behaviour
+- :class:`ayeaye.Model` has `self.stats` as a default dictionary. It's aimed at runtime statistics ga
+thering. When used it automatically logs the results after the model has finished running
+
 ## [0.0.32] - 2022-11-25
 
 ### Added

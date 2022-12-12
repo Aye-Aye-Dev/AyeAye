@@ -33,23 +33,29 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         For args: @see :class:`connectors.base.DataConnector`
 
         additional args for SqlalchemyDatabaseConnector
+
             schema_builder (optional) (callable) which takes a declarative base as the single
-            argument.
-            This callable must return either a single class or a list of classes which all share a
-            declarative base.
-            see https://docs.sqlalchemy.org/en/13/orm/extensions/declarative/api.html
+                argument.
 
-            The behaviour of this connection will differ on single or list being returned.
-            For example:
-              .schema requires the name of the class in multiple mode.
-              e.g.  my_connection.schema.OrmClass (for multiple mode)
-                    and my_connection.schema (for 'single schema mode')
+                This callable must return either a single class or a list of classes which all
+                share a declarative base.
+                see https://docs.sqlalchemy.org/en/13/orm/extensions/declarative/api.html
 
-            Can't be passed alongside `schema_model`.
+                The behaviour of this connection will differ on single or list being returned.
+                For example:
+                  .schema requires the name of the class in multiple mode.
+                  e.g.  my_connection.schema.OrmClass (for multiple mode)
+                        and my_connection.schema (for 'single schema mode')
 
-            schema_model (optional) SqlAlchemy Model (subclass of
-                function:`sqlalchemy.ext.declarative.declarative_base`). Mutually exclusive with
-                `schema_builder` argument.
+                Can't be passed alongside `schema_model`.
+
+            schema_model (optional) SqlAlchemy Model or list of SqlAlchemy Models
+                (SqlAlchemy Model must be a subclass of function:`sqlalchemy.ext.declarative.declarative_base`)
+
+                Mutually exclusive with `schema_builder` argument.
+
+                When using a list, all models must share the same declarative base.
+
 
         Connection information-
             engine_url format varied with each engine
@@ -152,7 +158,9 @@ class SqlAlchemyDatabaseConnector(DataConnector):
 
             if self.schema_builder is not None:
                 # initialise schema
-                schema_classes = self.schema_builder(self.Base) if self.schema_builder is not None else []
+                schema_classes = (
+                    self.schema_builder(self.Base) if self.schema_builder is not None else []
+                )
 
                 if isinstance(schema_classes, list):
                     as_dict = {c.__name__: c for c in schema_classes}

@@ -1,9 +1,14 @@
+import os
 import unittest
 
 from ayeaye.connect_resolve import ConnectorResolver, connector_resolver
 from ayeaye.connect import Connect
 from ayeaye.connectors.csv_connector import CsvConnector
+from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
 from ayeaye.model import Model
+
+PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
+TEST_DATA = os.path.join(PROJECT_TEST_PATH, "data")
 
 
 class FakeModel:
@@ -25,18 +30,20 @@ class TestResolve(unittest.TestCase):
         """
 
         def simple_resolver(unresolved_engine_url):
-            return unresolved_engine_url.format(**{'data_version': '1234'})
+            return unresolved_engine_url.format(**{"data_version": "1234"})
 
         # A MultiConnector
-        c = Connect(engine_url=["csv://my_path_x/data_{data_version}.csv",
-                                "csv://my_path_y/data_{data_version}.csv"
-                                ]
-                    )
+        c = Connect(
+            engine_url=[
+                "csv://my_path_x/data_{data_version}.csv",
+                "csv://my_path_y/data_{data_version}.csv",
+            ]
+        )
 
         with connector_resolver.context(simple_resolver):
             resolved_engine_urls = [data_conn.engine_url for data_conn in c]
 
-        expected_urls = ['csv://my_path_x/data_1234.csv', 'csv://my_path_y/data_1234.csv']
+        expected_urls = ["csv://my_path_x/data_1234.csv", "csv://my_path_y/data_1234.csv"]
         self.assertEqual(expected_urls, resolved_engine_urls)
 
     def test_multi_connector_add(self):
@@ -44,29 +51,34 @@ class TestResolve(unittest.TestCase):
         Use MultiConnector's convenience method for adding engine_urls at run time.
         Also ensure the connector resolver is still being used.
         """
+
         class FishStocksCollator(FakeModel):
-            fish = Connect(engine_url=['csv://{file_location}/pond_1.csv',
-                                       'csv://{file_location}/pond_2.csv',
-                                       ]
-                           )
+            fish = Connect(
+                engine_url=[
+                    "csv://{file_location}/pond_1.csv",
+                    "csv://{file_location}/pond_2.csv",
+                ]
+            )
 
             def build(self):
                 # add a new dataset at runtime
-                c = self.fish.add_engine_url('csv://{file_location}/pond_3.csv')
+                c = self.fish.add_engine_url("csv://{file_location}/pond_3.csv")
                 assert isinstance(c, CsvConnector)
-                assert c.engine_url == 'csv:///data/pond_3.csv'
+                assert c.engine_url == "csv:///data/pond_3.csv"
 
         def file_location_resolver(unresolved_engine_url):
-            return unresolved_engine_url.format(**{'file_location': '/data'})
+            return unresolved_engine_url.format(**{"file_location": "/data"})
 
         with connector_resolver.context(file_location_resolver):
             m = FishStocksCollator()
             m.build()
             all_urls = [connector.engine_url for connector in m.fish]
 
-        expected_urls = ['csv:///data/pond_1.csv', 'csv:///data/pond_2.csv',
-                         'csv:///data/pond_3.csv',
-                         ]
+        expected_urls = [
+            "csv:///data/pond_1.csv",
+            "csv:///data/pond_2.csv",
+            "csv:///data/pond_3.csv",
+        ]
         self.assertEqual(expected_urls, all_urls)
 
     def test_resolve_engine_url(self):
@@ -84,7 +96,7 @@ class TestResolve(unittest.TestCase):
 
             def __call__(self, unresolved_engine_url):
                 self.has_been_called = True
-                return unresolved_engine_url.format(**{'data_version': '1234'})
+                return unresolved_engine_url.format(**{"data_version": "1234"})
 
         c = CsvConnector(engine_url="csv://my_path/data_{data_version}.csv")
 
@@ -94,7 +106,7 @@ class TestResolve(unittest.TestCase):
             msg = "One resolver exists during the .context"
             self.assertEqual(1, len(connector_resolver.unnamed_callables), msg)
 
-            self.assertEqual('csv://my_path/data_1234.csv', c.engine_url)
+            self.assertEqual("csv://my_path/data_1234.csv", c.engine_url)
 
             msg = "Should have been called after engine_url is available"
             self.assertTrue(m_resolver.has_been_called, msg)
@@ -103,7 +115,6 @@ class TestResolve(unittest.TestCase):
         self.assertEqual(0, len(connector_resolver.unnamed_callables), msg)
 
     def test_attribute_access_to_instances(self):
-
         class SaladResolver:
             def available_today(self):
                 return ["csv://cucumbers.csv", "csv://cress.csv"]
@@ -113,7 +124,7 @@ class TestResolve(unittest.TestCase):
             todays_engine_urls = connector_resolver.salad.available_today()
 
         self.assertEqual(["csv://cucumbers.csv", "csv://cress.csv"], todays_engine_urls)
-        self.assertNotIn('salad', connector_resolver._attr, "Post context clean up failed")
+        self.assertNotIn("salad", connector_resolver._attr, "Post context clean up failed")
 
     def test_deferred_attribute_access(self):
         """
@@ -122,6 +133,7 @@ class TestResolve(unittest.TestCase):
         attribute to be set before the model class is imported. Solution is a deferred call that
         is only evaluated by Connect._prepare_connection
         """
+
         class InsectSurvey(Model):
             ants = Connect(engine_url=connector_resolver.my_ants.all_the_files(ant_types="red"))
 
@@ -148,14 +160,15 @@ class TestResolve(unittest.TestCase):
         In unit tests it's helpful to use the same resolver context across a few methods. For
         example in unittest's setUp, tearDown and the test itself.
         """
+
         class LizardLocator(FakeModel):
-            habitats = Connect(engine_url='csv://{file_location}/habitat.csv')
+            habitats = Connect(engine_url="csv://{file_location}/habitat.csv")
 
             def get_the_important_engine_url(self):
                 return self.habitats.engine_url
 
         def file_location_resolver(unresolved_engine_url):
-            return unresolved_engine_url.format(**{'file_location': '/data'})
+            return unresolved_engine_url.format(**{"file_location": "/data"})
 
         m = LizardLocator()
         with self.assertRaises(ValueError) as exception_context:
@@ -171,7 +184,7 @@ class TestResolve(unittest.TestCase):
         local_context.start()
 
         m = LizardLocator()
-        self.assertEqual('csv:///data/habitat.csv', m.get_the_important_engine_url())
+        self.assertEqual("csv:///data/habitat.csv", m.get_the_important_engine_url())
 
         msg = "One resolver exists between .start() and .finish()"
         self.assertEqual(1, len(connector_resolver.unnamed_callables), msg)
@@ -186,18 +199,19 @@ class TestResolve(unittest.TestCase):
         Using ConnectorResolver directly (no as the global/singleton) does chaining unnamed
         resolvers work?
         """
+
         class IgnoreMissingDict(dict):
             def __missing__(self, key):
-                return '{' + key + '}'
+                return "{" + key + "}"
 
         def a2x(e):
-            return e.format_map(IgnoreMissingDict(**{'a': 'x'}))
+            return e.format_map(IgnoreMissingDict(**{"a": "x"}))
 
         def b2y(e):
-            return e.format_map(IgnoreMissingDict(**{'b': 'y'}))
+            return e.format_map(IgnoreMissingDict(**{"b": "y"}))
 
         def c2z(e):
-            return e.format_map(IgnoreMissingDict(**{'c': 'z'}))
+            return e.format_map(IgnoreMissingDict(**{"c": "z"}))
 
         cr = ConnectorResolver()
         cr.add(a2x, b2y, c2z)
@@ -210,7 +224,7 @@ class TestResolve(unittest.TestCase):
         with connector_resolver.context(env_secret_password="supersecret"):
             x = Connect(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
             x.connect_standalone()
-            self.assertEqual('mysql://root:supersecret@localhost/my_database', x.engine_url)
+            self.assertEqual("mysql://root:supersecret@localhost/my_database", x.engine_url)
 
     def test_deferred_results_not_held(self):
         """
@@ -218,9 +232,11 @@ class TestResolve(unittest.TestCase):
         relayed_kwargs in :method:`Connect._prepare_connection`. DeferredResolution was being used
         in this case and it's a common pattern.
         """
+
         class AnimalsSurvey(Model):
             rodents = Connect(
-                engine_url=connector_resolver.my_survey.sample_data(rodent_type="mice"))
+                engine_url=connector_resolver.my_survey.sample_data(rodent_type="mice")
+            )
 
         class ResolverA:
             def sample_data(self, rodent_type):
@@ -250,21 +266,20 @@ class TestResolve(unittest.TestCase):
         """
         :method:`brutal_reset` can be used to stop a failed unit test effecting another unit test.
         """
-        connector_resolver.add(x='y')
+        connector_resolver.add(x="y")
         with self.assertRaises(ValueError) as exception_context:
-            connector_resolver.add(x='z')
+            connector_resolver.add(x="z")
 
         self.assertIn("Attempted to set existing attribute: x", str(exception_context.exception))
 
         connector_resolver.brutal_reset()
-        connector_resolver.add(x='z')
+        connector_resolver.add(x="z")
 
         # don't leave state for other tests
         connector_resolver.brutal_reset()
 
     @unittest.skip("Callable kwargs not implemented yet")
     def test_callable_mapper_value(self):
-
         class CheeseSales(Model):
             products = Connect(engine_url="csv://my_path_x/data_{data_version}.csv")
 
@@ -275,4 +290,40 @@ class TestResolve(unittest.TestCase):
             m = CheeseSales()
             resolved_engine_url = m.products.engine_url
 
-        self.assertEqual('csv://my_path_x/data_deep_fried_brie.csv', resolved_engine_url)
+        self.assertEqual("csv://my_path_x/data_deep_fried_brie.csv", resolved_engine_url)
+
+    def test_ok_with_wildcards(self):
+        """
+        Filesystem wildcard (pattern matching) characters are ignored.
+        """
+        i = Ignition("file://{my_data}/m*.?sv")
+        with connector_resolver.context(my_data="XXXXXXX"):
+            status, e_url = i.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+
+        self.assertEqual(EngineUrlStatus.OK, status)
+        self.assertEqual("file://XXXXXXX/m*.?sv", e_url)
+
+    def test_wildcard_with_resolver(self):
+        """
+        A :class:`MultiConnector` should be created and :class:`Ignition` should resolve the
+        wild card. This is done much later than that tested in
+        :method:`TestMultiConnectors.test_wildcards`
+        """
+
+        # Note-
+        # ls tests/data/m*.?sv
+        # gives
+        # tests/data/mice.csv    tests/data/monkeys.tsv
+        #
+        # The test is written to just check these files exist as additional test data
+        # might be added in the future.
+
+        class Animals(Model):
+            some_animals = Connect(engine_url="file://{my_data}/m*.?sv")
+
+        with connector_resolver.context(my_data=TEST_DATA):
+            m = Animals()
+            resolved_engines = ":".join([c.engine_url for c in m.some_animals])
+
+        self.assertIn("mice.csv", resolved_engines)
+        self.assertIn("monkeys.tsv", resolved_engines)

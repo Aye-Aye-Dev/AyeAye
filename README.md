@@ -78,6 +78,13 @@ When `venv` is being used, add this line to `requirements.txt`-
 git+https://github.com/Aye-Aye-Dev/AyeAye#egg=ayeaye
 ```
 
+## Optional extras
+
+Extra dependencies for API usage within Aye-aye models can be installed like this:
+
+```shell
+pipenv install "ayeaye[api]"
+```
 
 
 ## License

@@ -3,6 +3,7 @@ from enum import Enum
 import glob
 
 from ayeaye.connectors import connector_factory
+from ayeaye.connectors.base import AbstractExpandEnginePattern
 from ayeaye.connectors.multi_connector import MultiConnector
 from ayeaye.connectors.placeholder import PlaceholderDataConnector
 
@@ -203,18 +204,6 @@ class Connect:
                 # compile time list of engine_url strings
                 # might be callable or a dict or set in the future
                 connector_cls = MultiConnector
-            elif "*" in engine_url or "?" in engine_url:
-                # For consistency this must be a multiconnector even when it resolves to one item
-                connector_cls = MultiConnector
-
-                # strip engine type
-                # for now, they all need to have the same engine_type. Maybe engine_url starts
-                # with `://` for auto detect based on file name.
-                engine_type, engine_path_pattern = engine_url.split("://", 1)
-
-                engine_url = []
-                for engine_file in glob.glob(engine_path_pattern):
-                    engine_url.append(f"{engine_type}://{engine_file}")
             else:
                 connector_cls = connector_factory(engine_url)
 
@@ -252,6 +241,23 @@ class Connect:
 
         connector = connector_cls(**detached_kwargs)
         connector._connect_instance = self
+
+        # check made on the instance, not the class because if there is a pattern, :class:`Ignition`
+        # will be needed to resolve context variables before pattern matching.
+        if (
+            isinstance(connector, AbstractExpandEnginePattern)
+            and connector.has_multi_engine_pattern()
+        ):
+            # the engine_url has wildcard/pattern characters so this should be a :class:MultiConnector
+            engine_urls = connector.expand_pattern()
+
+            detached_kwargs["engine_url"] = []
+            connector = MultiConnector(**detached_kwargs)
+            connector._connect_instance = self
+
+            for e_url in engine_urls:
+                connector.add_engine_url(e_url)
+
         return connector
 
     @property

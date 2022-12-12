@@ -10,11 +10,11 @@ try:
 except ModuleNotFoundError:
     pass
 
-from ayeaye.connectors.base import DataConnector, AccessMode
+from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
 
 
-class NdjsonConnector(DataConnector):
+class NdjsonConnector(DataConnector, FilesystemEnginePatternMixin):
     engine_type = "ndjson://"
 
     def __init__(self, *args, **kwargs):

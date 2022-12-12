@@ -86,7 +86,8 @@ class TestMultiConnectors(unittest.TestCase):
 
     def test_wildcards(self):
         """
-        When * or ? are used in engine_url a filesystem search should result in a MultiConnector
+        When * or ? are used in engine_url a filesystem search should result in a MultiConnector.
+        See related test :method:`TestResolve.test_wildcard_with_resolver`
         """
         search_path = os.path.join(PROJECT_TEST_PATH, "data", "m*.?sv")
         msg = "expected mice.csv and monkeys.tsv"
