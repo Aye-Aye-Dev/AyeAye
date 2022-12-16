@@ -255,6 +255,8 @@ class Connect:
             connector = MultiConnector(**detached_kwargs)
             connector._connect_instance = self
 
+            # would be good to warn if :method:`expand_pattern` results in no files
+
             for e_url in engine_urls:
                 connector.add_engine_url(e_url)
 

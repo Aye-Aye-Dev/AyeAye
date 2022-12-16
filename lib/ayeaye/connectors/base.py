@@ -51,6 +51,7 @@ class FilesystemEnginePatternMixin(AbstractExpandEnginePattern):
     pattern_characters = ["*", "?"]
 
     def has_multi_engine_pattern(self):
+
         for pattern_indicating_character in self.pattern_characters:
             if pattern_indicating_character in self.engine_url:
                 return True
@@ -58,10 +59,16 @@ class FilesystemEnginePatternMixin(AbstractExpandEnginePattern):
 
     def expand_pattern(self):
 
+        status, e_url = self.ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+        if status != EngineUrlStatus.OK:
+            raw_e_url = self.ignition.engine_url_at_state(EngineUrlCase.RAW)
+            msg = f"Engine url ({raw_e_url}) couldn't be resolved enough to pattern match."
+            raise ValueError(msg)
+
         # strip engine type
         # for now, they all need to have the same engine_type. Maybe engine_url starts
         # with `://` for auto detect based on file name.
-        engine_type, engine_path_pattern = self.engine_url.split("://", 1)
+        engine_type, engine_path_pattern = e_url.split("://", 1)
 
         engine_url = []
         for engine_file in glob.glob(engine_path_pattern):

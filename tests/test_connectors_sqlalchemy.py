@@ -1,8 +1,8 @@
-'''
+"""
 Created on 22 Jan 2020
 
 @author: si
-'''
+"""
 import os
 import shutil
 import tempfile
@@ -18,12 +18,12 @@ from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
 
 def fruit_schemas(declarative_base):
     class Pear(declarative_base):
-        __tablename__ = 'pear'
+        __tablename__ = "pear"
         id = Column(Integer, primary_key=True)
         variety = Column(String(250), nullable=False)
 
     class Bananna(declarative_base):
-        __tablename__ = 'bananna'
+        __tablename__ = "bananna"
         id = Column(Integer, primary_key=True)
         variety = Column(String(250), nullable=False)
 
@@ -32,14 +32,14 @@ def fruit_schemas(declarative_base):
 
 def people_schema(declarative_base):
     class Person(declarative_base):
-        __tablename__ = 'person'
+        __tablename__ = "person"
         id = Column(Integer, primary_key=True)
         surname = Column(String(250), nullable=False)
+
     return Person
 
 
 class TestSqlAlchemyConnector(unittest.TestCase):
-
     def setUp(self):
         self._working_directory = None
 
@@ -55,32 +55,35 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         """
         list of ORM models in schema
         """
-        c = SqlAlchemyDatabaseConnector(engine_url="sqlite://",
-                                        schema_builder=fruit_schemas,
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url="sqlite://",
+            schema_builder=fruit_schemas,
+        )
         # method resolution order
         super_classes = [cc.__name__ for cc in c.schema.Pear.mro()]
-        expected = ['Pear', 'Base', 'object']  # class above, declarative base, py obj
+        expected = ["Pear", "Base", "object"]  # class above, declarative base, py obj
         self.assertEqual(expected, super_classes)
 
     def test_schema_access_single(self):
         """
         One ORM model in schema has different way of accessing with .schema
         """
-        c = SqlAlchemyDatabaseConnector(engine_url="sqlite://",
-                                        schema_builder=people_schema,
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url="sqlite://",
+            schema_builder=people_schema,
+        )
         # method resolution order
         super_classes = [cc.__name__ for cc in c.schema.mro()]
-        expected = ['Person', 'Base', 'object']  # class above, declarative base, py obj
+        expected = ["Person", "Base", "object"]  # class above, declarative base, py obj
         self.assertEqual(expected, super_classes)
 
     def test_create_db_schema(self):
 
-        c = SqlAlchemyDatabaseConnector(engine_url="sqlite://",
-                                        schema_builder=fruit_schemas,
-                                        access=ayeaye.AccessMode.WRITE,
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url="sqlite://",
+            schema_builder=fruit_schemas,
+            access=ayeaye.AccessMode.WRITE,
+        )
 
         c.connect()
 
@@ -99,14 +102,13 @@ class TestSqlAlchemyConnector(unittest.TestCase):
 
     def test_add_orm_data_single(self):
 
-        c = SqlAlchemyDatabaseConnector(engine_url="sqlite://",
-                                        schema_builder=people_schema,
-                                        access=ayeaye.AccessMode.READWRITE
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url="sqlite://", schema_builder=people_schema, access=ayeaye.AccessMode.READWRITE
+        )
         c.create_table_schema()
 
-        c.add({'surname': 'Cornwallis'})
-        c.add({'surname': 'Brunel'})
+        c.add({"surname": "Cornwallis"})
+        c.add({"surname": "Brunel"})
         c.commit()
 
         # read them back
@@ -116,15 +118,14 @@ class TestSqlAlchemyConnector(unittest.TestCase):
 
     def test_add_orm_data_multiple(self):
 
-        c = SqlAlchemyDatabaseConnector(engine_url="sqlite://",
-                                        schema_builder=fruit_schemas,
-                                        access=ayeaye.AccessMode.READWRITE
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url="sqlite://", schema_builder=fruit_schemas, access=ayeaye.AccessMode.READWRITE
+        )
         c.connect()
         c.create_table_schema()
 
         with self.assertRaises(ValueError) as context:
-            c.add({'variety': 'Cavendish'})
+            c.add({"variety": "Cavendish"})
 
         self.assertIn("Dictionary can only be used in single schema mode", str(context.exception))
 
@@ -146,10 +147,11 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         OSX. But the file handle isn't left open so can't be part of this test.
         """
         db_file = "{}/fruit.db".format(self.working_directory())
-        c = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
-                                        schema_builder=fruit_schemas,
-                                        access=ayeaye.AccessMode.READWRITE
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_builder=fruit_schemas,
+            access=ayeaye.AccessMode.READWRITE,
+        )
         c.connect()
         c.create_table_schema()
 
@@ -165,10 +167,11 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         TODO - can't reproduce the "Cannot operate on a closed database." Sqlite error.
         """
         db_file = "{}/fruit.db".format(self.working_directory())
-        c = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
-                                        schema_builder=fruit_schemas,
-                                        access=ayeaye.AccessMode.READWRITE
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_builder=fruit_schemas,
+            access=ayeaye.AccessMode.READWRITE,
+        )
         c.connect()
         c.create_table_schema()
 
@@ -184,28 +187,30 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         to each Connector stay in their own engines.
         """
         db_file = "{}/fruit.db".format(self.working_directory())
-        fruit = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
-                                            schema_builder=fruit_schemas,
-                                            access=ayeaye.AccessMode.READWRITE
-                                            )
+        fruit = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_builder=fruit_schemas,
+            access=ayeaye.AccessMode.READWRITE,
+        )
         fruit.create_table_schema()
 
         db_file = "{}/people.db".format(self.working_directory())
-        people = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
-                                             schema_builder=people_schema,
-                                             access=ayeaye.AccessMode.READWRITE
-                                             )
+        people = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_builder=people_schema,
+            access=ayeaye.AccessMode.READWRITE,
+        )
         people.create_table_schema()
 
         # Tables creates in correct DB
         # ----------------------
         inspector = inspect(fruit.engine)
         fruit_tables = {table_name for table_name in inspector.get_table_names()}
-        self.assertEqual({'bananna', 'pear'}, fruit_tables)
+        self.assertEqual({"bananna", "pear"}, fruit_tables)
 
         inspector = inspect(people.engine)
         people_tables = {table_name for table_name in inspector.get_table_names()}
-        self.assertEqual({'person'}, people_tables)
+        self.assertEqual({"person"}, people_tables)
 
         # Tables can be used in the normal way
         # ----------------------
@@ -213,7 +218,7 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         fruit.commit()
         fruit.close_connection()
 
-        people.add({'surname': 'Attenborough'})
+        people.add({"surname": "Attenborough"})
         people.commit()
         people.close_connection()
 
@@ -222,11 +227,12 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         PeoplCls = people_schema(declarative_base=declarative_base())
 
         with self.assertRaises(ValueError):
-            SqlAlchemyDatabaseConnector(engine_url="sqlite:////tmp/wontbecreated.db",
-                                        schema_builder=people_schema,
-                                        schema_model=PeoplCls,
-                                        access=ayeaye.AccessMode.READWRITE
-                                        )
+            SqlAlchemyDatabaseConnector(
+                engine_url="sqlite:////tmp/wontbecreated.db",
+                schema_builder=people_schema,
+                schema_model=PeoplCls,
+                access=ayeaye.AccessMode.READWRITE,
+            )
 
     def test_schema_model_single(self):
         """
@@ -236,17 +242,18 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         Base = declarative_base()
 
         class Rodents(Base):
-            __tablename__ = 'rodent'
+            __tablename__ = "rodent"
             id = Column(Integer, primary_key=True)
             species = Column(String(250), nullable=False)
 
         db_file = "{}/rodents.db".format(self.working_directory())
-        rodents = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
-                                              schema_model=Rodents,
-                                              access=ayeaye.AccessMode.READWRITE
-                                              )
+        rodents = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_model=Rodents,
+            access=ayeaye.AccessMode.READWRITE,
+        )
         rodents.create_table_schema()
-        rodents.add({'species': 'Yellow-necked mouse'})
+        rodents.add({"species": "Yellow-necked mouse"})
         rodents.commit()
         rodents.close_connection()
 
@@ -258,24 +265,25 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         Base = declarative_base()
 
         class Cats(Base):
-            __tablename__ = 'cat'
+            __tablename__ = "cat"
             id = Column(Integer, primary_key=True)
             name = Column(String(250))
 
         class Dogs(Base):
-            __tablename__ = 'dog'
+            __tablename__ = "dog"
             id = Column(Integer, primary_key=True)
             name = Column(String(250))
 
         db_file = "{}/pets.db".format(self.working_directory())
-        pets = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
-                                           schema_model=[Cats, Dogs],
-                                           access=ayeaye.AccessMode.READWRITE
-                                           )
+        pets = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_model=[Cats, Dogs],
+            access=ayeaye.AccessMode.READWRITE,
+        )
         pets.create_table_schema()
 
         with self.assertRaises(ValueError) as context:
-            pets.add({'name': 'Lady'})
+            pets.add({"name": "Lady"})
         self.assertIn("Dictionary can only be used in single schema mode", str(context.exception))
 
         pets.add(pets.schema.Cats(name="Lady"))
@@ -292,26 +300,28 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         BaseY = declarative_base()
 
         class Cats(BaseX):
-            __tablename__ = 'cat'
+            __tablename__ = "cat"
             id = Column(Integer, primary_key=True)
             name = Column(String(250))
 
         class Dogs(BaseY):
-            __tablename__ = 'dog'
+            __tablename__ = "dog"
             id = Column(Integer, primary_key=True)
             name = Column(String(250))
 
         db_file = "{}/pets.db".format(self.working_directory())
-        c = SqlAlchemyDatabaseConnector(engine_url=f"sqlite:///{db_file}",
-                                        schema_model=[Cats, Dogs],
-                                        access=ayeaye.AccessMode.READWRITE
-                                        )
+        c = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_model=[Cats, Dogs],
+            access=ayeaye.AccessMode.READWRITE,
+        )
         with self.assertRaises(ValueError) as context:
             c.connect()
 
-        self.assertIn("Models passed to `schema_model` must share the same declarative base",
-                      str(context.exception)
-                      )
+        self.assertIn(
+            "Models passed to `schema_model` must share the same declarative base",
+            str(context.exception),
+        )
 
     def test_sql_direct(self):
         """
@@ -320,11 +330,54 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         c = SqlAlchemyDatabaseConnector(engine_url="sqlite://")
         c.sql("CREATE TABLE nice_colours (colour varchar(20))")
         c.sql("INSERT INTO nice_colours values ('blue'), ('green'), ('black')")
-        results = c.sql("SELECT colour FROM nice_colours where colour <> :not_really_a_colour",
-                        not_really_a_colour='black'
-                        )
+        results = c.sql(
+            "SELECT colour FROM nice_colours where colour <> :not_really_a_colour",
+            not_really_a_colour="black",
+        )
         final_colours = set()
         for r in results:
-            final_colours.add(dict(r)['colour'])
+            final_colours.add(dict(r)["colour"])
 
-        assert set(['blue', 'green']) == final_colours
+        assert set(["blue", "green"]) == final_colours
+
+    def test_simple_query(self):
+        """
+        SqlAlchemy ORM query.
+        """
+        Base = declarative_base()
+
+        class Moths(Base):
+            __tablename__ = "rodent"
+            id = Column(Integer, primary_key=True)
+            common_name = Column(String(250))
+            scientific_name = Column(String(250))
+            notes = Column(String(250))
+
+        db_file = "{}/moths.db".format(self.working_directory())
+        moths = SqlAlchemyDatabaseConnector(
+            engine_url=f"sqlite:///{db_file}",
+            schema_model=Moths,
+            access=ayeaye.AccessMode.READWRITE,
+        )
+        moths.create_table_schema()
+
+        for common_name, scientific_name, notes in [
+            ("Atlas moth", "Attacus atlas", "one of the largest moths in the world"),
+            ("Herculese moth", "Coscinocera hercules", "largest moth in Australia"),
+            ("White witch moth", "Thysania agrippina", "long longest wingspan"),
+            ("Madagascan sunset moth", "Chrysiridia rhipheus", "v. impressive and beautiful"),
+        ]:
+
+            r = dict(common_name=common_name, scientific_name=scientific_name, notes=notes)
+            moths.add(r)
+
+        moths.commit()
+
+        atlas_moth = moths.query.filter_by(common_name="Atlas moth").one()
+        self.assertEqual("Attacus atlas", atlas_moth.scientific_name)
+
+        super_moths = moths.query.filter(moths.schema.notes.like("%largest%")).all()
+        super_moth_names = set([m.common_name for m in super_moths])
+        expected_super_moths = set(["Atlas moth", "Herculese moth"])
+        msg = "These have the word largest in the notes field"
+        self.assertEqual(expected_super_moths, super_moth_names, msg)

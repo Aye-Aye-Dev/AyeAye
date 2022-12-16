@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.34] - 2022-12-16
+
+### Added
+- Easier access to SqlAlchemy query methods with .query on :class:`SqlAlchemyDatabaseConnector`
+
+### Changed
+- check to ensure engine_urls are fully resolved before using a pattern match
+
 ## [0.0.33] - 2022-12-12
 
 ### Added

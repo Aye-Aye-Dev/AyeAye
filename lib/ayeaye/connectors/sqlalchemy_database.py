@@ -228,6 +228,22 @@ class SqlAlchemyDatabaseConnector(DataConnector):
     def is_single_schema_mode(self):
         return not isinstance(self.schema, Pinnate)
 
+    @property
+    def query(self):
+        """
+        Access to SqlAlchemy query object. This is the object with .filter(...), .order_by(...) etc.
+
+        For a working example, see TestSqlAlchemyConnector.test_simple_query
+        (https://github.com/Aye-Aye-Dev/AyeAye/blob/master/tests/test_connectors_sqlalchemy.py)
+
+        @return: SqlAlchemy's session query object
+        """
+        if not self.is_single_schema_mode:
+            raise NotImplementedError(
+                ".query isn't available when using multiple ORM classes (aka schemas)"
+            )
+        return self.session.query(self.schema)
+
     def add(self, item):
         """
         @param item: (dict or ORM instance) - dict only with 'single schema mode'
