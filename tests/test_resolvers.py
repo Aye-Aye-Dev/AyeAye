@@ -327,3 +327,48 @@ class TestResolve(unittest.TestCase):
 
         self.assertIn("mice.csv", resolved_engines)
         self.assertIn("monkeys.tsv", resolved_engines)
+
+    def test_isolated_additional_context(self):
+        """
+        Overlay of variables into two local contexts. Check they don't have visibility of each
+        other because :method:_LocalResolverContext.__exit__ is disposing of the correct
+        variables.
+        """
+        common_params = {"study_name": "insects"}
+
+        local_context_1 = connector_resolver.context(**common_params)
+        local_context_1.add(datasets_out="/data/output_a", context_1="context_1_visible")
+
+        local_context_2 = connector_resolver.context(**common_params)
+        local_context_2.add(datasets_out="/data/output_b", context_2="context_2_visible")
+
+        class PopulationSurvey(Model):
+            some_animals = Connect(engine_url="file://{datasets_out}/{study_name}/output.csv")
+            context_check_1 = Connect(engine_url="file://{context_1}")
+            context_check_2 = Connect(engine_url="file://{context_2}")
+
+        with local_context_1:
+            m = PopulationSurvey()
+            resolved_engine_url = m.some_animals.engine_url
+            expected_engine_url = "file:///data/output_a/insects/output.csv"
+            self.assertEqual(expected_engine_url, resolved_engine_url)
+
+            context_1_engine_url = m.context_check_1.engine_url
+            self.assertEqual("file://context_1_visible", context_1_engine_url)
+
+            with self.assertRaises(ValueError):
+                # each context should be isolated from the other so this var shouldn't be visible
+                _ = m.context_check_2.engine_url
+
+        with local_context_2:
+            m = PopulationSurvey()
+            resolved_engine_url = m.some_animals.engine_url
+            expected_engine_url = "file:///data/output_b/insects/output.csv"
+            self.assertEqual(expected_engine_url, resolved_engine_url)
+
+            context_2_engine_url = m.context_check_2.engine_url
+            self.assertEqual("file://context_2_visible", context_2_engine_url)
+
+            with self.assertRaises(ValueError):
+                # each context should be isolated from the other so this var shouldn't be visible
+                _ = m.context_check_1.engine_url

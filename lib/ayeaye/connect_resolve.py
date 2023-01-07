@@ -73,7 +73,9 @@ class ConnectorResolver:
         """
         old name, use :method:`resolve` instead
         """
-        warnings.warn("'resolve_engine_url' is deprecated use 'resolve' instead", DeprecationWarning)
+        warnings.warn(
+            "'resolve_engine_url' is deprecated use 'resolve' instead", DeprecationWarning
+        )
         return self.resolve(unresolved_engine_url)
 
     def resolve(self, unresolved):
@@ -131,7 +133,9 @@ class ConnectorResolver:
                 raise ValueError(f"Attempted to set existing attribute: {attribute_name}")
 
             if not isinstance(attribute_name, (int, str)):
-                raise ValueError(f"templated variable '{attribute_name}' needs to be string or int.")
+                raise ValueError(
+                    f"templated variable '{attribute_name}' needs to be string or int."
+                )
 
             self._attr[attribute_name] = attribute_value
 
@@ -192,9 +196,8 @@ class ConnectorResolver:
         Warning - not yet thread-safe as the global state is altered for the duration of the
         context manager. Can be fixed with thread local variables.
         """
-        parent = self
 
-        class ConnectorResolverContext:
+        class _LocalResolverContext:
             """
             Keep track of a temporary resolver.
 
@@ -202,17 +205,30 @@ class ConnectorResolver:
             @see :method:`TestResolve.test_without_with_statement` for an example.
             """
 
-            def __init__(self):
+            def __init__(self, parent):
+                self.context_args = []
+                self.context_kwargs = {}
                 self.args_count = None
                 self.named_attr = None
+                self.parent = parent
+
+            def add(self, *a_args, **a_kwargs):
+                """
+                @see :method:`ConnectorResolver.add`
+                """
+                if a_args:
+                    self.context_args.extend(a_args)
+
+                if a_kwargs:
+                    self.context_kwargs.update(a_kwargs)
 
             def start(self):
                 """
                 Add a new resolver callable to the temporary context.
                 """
-                self.args_count = len(args)
-                self.named_attr = kwargs
-                parent.add(*args, **kwargs)
+                self.args_count = len(self.context_args)
+                self.named_attr = self.context_kwargs
+                self.parent.add(*self.context_args, **self.context_kwargs)
 
             def finish(self):
                 """
@@ -221,10 +237,10 @@ class ConnectorResolver:
                 # TODO check the right one is being cleared. This is currently making the assumption
                 # that the last item is the right item.
                 for _ in range(self.args_count):
-                    del parent.unnamed_callables[-1]
+                    del self.parent.unnamed_callables[-1]
 
                 for attr_name in self.named_attr.keys():
-                    del parent._attr[attr_name]
+                    del self.parent._attr[attr_name]
 
             def __enter__(self):
                 self.start()
@@ -232,7 +248,9 @@ class ConnectorResolver:
             def __exit__(self, exc_type, exc_val, exc_tb):
                 self.finish()
 
-        return ConnectorResolverContext()
+        isolated_local_context = _LocalResolverContext(parent=self)
+        isolated_local_context.add(*args, **kwargs)
+        return isolated_local_context
 
 
 class DeferredResolution:

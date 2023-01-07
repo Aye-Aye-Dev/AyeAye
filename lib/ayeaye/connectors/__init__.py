@@ -5,8 +5,6 @@ from .bigquery import BigQueryConnector
 from .csv_connector import CsvConnector, TsvConnector
 from .elasticsearch_connector import ElasticsearchConnector
 from .fake import FakeDataConnector
-from .flowerpot import FlowerPotConnector
-from .gcs_flowerpot import GcsFlowerpotConnector, FlowerpotEngine
 from .json_connector import JsonConnector
 from .kafka_connector import KafkaConnector
 from .ndjson_connector import NdjsonConnector
@@ -26,7 +24,6 @@ class ConnectorPluginsRegistry:
         self.registered_connectors = [
             BigQueryConnector,
             CsvConnector,
-            FlowerPotConnector,
             FakeDataConnector,
             KafkaConnector,
             ParquetConnector,

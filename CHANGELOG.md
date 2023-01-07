@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.35] - 2023-01-07
+
+### Added
+- 'with' statement usage of resolver context to allow variables to be added after initialisation
+
+### Removed
+- FlowerPotConnector, GcsFlowerpotConnector, FlowerpotEngine - they havn't been supported for some time and they don't look very useful 
+
 ## [0.0.34] - 2022-12-16
 
 ### Added
