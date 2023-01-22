@@ -1,15 +1,13 @@
 import os
-import tarfile
 import tempfile
 import unittest
 
 import ayeaye
 from ayeaye.connectors.json_connector import JsonConnector
 
-PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_FLOWERPOT_PATH = os.path.join(PROJECT_TEST_PATH, "data", "exampleflowerpot.tar.gz")
-EXAMPLE_ENGINE_URL = "gs+flowerpot://fake_flowerpot_bucket/some_file.json"
-EXAMPLE_JSON_PATH = os.path.join(PROJECT_TEST_PATH, "data", "london_weather.json")
+from . import TEST_DATA_PATH
+
+EXAMPLE_JSON_PATH = os.path.join(TEST_DATA_PATH, "london_weather.json")
 
 
 class TestConnectors(unittest.TestCase):

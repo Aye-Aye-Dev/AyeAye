@@ -3,13 +3,12 @@ import unittest
 
 import ayeaye
 
-# from ayeaye.connectors.flowerpot import FlowerpotEngine, FlowerPotConnector
-# from ayeaye.connectors.json_connector import JsonConnector
 from ayeaye.connectors.multi_connector import MultiConnector
 
-PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_CSV_MICE = os.path.join(PROJECT_TEST_PATH, "data", "mice.csv")
-EXAMPLE_CSV_SQUIRRELS = os.path.join(PROJECT_TEST_PATH, "data", "squirrels.csv")
+from . import TEST_DATA_PATH
+
+EXAMPLE_CSV_MICE = os.path.join(TEST_DATA_PATH, "mice.csv")
+EXAMPLE_CSV_SQUIRRELS = os.path.join(TEST_DATA_PATH, "squirrels.csv")
 
 
 class TestMultiConnectors(unittest.TestCase):
@@ -81,7 +80,7 @@ class TestMultiConnectors(unittest.TestCase):
 
         dataset = c[engine_0]
         # check access to any dataset property
-        self.assertTrue(dataset.engine_params.file_path.endswith("tests/data/mice.csv"))
+        self.assertTrue(dataset.engine_params.file_path.endswith("data/mice.csv"))
         self.assertEqual(2, len(c))
 
     def test_wildcards(self):
@@ -89,7 +88,7 @@ class TestMultiConnectors(unittest.TestCase):
         When * or ? are used in engine_url a filesystem search should result in a MultiConnector.
         See related test :method:`TestResolve.test_wildcard_with_resolver`
         """
-        search_path = os.path.join(PROJECT_TEST_PATH, "data", "m*.?sv")
+        search_path = os.path.join(TEST_DATA_PATH, "m*.?sv")
         msg = "expected mice.csv and monkeys.tsv"
 
         wildcard_connector = ayeaye.Connect(engine_url="file://" + search_path)

@@ -10,8 +10,9 @@ import unittest
 import ayeaye
 from ayeaye.connectors.ndjson_connector import NdjsonConnector
 
-PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_NDJSON_UK_PUBS = os.path.join(PROJECT_TEST_PATH, "data", "uk_pubs.ndjson")
+from . import TEST_DATA_PATH
+
+EXAMPLE_NDJSON_UK_PUBS = os.path.join(TEST_DATA_PATH, "uk_pubs.ndjson")
 
 
 class TestNdjsonConnector(unittest.TestCase):
@@ -38,5 +39,7 @@ class TestNdjsonConnector(unittest.TestCase):
         with open(ndjson_file, "r", encoding=c.encoding) as f:
             file_content = f.read()
 
-        expected_content = '{"common_name": "Warty frogfish"}\n' '{"common_name": "Hairy Frogfish"}\n'
+        expected_content = (
+            '{"common_name": "Warty frogfish"}\n' '{"common_name": "Hairy Frogfish"}\n'
+        )
         self.assertEqual(expected_content, file_content)

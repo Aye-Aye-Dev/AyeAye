@@ -1,10 +1,4 @@
-"""
-Created on 4 Mar 2020
-
-@author: si
-"""
 import os
-import sys
 import unittest
 
 PANDAS_NOT_INSTALLED = False
@@ -21,8 +15,9 @@ except ModuleNotFoundError:
 
 from ayeaye.connectors.parquet_connector import ParquetConnector
 
-PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_HELLO = os.path.join(PROJECT_TEST_PATH, "data", "hello.parquet")
+from . import TEST_DATA_PATH
+
+EXAMPLE_HELLO = os.path.join(TEST_DATA_PATH, "hello.parquet")
 
 """
 Test data built with this-
@@ -53,7 +48,10 @@ class TestParquetConnector(unittest.TestCase):
 
         # there are a couple of other keys as a result of the pandas index. Just check the
         # payload fields
-        wanted = [{"name": "Alice", "favorite_colour": "blue"}, {"name": "Bob", "favorite_colour": "green"}]
+        wanted = [
+            {"name": "Alice", "favorite_colour": "blue"},
+            {"name": "Bob", "favorite_colour": "green"},
+        ]
         for idx, expected_row in enumerate(wanted):
             for expected_key, expected_value in expected_row.items():
                 self.assertEqual(expected_value, all_records[idx][expected_key])

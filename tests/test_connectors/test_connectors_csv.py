@@ -5,16 +5,15 @@ import unittest
 import ayeaye
 from ayeaye.connectors.csv_connector import CsvConnector, TsvConnector
 
+from . import TEST_DATA_PATH
 
-PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
-EXAMPLE_TSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "monkeys.tsv")
-EXAMPLE_CSV_BROKEN_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_missing_values.csv")
-EXAMPLE_CSV_MICE = os.path.join(PROJECT_TEST_PATH, "data", "mice.csv")
-EXAMPLE_CSV_SQUIRRELS = os.path.join(PROJECT_TEST_PATH, "data", "squirrels.csv")
-EXAMPLE_CSV_DUPLICATE_FIELDNAMES = os.path.join(
-    PROJECT_TEST_PATH, "data", "duplicate_field_names.csv"
-)
+# PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
+EXAMPLE_CSV_PATH = os.path.join(TEST_DATA_PATH, "deadly_creatures.csv")
+EXAMPLE_TSV_PATH = os.path.join(TEST_DATA_PATH, "monkeys.tsv")
+EXAMPLE_CSV_BROKEN_PATH = os.path.join(TEST_DATA_PATH, "deadly_missing_values.csv")
+EXAMPLE_CSV_MICE = os.path.join(TEST_DATA_PATH, "mice.csv")
+EXAMPLE_CSV_SQUIRRELS = os.path.join(TEST_DATA_PATH, "squirrels.csv")
+EXAMPLE_CSV_DUPLICATE_FIELDNAMES = os.path.join(TEST_DATA_PATH, "duplicate_field_names.csv")
 
 
 class TestConnectorsCsv(unittest.TestCase):

@@ -9,6 +9,7 @@ pyarrow = "*"
 pandas = "*"
 requests = "*"
 responses = "*"
+smart-open = "*"
 
 [packages]
 ndjson = "*"

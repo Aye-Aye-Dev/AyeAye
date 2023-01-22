@@ -7,8 +7,9 @@ import unittest
 import ayeaye
 from ayeaye.connectors import UncookedConnector
 
-PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
-EXAMPLE_FILE = os.path.join(PROJECT_TEST_PATH, "data", "quote.txt")
+from . import TEST_DATA_PATH
+
+EXAMPLE_FILE = os.path.join(TEST_DATA_PATH, "quote.txt")
 
 
 class FakeModel(ayeaye.Model):
@@ -59,7 +60,10 @@ class TestUncookedConnector(unittest.TestCase):
 
     def test_write(self):
 
-        a_quote = "More data does not necessarily mean better information." "Bruce Schnier - Cryptogram Oct. 2013"
+        a_quote = (
+            "More data does not necessarily mean better information."
+            "Bruce Schnier - Cryptogram Oct. 2013"
+        )
 
         quotes_file = os.path.join(self.working_directory(), "quotes.notes")
 
@@ -77,7 +81,9 @@ class TestUncookedConnector(unittest.TestCase):
 
         binary_file = os.path.join(self.working_directory(), "binary.data")
 
-        writer = UncookedConnector(engine_url=f"file://{binary_file}", access=ayeaye.AccessMode.WRITE, file_mode="b")
+        writer = UncookedConnector(
+            engine_url=f"file://{binary_file}", access=ayeaye.AccessMode.WRITE, file_mode="b"
+        )
         # Invalid string - it's illegal in both utf-8 and ascii
         writer.data = b"<ABC> \xca </ABC>"
         writer.close_connection()
@@ -85,7 +91,9 @@ class TestUncookedConnector(unittest.TestCase):
         reader = UncookedConnector(engine_url=f"file://{binary_file}", file_mode="b")
 
         self.assertIsInstance(reader.data, bytes, "Expecting binary data")
-        self.assertEqual("<ABC>  </ABC>", reader.data.decode("ascii", "ignore"), "Cleaned binary expected")
+        self.assertEqual(
+            "<ABC>  </ABC>", reader.data.decode("ascii", "ignore"), "Cleaned binary expected"
+        )
 
     def test_encoding(self):
         "UTF-8 won't read in without encoding being specified"
