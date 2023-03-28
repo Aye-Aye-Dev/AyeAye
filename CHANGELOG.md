@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.36] - 2023-03-28
+
+### Fixed
+- Optional 'requests' library was non-optional import
+
 ## [0.0.35] - 2023-01-07
 
 ### Added

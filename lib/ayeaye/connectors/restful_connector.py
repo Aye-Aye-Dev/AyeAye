@@ -6,7 +6,11 @@ Created on 14 Jul 2022
 import json
 from time import time
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:
+    pass
+
 
 from ayeaye.connectors.base import DataConnector, AccessMode
 from ayeaye.pinnate import Pinnate
@@ -88,7 +92,6 @@ class RestfulConnector(DataConnector):
 
     def connect(self):
         if self._requests is None:
-
             if self.keep_alive:
                 self._requests = requests.Session()
 
