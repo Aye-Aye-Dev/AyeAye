@@ -1,6 +1,5 @@
 import copy
 from enum import Enum
-import glob
 
 from ayeaye.connectors import connector_factory
 from ayeaye.connectors.base import AbstractExpandEnginePattern

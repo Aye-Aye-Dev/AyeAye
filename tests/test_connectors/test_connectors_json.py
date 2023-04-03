@@ -17,7 +17,6 @@ class TestConnectors(unittest.TestCase):
         self.assertEqual("light intensity drizzle", c.data.weather.description)
 
     def test_json_write(self):
-
         data_dir = tempfile.mkdtemp()
         json_file = os.path.join(data_dir, "chips.json")
         c = JsonConnector(engine_url=f"json://{json_file}", access=ayeaye.AccessMode.WRITE)
@@ -30,7 +29,6 @@ class TestConnectors(unittest.TestCase):
         ]
 
         for acceptable_data, expected_json in good_examples:
-
             c.data = acceptable_data
             with open(json_file, "r", encoding=c.encoding) as f:
                 json_not_decoded = f.read()

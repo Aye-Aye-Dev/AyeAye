@@ -1,5 +1,6 @@
 from enum import Enum
 import glob
+import os
 import types
 
 from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
@@ -51,14 +52,12 @@ class FilesystemEnginePatternMixin(AbstractExpandEnginePattern):
     pattern_characters = ["*", "?"]
 
     def has_multi_engine_pattern(self):
-
         for pattern_indicating_character in self.pattern_characters:
             if pattern_indicating_character in self.engine_url:
                 return True
         return False
 
     def expand_pattern(self):
-
         status, e_url = self.ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
         if status != EngineUrlStatus.OK:
             raw_e_url = self.ignition.engine_url_at_state(EngineUrlCase.RAW)
@@ -78,7 +77,15 @@ class FilesystemEnginePatternMixin(AbstractExpandEnginePattern):
 
 
 class DataConnector:
-    engine_type = None  # must be defined by subclasses
+    # must be defined by subclasses. Str or list of str of engine_types supported by
+    # the connector. e.g. engine_type = "ndjson://"
+    engine_type = None
+
+    # wildcards can be expanded by subclasses to match multiple data sources which each become
+    # a member of a :class:`MultiConnector`. When set this class will be the default expander.
+    # It is instantiated when the subclass of DataConnector is constructed.
+    # `engine_pattern_expander` must be a subclass of :class:`AbstractExpandEnginePattern`.
+    engine_pattern_expander = None
 
     # subclasses should specify their optional kwargs. Values in this dict are default values.
     optional_args = {}
@@ -267,3 +274,123 @@ class DataConnector:
             "Contribute if you need it! There is an example in JsonConnector."
         )
         raise NotImplementedError(msg)
+
+
+class FileBasedConnector(DataConnector):
+    """
+    'File based' means the operating system is opening a file handle from a path.
+
+    This is a mixin for common functionality between file based `DataConnector` modules.
+    """
+
+    # class variables that can be defined by subclasses or left as are or overwritten with instance
+    # variable.
+    optional_engine_url_args = ["encoding"]  # list of str
+    default_character_encoding = None
+    write_mode_open_args = {}
+    # files will be opened in text mode
+    file_mode = "t"
+
+    def _reset(self):
+        """
+        Subclasses must call this within the constructor
+        """
+        self._file_handle = None
+        self._encoding = None
+        self._engine_params = None
+        self.file_size = None
+
+    @property
+    def engine_params(self):
+        """
+        @return: (Pinnate) with .file_path
+                        and optional: .encoding
+        """
+        if self._engine_params is None:
+            self._engine_params = self._build_engine_params()
+
+        return self._engine_params
+
+    def _build_engine_params(self):
+        """
+        can be overridden by subclass.
+        @see :method:`engine_params`
+        """
+
+        ep = self.ignition._decode_filesystem_engine_url(
+            self.engine_url, optional_args=self.optional_engine_url_args
+        )
+
+        if "encoding" in ep:
+            self._encoding = ep.encoding
+
+        return ep
+
+    def connect(self):
+        if self._file_handle is None:
+            if self.file_mode == "b" and self.encoding is not None:
+                raise ValueError("Binary file mode can't be set with an encoding")
+
+            if self.access == AccessMode.READ:
+                file_mode = "r" + self.file_mode
+                self._file_handle = open(
+                    self.engine_params.file_path, file_mode, encoding=self.encoding
+                )
+                self.file_size = os.stat(self.engine_params.file_path).st_size
+
+            elif self.access == AccessMode.WRITE:
+                file_mode = "w" + self.file_mode
+                self._file_handle = open(
+                    self.engine_params.file_path,
+                    file_mode,
+                    encoding=self.encoding,
+                    **self.write_mode_open_args,
+                )
+            elif self.access == AccessMode.READWRITE:
+                # this is a tricky mode because of flushes, truncates and opening a file
+                # which may or may not exist.
+
+                file_exists = os.path.exists(self.engine_params.file_path)
+
+                if file_exists:
+                    file_mode = "r" + self.file_mode + "+"
+                else:
+                    file_mode = "w" + self.file_mode + "+"
+
+                self._file_handle = open(
+                    self.engine_params.file_path,
+                    file_mode,
+                    encoding=self.encoding,
+                )
+            else:
+                raise ValueError("Unknown access mode")
+
+    @property
+    def file_path(self):
+        """
+        @return: (str) filesystem path to file
+        """
+        return self.engine_params.file_path
+
+    @property
+    def encoding(self):
+        """
+        default encoding. 'sig' means don't include the unicode BOM
+        """
+        if self._encoding is None:
+            ep = self.engine_params
+            self._encoding = ep.encoding if "encoding" in ep else self.default_character_encoding
+
+        return self._encoding
+
+    def close_connection(self):
+        if self._file_handle is not None:
+            self._file_handle.close()
+        self._reset()
+
+    @property
+    def progress(self):
+        if self.access != AccessMode.READ or self.file_size is None or self.approx_position == 0:
+            return None
+
+        return self.approx_position / self.file_size

@@ -3,19 +3,18 @@ Created on 17 Dec 2020
 
 @author: si
 """
-import os
-
 try:
     import ndjson
 except ModuleNotFoundError:
     pass
 
-from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
 
 
-class NdjsonConnector(DataConnector, FilesystemEnginePatternMixin):
+class NdjsonConnector(FileBasedConnector, FilesystemEnginePatternMixin):
     engine_type = "ndjson://"
+    default_character_encoding = "utf-8-sig"
 
     def __init__(self, *args, **kwargs):
         """
@@ -41,57 +40,20 @@ class NdjsonConnector(DataConnector, FilesystemEnginePatternMixin):
             raise NotImplementedError("READWRITE access not yet implemented")
 
     def _reset(self):
-        self.file_handle = None
+        FileBasedConnector._reset(self)
         self.reader = None
         self.writer = None
-        self._encoding = None
-        self._engine_params = None
-        self.file_size = None
         self.approx_position = 0
-
-    @property
-    def engine_params(self):
-        """
-        @return: (Pinnate) with .file_path
-                        and optional: .encoding
-        """
-        if self._engine_params is None:
-            self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url, optional_args=["encoding"]
-            )
-
-            if "encoding" in self._engine_params:
-                self._encoding = self.engine_params.encoding
-
-        return self._engine_params
-
-    @property
-    def encoding(self):
-        """
-        default encoding. 'sig' means don't include the unicode BOM
-        """
-        if self._encoding is None:
-            ep = self.engine_params
-            self._encoding = ep.encoding if "encoding" in ep else "utf-8-sig"
-
-        return self._encoding
-
-    def close_connection(self):
-        if self.file_handle is not None:
-            self.file_handle.close()
-        self._reset()
 
     def connect(self):
         if self.reader is None and self.writer is None:
-
             if self.access == AccessMode.READ:
-                self.file_handle = open(self.engine_params.file_path, "r", encoding=self.encoding)
-                self.file_size = os.stat(self.engine_params.file_path).st_size
-                self.reader = ndjson.reader(self.file_handle)
+                FileBasedConnector.connect(self)
+                self.reader = ndjson.reader(self._file_handle)
 
             elif self.access == AccessMode.WRITE:
-                self.file_handle = open(self.engine_params.file_path, "w", encoding=self.encoding)
-                self.writer = ndjson.writer(self.file_handle)
+                FileBasedConnector.connect(self)
+                self.writer = ndjson.writer(self._file_handle)
 
             else:
                 raise ValueError("Unknown access mode")
@@ -114,13 +76,6 @@ class NdjsonConnector(DataConnector, FilesystemEnginePatternMixin):
     @property
     def data(self):
         raise NotImplementedError("TODO")
-
-    @property
-    def progress(self):
-        if self.access != AccessMode.READ or self.file_size is None or self.approx_position == 0:
-            return None
-
-        return self.approx_position / self.file_size
 
     def add(self, data):
         """

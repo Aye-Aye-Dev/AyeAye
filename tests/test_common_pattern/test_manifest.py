@@ -74,7 +74,6 @@ class TestManifest(unittest.TestCase):
         self.assertEqual({"xyz", "abc"}, set(key_names))
 
     def test_manifest_full_map(self):
-
         manifest = Connect(engine_url=f"json://{TEST_DATA}/manifest_abcd.json")
         m = MagicMapper(manifest_dataset=manifest, field_name="more_files")
 
@@ -98,7 +97,6 @@ class TestManifest(unittest.TestCase):
         self.assertEqual(expected, m.full_map)
 
     def test_manifest_iterate(self):
-
         manifest = Connect(engine_url=f"json://{TEST_DATA}/manifest_abcd.json")
         m = MagicMapper(manifest_dataset=manifest, field_name="more_files")
 
@@ -157,11 +155,8 @@ class TestManifest(unittest.TestCase):
         # manifest file doesn't exist but old use of 'manifest_abcd.json' is still clinging
         # on to class variable.
         s0 = SeabedSurvey(f"{TEST_DATA}/manifest_does_not_exist.json")
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(FileNotFoundError) as context:
             engine_urls = [x.engine_url for x in s0.x_files]
-
-        exception_msg = str(context.exception)
-        self.assertTrue(exception_msg.endswith("which isn't readable"))
 
     def test_manifest_property_single_variable(self):
         """

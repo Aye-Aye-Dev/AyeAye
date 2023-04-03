@@ -7,11 +7,11 @@ import copy
 import csv
 import os
 
-from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
 
 
-class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
+class CsvConnector(FileBasedConnector, FilesystemEnginePatternMixin):
     engine_type = "csv://"
     optional_args = {
         "field_names": None,
@@ -19,12 +19,15 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
         "expected_fields": None,
         "alias_fields": None,
     }
+    optional_engine_url_args = FileBasedConnector.optional_engine_url_args + ["start", "end"]
+    default_character_encoding = "utf-8-sig"
+    write_mode_open_args = {"newline": "\n"}
 
     def __init__(self, *args, **kwargs):
         """
         Connector to Comma Separated Value (CSV) files.
 
-        For args: @see :class:`connectors.base.DataConnector`
+        For args: @see :class:`connectors.base.FileBasedConnector`
 
         additional args for CsvConnector
             field_names (sequence, probably a list (str) - Field names for all rows in file.
@@ -67,11 +70,8 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
             raise NotImplementedError("Read+Write access not yet implemented")
 
     def _reset(self):
-        self.file_handle = None
+        FileBasedConnector._reset(self)
         self.csv = None
-        self._encoding = None
-        self._engine_params = None
-        self.file_size = None
         self.approx_position = 0
         self.field_names = copy.copy(self.base_field_names)
 
@@ -79,45 +79,23 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
     def engine_params(self):
         """
         @return: (Pinnate) with .file_path
-                        and optional: .encoding .start and .end
+                        and optional: .encoding, .start, .end
         """
         if self._engine_params is None:
-            self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url, optional_args=["encoding", "start", "end"]
-            )
-
-            if "encoding" in self._engine_params:
-                self._encoding = self.engine_params.encoding
+            self._engine_params = self._build_engine_params()
 
             for typed_param in ["start", "end"]:
-                if typed_param in self.engine_params:
-                    self.engine_params[typed_param] = int(self.engine_params[typed_param])
+                if typed_param in self._engine_params:
+                    self._engine_params[typed_param] = int(self._engine_params[typed_param])
 
             if "start" in self._engine_params or "end" in self._engine_params:
                 raise NotImplementedError("TODO")
 
         return self._engine_params
 
-    @property
-    def encoding(self):
-        """
-        default encoding. 'sig' means don't include the unicode BOM
-        """
-        if self._encoding is None:
-            ep = self.engine_params
-            self._encoding = ep.encoding if "encoding" in ep else "utf-8-sig"
-        return self._encoding
-
-    def close_connection(self):
-        if self.file_handle is not None:
-            self.file_handle.close()
-        self._reset()
-
     def connect(self):
         if self.csv is None:
-
             if self.access == AccessMode.READ:
-
                 if self.field_names is not None and self.alias_fields is not None:
                     msg = "Can't set field_names and alias them. Just use 'field_names'"
                     raise ValueError(msg)
@@ -127,18 +105,16 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
                 else:
                     extra_args = {}
 
-                self.file_handle = open(self.engine_params.file_path, "r", encoding=self.encoding)
-                self.file_size = os.stat(self.engine_params.file_path).st_size
+                FileBasedConnector.connect(self)
 
                 self.csv = csv.DictReader(
-                    self.file_handle,
+                    self._file_handle,
                     delimiter=self.delimiter,
                     **extra_args,
                 )
                 self.field_names = self.csv.fieldnames
 
                 if self.required_fields is not None:
-
                     required = set(self.required_fields)
                     field_names = set(self.field_names)
 
@@ -151,16 +127,15 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
                     diff_s = set(self.expected_fields).symmetric_difference(set(self.field_names))
                     diff = ",".join(diff_s)
                     diff_count = len(diff_s)
-                    msg = f"Expected fields does match fields found in file. There are {diff_count} difference(s):"
-                    msg += f" [{diff}] expected: ["
-                    msg += ",".join(self.expected_fields)
-                    msg += "] but found: ["
-                    msg += ",".join(self.field_names)
-                    msg += "]"
+                    expected = ",".join(self.expected_fields)
+                    actual = ",".join(self.field_names)
+                    msg = (
+                        f"Expected fields does match fields found in file. There are {diff_count} "
+                        f"difference(s): [{diff}] expected: [{expected}] but found: [{actual}]"
+                    )
                     raise ValueError(msg)
 
                 if self.alias_fields is not None:
-
                     if isinstance(self.alias_fields, dict):
                         replace_fields = [self.alias_fields.get(f, f) for f in self.csv.fieldnames]
                         self.csv.fieldnames = self.field_names = replace_fields
@@ -178,7 +153,6 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
                         self.csv.fieldnames = self.field_names = self.alias_fields
 
             elif self.access == AccessMode.WRITE:
-
                 if (
                     self.required_fields is not None
                     or self.expected_fields is not None
@@ -195,18 +169,17 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
                 if file_dir and not os.path.exists(file_dir):
                     os.makedirs(file_dir)
 
-                self.file_handle = open(
-                    self.engine_params.file_path, "w", newline="\n", encoding=self.encoding
-                )
+                FileBasedConnector.connect(self)
+
                 self.csv = csv.DictWriter(
-                    self.file_handle,
+                    self._file_handle,
                     delimiter=self.delimiter,
                     fieldnames=self.field_names,
                 )
                 self.csv.writeheader()
 
             else:
-                raise ValueError("Unknown access mode")
+                raise ValueError("Unsupported access mode")
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -226,13 +199,6 @@ class CsvConnector(DataConnector, FilesystemEnginePatternMixin):
     @property
     def data(self):
         raise NotImplementedError("TODO")
-
-    @property
-    def progress(self):
-        if self.access != AccessMode.READ or self.file_size is None or self.approx_position == 0:
-            return None
-
-        return self.approx_position / self.file_size
 
     def add(self, data):
         """

@@ -26,7 +26,10 @@ class MultiConnector(DataConnector):
         # MultiConnector passes a copy of the kwargs to each child connector. It's not known
         # until after Connect which ones are permitted by the target DataConnector so the
         # exception wont be raised until usage.
-        base_kwargs = {"engine_url": kwargs.pop("engine_url", None), "access": kwargs.pop("access", AccessMode.READ)}
+        base_kwargs = {
+            "engine_url": kwargs.pop("engine_url", None),
+            "access": kwargs.pop("access", AccessMode.READ),
+        }
         super().__init__(*args, **base_kwargs)
 
         self.connector_kwargs = kwargs
@@ -46,7 +49,9 @@ class MultiConnector(DataConnector):
             self._child_data_connectors = []
             for idx, engine_url in enumerate(self.engine_url):
                 connector_cls = connector_factory(engine_url)
-                connector = connector_cls(engine_url=engine_url, access=self.access, **self.connector_kwargs)
+                connector = connector_cls(
+                    engine_url=engine_url, access=self.access, **self.connector_kwargs
+                )
                 self._child_data_connectors.append(connector)
                 # this is the unresolved engine_url
                 self._child_dc_mapping[engine_url] = idx
@@ -125,5 +130,8 @@ class MultiConnector(DataConnector):
 
     @property
     def data(self):
+        """
+        @return: list of subclasses of :class:`DataConnector` objects.
+        """
         self.connect()
         return self._child_data_connectors

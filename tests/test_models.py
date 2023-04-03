@@ -32,12 +32,11 @@ class TestModels(unittest.TestCase):
         return self._working_directory
 
     def test_go_closes_dataset_connections(self):
-
         m = FakeModel()
         m.log_to_stdout = False
         m.go()
 
-        self.assertEqual(None, m.animals.file_handle, "File handle should be closed")
+        self.assertEqual(None, m.animals._file_handle, "File handle should be closed")
 
     def test_double_usage(self):
         """

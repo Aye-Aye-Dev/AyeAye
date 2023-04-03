@@ -3,12 +3,10 @@ Created on 19 May 2021
 
 @author: si
 """
-import os
-
-from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
 
 
-class UncookedConnector(DataConnector, FilesystemEnginePatternMixin):
+class UncookedConnector(FileBasedConnector, FilesystemEnginePatternMixin):
     engine_type = "file://"
     optional_args = {
         "file_mode": "t",
@@ -41,14 +39,12 @@ class UncookedConnector(DataConnector, FilesystemEnginePatternMixin):
         if self.access == AccessMode.READWRITE:
             raise NotImplementedError("READWRITE access not yet implemented")
 
+        # this overwrites a class variable in :class:`FileBasedConnector`
         if self.file_mode not in ["b", "t"]:
             raise ValueError(f"File mode: {self.file_mode} not supported")
 
     def _reset(self):
-        self._file_handle = None  # lazy eval, use self.file_handle
-        self._encoding = None
-        self._engine_params = None
-        self.file_size = None
+        FileBasedConnector._reset(self)
         self._file_content = None  # used in read mode
 
     @property
@@ -58,67 +54,6 @@ class UncookedConnector(DataConnector, FilesystemEnginePatternMixin):
         """
         self.connect()
         return self._file_handle
-
-    @property
-    def file_path(self):
-        """
-        @return: (str) filesystem path to file
-        """
-        return self.engine_params.file_path
-
-    @property
-    def engine_params(self):
-        """
-        @return: (Pinnate) with .file_path
-                        and optional: .encoding
-        """
-        if self._engine_params is None:
-            self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url, optional_args=["encoding"]
-            )
-
-            if "encoding" in self._engine_params:
-                self._encoding = self.engine_params.encoding
-
-        return self._engine_params
-
-    @property
-    def encoding(self):
-        """
-        default encoding. 'sig' means don't include the unicode BOM
-        """
-        if self._encoding is None:
-            ep = self.engine_params
-            self._encoding = ep.encoding if "encoding" in ep else None
-
-        return self._encoding
-
-    def close_connection(self):
-        if self._file_handle is not None:
-            self._file_handle.close()
-        self._reset()
-
-    def connect(self):
-        if self._file_handle is None:
-
-            if self.file_mode == "b" and self.encoding is not None:
-                raise ValueError("Binary file mode can't be set with an encoding")
-
-            if self.access == AccessMode.READ:
-                file_mode = "r" + self.file_mode
-                self._file_handle = open(
-                    self.engine_params.file_path, file_mode, encoding=self.encoding
-                )
-                self.file_size = os.stat(self.engine_params.file_path).st_size
-
-            elif self.access == AccessMode.WRITE:
-                file_mode = "w" + self.file_mode
-                self._file_handle = open(
-                    self.engine_params.file_path, file_mode, encoding=self.encoding
-                )
-
-            else:
-                raise ValueError("Unknown access mode")
 
     def __len__(self):
         """

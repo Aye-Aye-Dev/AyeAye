@@ -6,12 +6,14 @@ Created on 15 Apr 2020
 import json
 import os
 
-from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
 
 
-class JsonConnector(DataConnector, FilesystemEnginePatternMixin):
+class JsonConnector(FileBasedConnector, FilesystemEnginePatternMixin):
     engine_type = "json://"
+    optional_engine_url_args = FileBasedConnector.optional_engine_url_args + ["indent"]
+    default_character_encoding = "utf-8-sig"
 
     def __init__(self, *args, **kwargs):
         """
@@ -29,38 +31,21 @@ class JsonConnector(DataConnector, FilesystemEnginePatternMixin):
 
         """
         super().__init__(*args, **kwargs)
-
-        self._doc = None
-        self._encoding = None
-        self._engine_params = None
+        self._reset()
 
     @property
     def engine_params(self):
         if self._engine_params is None:
-            self._engine_params = self.ignition._decode_filesystem_engine_url(
-                self.engine_url, optional_args=["encoding", "indent"]
-            )
-
-            if "encoding" in self._engine_params:
-                self._encoding = self.engine_params.encoding
+            self._engine_params = self._build_engine_params()
 
             for typed_param in ["indent"]:
-                if typed_param in self.engine_params:
-                    self.engine_params[typed_param] = int(self.engine_params[typed_param])
+                if typed_param in self._engine_params:
+                    self._engine_params[typed_param] = int(self._engine_params[typed_param])
 
         return self._engine_params
 
-    @property
-    def encoding(self):
-        """
-        default encoding. 'sig' means don't include the unicode BOM
-        """
-        if self._encoding is None:
-            ep = self.engine_params
-            self._encoding = ep.encoding if "encoding" in ep else "utf-8-sig"
-        return self._encoding
-
-    def close_connection(self):
+    def _reset(self):
+        FileBasedConnector._reset(self)
         self._doc = None
 
     def connect(self):
@@ -72,20 +57,7 @@ class JsonConnector(DataConnector, FilesystemEnginePatternMixin):
         open by the JsonConnector. The write operation is in :method:`_data_write`.
         """
         if self._doc is None:
-
-            file_path = self.engine_params.file_path
-            if (
-                self.access in [AccessMode.READ, AccessMode.READWRITE]
-                and os.path.isfile(file_path)
-                and os.access(file_path, os.R_OK)
-            ):
-
-                with open(file_path, "r", encoding=self.encoding) as f:
-                    as_native = json.load(f)
-                    self._doc = Pinnate(as_native)
-
-            else:
-                raise ValueError(f"Attempt to read '{file_path}' which isn't readable")
+            FileBasedConnector.connect(self)
 
     def __len__(self):
         raise NotImplementedError("TODO")
@@ -97,7 +69,14 @@ class JsonConnector(DataConnector, FilesystemEnginePatternMixin):
         raise NotImplementedError("Not an iterative dataset. Use .data instead.")
 
     def _data_read(self):
-        self.connect()
+        if self._doc is None:
+            self.connect()
+            as_native = json.load(self._file_handle)
+            self._doc = Pinnate(as_native)
+
+            if self.access == AccessMode.READWRITE:
+                self._file_handle.seek(0)
+
         return self._doc
 
     def _data_write(self, new_data):
@@ -112,6 +91,8 @@ class JsonConnector(DataConnector, FilesystemEnginePatternMixin):
         if self.access not in [AccessMode.WRITE, AccessMode.READWRITE]:
             raise ValueError("Write attempted on dataset opened in READ mode.")
 
+        self.connect()
+
         json_args = {}
         if "indent" in self.engine_params:
             json_args["indent"] = self.engine_params["indent"]
@@ -121,10 +102,13 @@ class JsonConnector(DataConnector, FilesystemEnginePatternMixin):
         else:
             as_json = json.dumps(new_data, **json_args)
 
-        # Data is written to disk immediately. The file handle isn't left open.
-        # @see :method:`connect`.
-        with open(self.engine_params.file_path, "w", encoding=self.encoding) as f:
-            f.write(as_json)
+        # Data is written to beginning of file (it might be readwrite or already written to);
+        # write to disk immediately (i.e. flush); @see :method:`connect`.
+        self._file_handle.seek(0)
+        self._file_handle.write(as_json)
+        # truncate rest of the file as the previous contents might have been longer
+        self._file_handle.truncate()
+        self._file_handle.flush()
 
     data = property(fget=_data_read, fset=_data_write)
 
