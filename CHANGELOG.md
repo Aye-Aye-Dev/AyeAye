@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
-### Changes
+## [0.0.37] - 2023-04-11
+
+### Added
+- engine_type (i.e. engine_type://xxx) can be context resolved.
+
+### Changed
 - PartitionedModel now runs .build() before subtasks. This is a change in behaviour to ensure .build() runs before subtasks. The execution of subtasks isn't ordered.
 
 ## [0.0.36] - 2023-03-28

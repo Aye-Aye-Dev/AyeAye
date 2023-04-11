@@ -133,6 +133,16 @@ class DataConnector:
         # :class:`Ignition` module does this and makes URLs croxx-operating system compatible.
         self.ignition = Ignition(engine_url)
 
+        # It might be both possible and necessary to resolve the engine_url. This happens when the
+        # engine_type is within the resolve context. e.g. engine_url="{my_engine_type}://somedata"
+        try:
+            status, e_url = self.ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+            if status == EngineUrlStatus.OK:
+                engine_url = e_url
+        except ValueError:
+            # no problem if not resolvable yet
+            pass
+
         if isinstance(engine_url, str):
             engine_type = (
                 [self.engine_type] if isinstance(self.engine_type, str) else self.engine_type

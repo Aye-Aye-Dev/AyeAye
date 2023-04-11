@@ -4,6 +4,7 @@ import unittest
 from ayeaye.connect_resolve import ConnectorResolver, connector_resolver
 from ayeaye.connect import Connect
 from ayeaye.connectors.csv_connector import CsvConnector
+from ayeaye.connectors.uncooked_connector import UncookedConnector
 from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
 from ayeaye.model import Model
 
@@ -220,7 +221,6 @@ class TestResolve(unittest.TestCase):
         self.assertEqual(expected_url, engine_url)
 
     def test_named_variables(self):
-
         with connector_resolver.context(env_secret_password="supersecret"):
             x = Connect(engine_url="mysql://root:{env_secret_password}@localhost/my_database")
             x.connect_standalone()
@@ -372,3 +372,28 @@ class TestResolve(unittest.TestCase):
             with self.assertRaises(ValueError):
                 # each context should be isolated from the other so this var shouldn't be visible
                 _ = m.context_check_1.engine_url
+
+    def test_engine_type(self):
+        """
+        The engine_type (i.e. engine_type://xxxx) is only available after the context has been
+        resolved.
+        """
+        # # It might be both possible and necessary to resolve the engine_url. This happens when the
+        # # engine_type is within the resolve context. e.g. engine_url="{my_engine_type}://somedata"
+        # status, e_url = self.ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+        # if status == EngineUrlStatus.OK:
+        #     engine_url = e_url
+
+        class DangerousDogsSurvey(Model):
+            bad_mutts = Connect(engine_url="{engine_base}/dogs")
+
+        with connector_resolver.context(engine_base="file:///data"):
+            m = DangerousDogsSurvey()
+            self.assertEqual("file:///data/dogs", m.bad_mutts.engine_url)
+            self.assertIsInstance(m.bad_mutts, UncookedConnector)
+
+        # try another context and check a specialised connector is used
+        with connector_resolver.context(engine_base="csv:///data"):
+            m = DangerousDogsSurvey()
+            self.assertEqual("csv:///data/dogs", m.bad_mutts.engine_url)
+            self.assertIsInstance(m.bad_mutts, CsvConnector)

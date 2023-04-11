@@ -152,7 +152,6 @@ class TestConnect(unittest.TestCase):
 
         all_the_animals = []
         for index, data_connector in enumerate(c):
-
             if index == 0:
                 self.assertIsInstance(data_connector, TsvConnector)
             elif index == 1:
@@ -269,7 +268,6 @@ class TestConnect(unittest.TestCase):
         self.assertEqual("magic_encoding", animals.encoding)
 
     def test_construction_args(self):
-
         with self.assertRaises(ValueError, msg="Ref and engine_url are mutually exclusive"):
             Connect(ref="x", engine_url="tsv://" + EXAMPLE_TSV_PATH)
 

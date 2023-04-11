@@ -7,6 +7,7 @@ class PlaceholderDataConnector(DataConnector):
     callable that can convert a DataConnector belonging to an :class`ayeaye.Model` into
     another subclass of DataConnector.
     """
+
     engine_type = None
 
     def connect(self):

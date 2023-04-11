@@ -6,16 +6,21 @@ from ayeaye.pinnate import Pinnate
 
 
 class EngineUrlCase(Enum):
-    RAW = 'raw'  # unprocessed first sight of engine_url - e.g. as passed to :class:`Connect`
-    WITHOUT_SECRETS = 'without_secrets'  # everything needed to connect to dataset apart from secrets
-    FULLY_RESOLVED = 'fully_resolved'  # has everything needed to connect to dataset
+    # unprocessed first sight of engine_url - e.g. as passed to :class:`Connect`
+    RAW = "raw"
+
+    # everything needed to connect to dataset apart from secrets
+    WITHOUT_SECRETS = "without_secrets"
+
+    # has everything needed to connect to dataset
+    FULLY_RESOLVED = "fully_resolved"
 
 
 class EngineUrlStatus(Enum):
-    OK = 'ok'  # has been resolved
-    NOT_AVAILABLE = 'not_available'  # will never be available
-    NOT_YET_AVAILABLE = 'not_yet_available'  # deferred. waiting on something
-    UNKNOWN = 'unknown'
+    OK = "ok"  # has been resolved
+    NOT_AVAILABLE = "not_available"  # will never be available
+    NOT_YET_AVAILABLE = "not_yet_available"  # deferred. waiting on something
+    UNKNOWN = "unknown"
 
 
 class Ignition:
@@ -43,7 +48,7 @@ class Ignition:
         """
         Get the engine_url in a specific case. e.g. raw, without secrets or fully resolved.
 
-        @raise ValueError: from connector_resolver
+        @raise ValueError: from here or connector_resolver
         @param engine_url_case: (EngineUrlCase)
         @return: (EngineUrlStatus, str or None)
         """
@@ -54,14 +59,19 @@ class Ignition:
 
         if engine_url_case not in self._engine_url_state:
             raw_e_url = self._engine_url_state[EngineUrlCase.RAW]
+
+            if raw_e_url is None:
+                raise ValueError("engine_url passed as None")
+
             if connector_resolver.needs_resolution(raw_e_url):
                 # local resolution is still needed
                 resolved = connector_resolver.resolve(raw_e_url)
                 self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = resolved
             else:
                 # nothing to resolve so fully_resolved = raw
-                self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = \
-                    self._engine_url_state[EngineUrlCase.RAW]
+                self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = self._engine_url_state[
+                    EngineUrlCase.RAW
+                ]
 
         if engine_url_case in self._engine_url_state:
             return EngineUrlStatus.OK, self._engine_url_state[engine_url_case]
@@ -94,11 +104,12 @@ class Ignition:
 
         # TODO cls.engine_type could be a list. It's normally a string.
         engine_type, remaining_url = engine_url.split("://", 1)
-        path_plus = remaining_url.split(';')
+        path_plus = remaining_url.split(";")
         file_path = path_plus[0]
-        d = {'file_path': file_path,
-             'engine_type': engine_type,
-             }
+        d = {
+            "file_path": file_path,
+            "engine_type": engine_type,
+        }
         if len(path_plus) > 1:
             for arg in path_plus[1:]:
                 k, v = arg.split("=", 1)
@@ -106,8 +117,8 @@ class Ignition:
                     raise ValueError(f"Unknown option: {k}")
                 d[k] = v
 
-        if os.path.sep != '/':
+        if os.path.sep != "/":
             # urrgh, Windoze
-            d['file_path'] = d['file_path'].replace('/', os.path.sep)
+            d["file_path"] = d["file_path"].replace("/", os.path.sep)
 
         return Pinnate(d)

@@ -56,24 +56,26 @@ class CsvConnector(FileBasedConnector, FilesystemEnginePatternMixin):
             csv://<filesystem absolute path>data_file.csv[;start=<line number>][;end=<line number>][;encoding=<character encoding>]
         e.g. csv:///data/my_project/all_the_data.csv
         """
+        self._reset()
         super().__init__(*args, **kwargs)
 
         # fieldnames are loaded from construction args or from field. This will be unified when
         # schemas are implemented. For now, keep track so loading fieldnames from file doesn't
         # make a :method:`_reset`
         self.base_field_names = copy.copy(self.field_names)
-
         self.delimiter = ","
-        self._reset()
 
         if self.access == AccessMode.READWRITE:
             raise NotImplementedError("Read+Write access not yet implemented")
+
+        self._reset()
 
     def _reset(self):
         FileBasedConnector._reset(self)
         self.csv = None
         self.approx_position = 0
-        self.field_names = copy.copy(self.base_field_names)
+        if hasattr(self, "base_field_names"):
+            self.field_names = copy.copy(self.base_field_names)
 
     @property
     def engine_params(self):

@@ -30,8 +30,8 @@ class JsonConnector(FileBasedConnector, FilesystemEnginePatternMixin):
         e.g. json:///data/my_project/the_data.json;encoding=latin-1
 
         """
-        super().__init__(*args, **kwargs)
         self._reset()
+        super().__init__(*args, **kwargs)
 
     @property
     def engine_params(self):

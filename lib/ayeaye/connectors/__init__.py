@@ -13,6 +13,8 @@ from .restful_connector import RestfulConnector
 from .sqlalchemy_database import SqlAlchemyDatabaseConnector
 from .uncooked_connector import UncookedConnector
 
+from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
+
 
 class ConnectorPluginsRegistry:
     def __init__(self):
@@ -57,7 +59,19 @@ def connector_factory(engine_url):
     return a subclass of DataConnector
     @param engine_url (str):
     """
-    # TODO - these really need to be on demand and possibly outside this project
+    if isinstance(engine_url, str) and "://" not in engine_url:
+        # The engine type is only available after the context has been resolved. Don't error here
+        # if resolution isn't yet possible.
+        ignition = Ignition(engine_url)
+        try:
+            status, e_url = ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+            if status == EngineUrlStatus.OK:
+                engine_url = e_url
+        except ValueError:
+            # Full resolve not available yet. It could be possible to use a partially
+            # resolved url if this current behaviour isn't good enough.
+            pass
+
     engine_type = engine_url.split("://", 1)[0] + "://"
     for connector_cls in connector_registry.registered_connectors:
         if isinstance(connector_cls.engine_type, list):

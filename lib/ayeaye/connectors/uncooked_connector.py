@@ -32,9 +32,8 @@ class UncookedConnector(FileBasedConnector, FilesystemEnginePatternMixin):
             file://<filesystem absolute path>[;encoding=<character encoding>]
         e.g. file:///data/my_project/interesting_notes.txt;encoding=latin-1
         """
-        super().__init__(*args, **kwargs)
-
         self._reset()
+        super().__init__(*args, **kwargs)
 
         if self.access == AccessMode.READWRITE:
             raise NotImplementedError("READWRITE access not yet implemented")
