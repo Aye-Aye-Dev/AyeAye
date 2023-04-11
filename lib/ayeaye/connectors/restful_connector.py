@@ -23,6 +23,15 @@ class RestfulConnector(DataConnector):
         "keep_alive": True,  # http 1.1 mode is the default
     }
 
+    class RawData:
+        "Wrapper class to indicate data shouldn't be cast to JSON"
+
+        def __init__(self, data):
+            """
+            @param data: (mixed) something that can be passed to :requests:
+            """
+            self.data = data
+
     def __init__(self, *args, **kwargs):
         """
         Connector to read and write to JSON RestFul APIs.
@@ -70,6 +79,11 @@ class RestfulConnector(DataConnector):
         self.statistics = None  # OK to read this
         self.reset_stats()
         self.profiler = ProfileRequest(statistics=self.statistics)
+
+    @classmethod
+    def as_raw(cls, data):
+        "Wrapper to mark data a not needing to be cast into JSON"
+        return cls.RawData(data=data)
 
     def reset_stats(self):
         """clear profiling requests made during lifetime of object
@@ -214,6 +228,8 @@ class RestfulConnector(DataConnector):
             either fully qualified or url suffix (e.g. 'site/' that needs self.engine_url)
 
         @param data: :class:`Pinnate` object or something that serialises to JSON
+         OR
+        :class:`RestfulConnector.RawData`
 
         @return: :class:`Pinnate` object representing the JSON response or None if response
             doesn't contain valid JSON.
@@ -229,14 +245,16 @@ class RestfulConnector(DataConnector):
         if isinstance(self.headers, dict):
             headers.update(self.headers)
 
-        if isinstance(data, Pinnate):
-            json_data = json.dumps(data.as_dict())
+        if isinstance(data, RestfulConnector.RawData):
+            request_data = data.data
+        elif isinstance(data, Pinnate):
+            request_data = json.dumps(data.as_dict())
         else:
-            json_data = json.dumps(data)
+            request_data = json.dumps(data)
 
         with self.profiler(url_):
             try:
-                r = self._requests.post(url_, data=json_data, headers=headers)
+                r = self._requests.post(url_, data=request_data, headers=headers)
             except requests.ConnectionError as c:
                 msg = f"Failed to POST to {url_}"
                 raise RestfulConnectorConnectionError(msg, details=c.message)

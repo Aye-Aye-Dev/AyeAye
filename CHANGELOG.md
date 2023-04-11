@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.38] - 2023-04-11
+
+### Added
+- The RestfulConnector can be passed raw data to pass directly to the request.post method
+
 ## [0.0.37] - 2023-04-11
 
 ### Added
