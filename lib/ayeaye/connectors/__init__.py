@@ -14,6 +14,7 @@ from .sqlalchemy_database import SqlAlchemyDatabaseConnector
 from .uncooked_connector import UncookedConnector
 
 from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
+from ayeaye.connectors.engine_type_modifiers import engine_type_modifier_factory
 
 
 class ConnectorPluginsRegistry:
@@ -56,10 +57,12 @@ connector_registry = ConnectorPluginsRegistry()
 
 def connector_factory(engine_url):
     """
-    return a subclass of DataConnector
     @param engine_url (str):
+        format is [modifier+[...modifier_n+]]<engine_type>://<engine_specific_parameters>
+    @return a subclass of :class:`DataConnector`
     """
-    if isinstance(engine_url, str) and "://" not in engine_url:
+    engine_type_separator = "://"
+    if isinstance(engine_url, str) and engine_type_separator not in engine_url:
         # The engine type is only available after the context has been resolved. Don't error here
         # if resolution isn't yet possible.
         ignition = Ignition(engine_url)
@@ -72,14 +75,40 @@ def connector_factory(engine_url):
             # resolved url if this current behaviour isn't good enough.
             pass
 
-    engine_type = engine_url.split("://", 1)[0] + "://"
-    for connector_cls in connector_registry.registered_connectors:
-        if isinstance(connector_cls.engine_type, list):
-            supported_engines = connector_cls.engine_type
-        else:
-            supported_engines = [connector_cls.engine_type]
+    if engine_type_separator in engine_url:
+        engine_type = engine_url.split(engine_type_separator, 1)[0] + engine_type_separator
 
-        if engine_type in supported_engines:
-            return connector_cls
+        modifier_labels = None
+        if "+" in engine_type:
+            # engine type modifiers are being used. e.g. the 'gz' in `gz+ndjson://`
+            engine_parts = engine_type.split("+")
+            modifier_labels = engine_parts[:-1]
+            engine_type = engine_parts[-1]
+
+        for connector_cls in connector_registry.registered_connectors:
+            if isinstance(connector_cls.engine_type, list):
+                supported_engines = connector_cls.engine_type
+            else:
+                supported_engines = [connector_cls.engine_type]
+
+            if engine_type in supported_engines:
+                if modifier_labels:
+                    # find a suitable modifier - it needs to support this connector class
+                    # and the modifiers
+                    modified_connector_cls = engine_type_modifier_factory(
+                        connector_cls=connector_cls,
+                        modifier_labels=modifier_labels,
+                    )
+
+                    # build a DataConnector like class that can be treated just like a normal
+                    # data connector.
+                    dynamic_dc_cls = modified_connector_cls.apply(
+                        connector_cls=connector_cls,
+                        modifier_labels=modifier_labels,
+                    )
+
+                    return dynamic_dc_cls
+
+                return connector_cls
 
     raise NotImplementedError(f"Unknown engine in url:{engine_url}")

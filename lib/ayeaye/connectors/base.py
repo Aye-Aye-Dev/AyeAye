@@ -336,6 +336,14 @@ class FileBasedConnector(DataConnector):
 
         return ep
 
+    def _open(self, *args, **kwargs):
+        """
+        Wrap the file open function for ease of using alternatives.
+        @see :class:`SmartOpenModifier` for an example
+        """
+        # standard python filesystem open
+        return open(*args, **kwargs)
+
     def connect(self):
         if self._file_handle is None:
             if self.file_mode == "b" and self.encoding is not None:
@@ -343,14 +351,14 @@ class FileBasedConnector(DataConnector):
 
             if self.access == AccessMode.READ:
                 file_mode = "r" + self.file_mode
-                self._file_handle = open(
+                self._file_handle = self._open(
                     self.engine_params.file_path, file_mode, encoding=self.encoding
                 )
                 self.file_size = os.stat(self.engine_params.file_path).st_size
 
             elif self.access == AccessMode.WRITE:
                 file_mode = "w" + self.file_mode
-                self._file_handle = open(
+                self._file_handle = self._open(
                     self.engine_params.file_path,
                     file_mode,
                     encoding=self.encoding,
@@ -367,7 +375,7 @@ class FileBasedConnector(DataConnector):
                 else:
                     file_mode = "w" + self.file_mode + "+"
 
-                self._file_handle = open(
+                self._file_handle = self._open(
                     self.engine_params.file_path,
                     file_mode,
                     encoding=self.encoding,

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-- nothing
+- Smart open is the first engine_type modifier. It now supports compression with all DataConnectors that subclass `FileBasedConnector`. So engine_urls like 'gz+ndjson://myfile.ndjson.gz' are now supported.
 
 ## [0.0.38] - 2023-04-11
 
