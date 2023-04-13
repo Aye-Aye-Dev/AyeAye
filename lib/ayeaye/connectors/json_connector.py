@@ -4,7 +4,6 @@ Created on 15 Apr 2020
 @author: si
 """
 import json
-import os
 
 from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
 from ayeaye.pinnate import Pinnate
@@ -111,11 +110,3 @@ class JsonConnector(FileBasedConnector, FilesystemEnginePatternMixin):
         self._file_handle.flush()
 
     data = property(fget=_data_read, fset=_data_write)
-
-    @property
-    def datasource_exists(self):
-        """
-        Returns:
-            (bool) if the datasource referred to in self.engine_url exists.
-        """
-        return os.path.exists(self.engine_params.file_path)

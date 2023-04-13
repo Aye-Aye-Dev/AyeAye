@@ -69,4 +69,8 @@ class AbstractEngineTypeModifier:
             requested_modifier_labels = modifier_labels
             engine_type = dyn_engine_type
 
+            def __init__(self, *args, **kwargs):
+                cls.__init__(self)
+                connector_cls.__init__(self, *args, **kwargs)
+
         return DynamicConnector

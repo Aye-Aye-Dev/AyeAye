@@ -281,7 +281,7 @@ class DataConnector:
     def datasource_exists(self):
         msg = (
             "Can optionally be implemented by subclasses. "
-            "Contribute if you need it! There is an example in JsonConnector."
+            "Contribute if you need it! There is an example in :class:`FileBasedConnector`."
         )
         raise NotImplementedError(msg)
 
@@ -344,6 +344,14 @@ class FileBasedConnector(DataConnector):
         # standard python filesystem open
         return open(*args, **kwargs)
 
+    def _get_file_size(self):
+        """
+        @return: int or None if not available
+        """
+        if self.datasource_exists:
+            return os.stat(self.file_path).st_size
+        return None
+
     def connect(self):
         if self._file_handle is None:
             if self.file_mode == "b" and self.encoding is not None:
@@ -351,15 +359,13 @@ class FileBasedConnector(DataConnector):
 
             if self.access == AccessMode.READ:
                 file_mode = "r" + self.file_mode
-                self._file_handle = self._open(
-                    self.engine_params.file_path, file_mode, encoding=self.encoding
-                )
-                self.file_size = os.stat(self.engine_params.file_path).st_size
+                self._file_handle = self._open(self.file_path, file_mode, encoding=self.encoding)
+                self.file_size = self._get_file_size()
 
             elif self.access == AccessMode.WRITE:
                 file_mode = "w" + self.file_mode
                 self._file_handle = self._open(
-                    self.engine_params.file_path,
+                    self.file_path,
                     file_mode,
                     encoding=self.encoding,
                     **self.write_mode_open_args,
@@ -367,16 +373,13 @@ class FileBasedConnector(DataConnector):
             elif self.access == AccessMode.READWRITE:
                 # this is a tricky mode because of flushes, truncates and opening a file
                 # which may or may not exist.
-
-                file_exists = os.path.exists(self.engine_params.file_path)
-
-                if file_exists:
+                if self.datasource_exists:
                     file_mode = "r" + self.file_mode + "+"
                 else:
                     file_mode = "w" + self.file_mode + "+"
 
                 self._file_handle = self._open(
-                    self.engine_params.file_path,
+                    self.file_path,
                     file_mode,
                     encoding=self.encoding,
                 )
@@ -389,6 +392,14 @@ class FileBasedConnector(DataConnector):
         @return: (str) filesystem path to file
         """
         return self.engine_params.file_path
+
+    @property
+    def datasource_exists(self):
+        """
+        Returns:
+            (bool) if the datasource referred to in self.engine_url exists.
+        """
+        return os.path.exists(self.file_path)
 
     @property
     def encoding(self):

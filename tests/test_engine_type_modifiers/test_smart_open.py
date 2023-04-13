@@ -41,7 +41,6 @@ class TestEngineTypeModifier(unittest.TestCase):
         first_record = next(iter(c))
         self.assertEqual("NEW FOREST", first_record.name, "Known first record in sample data")
 
-    @unittest.skip("TODO")
     def test_filesystem_listing(self):
         """
         When 'gz+' is used as the modifier it should be possible to use wildcards to expand to
@@ -57,9 +56,3 @@ class TestEngineTypeModifier(unittest.TestCase):
         # first record in first (i.e. only) connector
         first_record = next(iter(c.data[0]))
         self.assertEqual("NEW FOREST", first_record.name, "Known first record in sample data")
-
-    @unittest.skip("TODO")
-    def test_s3_factory(self):
-        "Returns a connector"
-        concrete_connector = Connect(engine_url="s3+ndjson://")._prepare_connection()
-        print(type(concrete_connector))

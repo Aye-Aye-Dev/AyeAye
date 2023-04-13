@@ -10,6 +10,7 @@ pandas = "*"
 requests = "*"
 responses = "*"
 smart-open = "*"
+boto3 = "*"
 
 [packages]
 ndjson = "*"

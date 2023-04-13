@@ -86,6 +86,12 @@ Extra dependencies for API usage within Aye-aye models can be installed like thi
 pipenv install "ayeaye[api]"
 ```
 
+| Label | Functionality |
+| --- | --- |
+| api | Restful JSON via http(s) |
+| aws | File based connectors can use Amazon Web Service S3 file storage |
+| compression | On the fly compression for file based connectors |
+
 
 ## License
 
