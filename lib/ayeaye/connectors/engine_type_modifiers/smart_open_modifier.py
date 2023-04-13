@@ -110,3 +110,10 @@ class SmartOpenModifier(AbstractEngineTypeModifier):
 
             return os.stat(self.file_path).st_size
         return None
+
+    def auto_create_directory(self):
+        if self._s3_resource:
+            # I'm pretty sure you don't need to do this with s3/gcs
+            return
+
+        self._auto_create_directory()

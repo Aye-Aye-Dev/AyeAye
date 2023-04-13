@@ -10,7 +10,7 @@ import unittest
 
 from sqlalchemy import inspect, Column, Integer, String
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 import ayeaye
 from ayeaye.connectors.sqlalchemy_database import SqlAlchemyDatabaseConnector
@@ -78,7 +78,6 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         self.assertEqual(expected, super_classes)
 
     def test_create_db_schema(self):
-
         c = SqlAlchemyDatabaseConnector(
             engine_url="sqlite://",
             schema_builder=fruit_schemas,
@@ -101,7 +100,6 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         self.assertEqual(0, len(all_the_pears))
 
     def test_add_orm_data_single(self):
-
         c = SqlAlchemyDatabaseConnector(
             engine_url="sqlite://", schema_builder=people_schema, access=ayeaye.AccessMode.READWRITE
         )
@@ -117,7 +115,6 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         self.assertEqual(expected, " ".join(all_the_people))
 
     def test_add_orm_data_multiple(self):
-
         c = SqlAlchemyDatabaseConnector(
             engine_url="sqlite://", schema_builder=fruit_schemas, access=ayeaye.AccessMode.READWRITE
         )
@@ -223,7 +220,6 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         people.close_connection()
 
     def test_schema_builder_model_exclusive(self):
-
         PeoplCls = people_schema(declarative_base=declarative_base())
 
         with self.assertRaises(ValueError):
@@ -336,7 +332,7 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         )
         final_colours = set()
         for r in results:
-            final_colours.add(dict(r)["colour"])
+            final_colours.add(r._mapping["colour"])
 
         assert set(["blue", "green"]) == final_colours
 
@@ -367,7 +363,6 @@ class TestSqlAlchemyConnector(unittest.TestCase):
             ("White witch moth", "Thysania agrippina", "long longest wingspan"),
             ("Madagascan sunset moth", "Chrysiridia rhipheus", "v. impressive and beautiful"),
         ]:
-
             r = dict(common_name=common_name, scientific_name=scientific_name, notes=notes)
             moths.add(r)
 

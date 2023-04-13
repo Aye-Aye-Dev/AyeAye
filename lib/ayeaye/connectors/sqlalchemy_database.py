@@ -5,8 +5,8 @@ Created on 22 Jan 2020
 """
 try:
     from sqlalchemy import create_engine
-    from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.ext.declarative import DeclarativeMeta
+    from sqlalchemy.orm import declarative_base, sessionmaker
     from sqlalchemy.sql import text
 except ModuleNotFoundError:
     pass
@@ -78,12 +78,10 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         self._schema_p = None  # see :method:`connect`
 
     def connect(self):
-
         if self.Base is not None:
             return
 
         if self.schema_model is not None:
-
             if isinstance(self.schema_model, list):
                 check_schema_models = self.schema_model
             else:

@@ -352,6 +352,19 @@ class FileBasedConnector(DataConnector):
             return os.stat(self.file_path).st_size
         return None
 
+    def auto_create_directory(self):
+        "Place for a hook within subclasses. @see :method:`_auto_create_directory`"
+        return self._auto_create_directory()
+
+    def _auto_create_directory(self):
+        """If the filesystem path that is about to be written to doesn't exist, create it.
+
+        It could be a relative path in current working directory
+        """
+        file_dir = os.path.dirname(self.file_path)
+        if file_dir and not os.path.exists(file_dir):
+            os.makedirs(file_dir)
+
     def connect(self):
         if self._file_handle is None:
             if self.file_mode == "b" and self.encoding is not None:

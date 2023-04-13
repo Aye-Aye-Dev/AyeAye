@@ -166,10 +166,7 @@ class CsvConnector(FileBasedConnector, FilesystemEnginePatternMixin):
                     )
                     raise ValueError(msg)
 
-                # auto create directory - could be relative path in current working directory
-                file_dir = os.path.dirname(self.engine_params.file_path)
-                if file_dir and not os.path.exists(file_dir):
-                    os.makedirs(file_dir)
+                self.auto_create_directory()
 
                 FileBasedConnector.connect(self)
 
