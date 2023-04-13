@@ -8,11 +8,11 @@ try:
 except ModuleNotFoundError:
     pass
 
-from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector
 from ayeaye.pinnate import Pinnate
 
 
-class NdjsonConnector(FileBasedConnector, FilesystemEnginePatternMixin):
+class NdjsonConnector(FileBasedConnector):
     engine_type = "ndjson://"
     default_character_encoding = "utf-8-sig"
 

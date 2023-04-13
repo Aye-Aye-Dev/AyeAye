@@ -15,12 +15,13 @@ except ModuleNotFoundError:
 
 import os
 
-from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, DataConnector, FilesystemEnginePattern
 from ayeaye.pinnate import Pinnate
 
 
-class ParquetConnector(DataConnector, FilesystemEnginePatternMixin):
+class ParquetConnector(DataConnector):
     engine_type = "parquet://"
+    # engine_pattern_expander_cls = FilesystemEnginePattern
 
     def __init__(self, *args, **kwargs):
         """
@@ -50,7 +51,6 @@ class ParquetConnector(DataConnector, FilesystemEnginePatternMixin):
 
     def connect(self):
         if self.table is None:
-
             engine_params = self.ignition._decode_filesystem_engine_url(self.engine_url)
             file_path = engine_params.file_path
             if os.path.isdir(file_path):

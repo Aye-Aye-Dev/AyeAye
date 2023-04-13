@@ -5,13 +5,12 @@ Created on 14 Jan 2020
 """
 import copy
 import csv
-import os
 
-from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector
 from ayeaye.pinnate import Pinnate
 
 
-class CsvConnector(FileBasedConnector, FilesystemEnginePatternMixin):
+class CsvConnector(FileBasedConnector):
     engine_type = "csv://"
     optional_args = {
         "field_names": None,

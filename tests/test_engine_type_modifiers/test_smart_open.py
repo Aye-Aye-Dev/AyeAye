@@ -4,6 +4,7 @@ import unittest
 from ayeaye.connect import Connect
 from ayeaye.connectors.engine_type_modifiers import engine_type_modifier_factory
 from ayeaye.connectors.engine_type_modifiers.smart_open_modifier import SmartOpenModifier
+from ayeaye.connectors.engine_type_modifiers.utils import s3_pattern_match
 from ayeaye.connectors.ndjson_connector import NdjsonConnector
 
 
@@ -56,3 +57,17 @@ class TestEngineTypeModifier(unittest.TestCase):
         # first record in first (i.e. only) connector
         first_record = next(iter(c.data[0]))
         self.assertEqual("NEW FOREST", first_record.name, "Known first record in sample data")
+
+    def test_s3_pattern_match(self):
+        prefix, matcher = s3_pattern_match("my_directory/sub_directory/*.csv")
+        self.assertEqual("my_directory/sub_directory/", prefix)
+        self.assertTrue(matcher("my_directory/sub_directory/hello.csv"))
+        self.assertFalse(matcher("my_directory/sub_directory/hello.csv/ooops"))
+        self.assertFalse(matcher("my_directory/sub_directory/hello csv"))
+
+        for unsupported_pattern in [
+            "data/\./*.csv",
+            "data/?.csv/*",
+        ]:
+            with self.assertRaises(NotImplementedError):
+                s3_pattern_match(unsupported_pattern)

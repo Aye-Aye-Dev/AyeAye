@@ -6,8 +6,79 @@ try:
 except ModuleNotFoundError:
     pass
 
-from ayeaye.connectors.base import FileBasedConnector
+from ayeaye.connectors.base import FileBasedConnector, FilesystemEnginePattern
 from ayeaye.connectors.engine_type_modifiers.abstract_modifier import AbstractEngineTypeModifier
+from ayeaye.connectors.engine_type_modifiers.utils import s3_pattern_match
+from ayeaye.ignition import EngineUrlCase, EngineUrlStatus
+
+
+class SmartOpenEnginePattern(FilesystemEnginePattern):
+    """
+    Use wildcards to pattern match files and directories. @see :class:`AbstractExpandEnginePattern`.
+
+    The class adds S3 pattern expansion to the filesystem expansion provided by
+    :class:`FilesystemEnginePattern`.
+    """
+
+    def expand_pattern(self):
+        if not self.data_connector._s3_resource:
+            # Not working with an S3 hosted file so must be using a local filesystem
+            # so use the parent's method.
+            return super().expand_pattern()
+
+        status, e_url = self.data_connector.ignition.engine_url_at_state(
+            EngineUrlCase.FULLY_RESOLVED
+        )
+        assert status == EngineUrlStatus.OK, "Super class should have caught this."
+
+        # from smart_open import s3
+
+        # # we use workers=1 for reproducibility; you should use as many workers as you have cores
+        # bucket = "silo-open-data"
+        # prefix = "Official/annual/monthly_rain/"
+        # for key, content in s3.iter_bucket(
+        #     bucket, prefix=prefix, accept_key=lambda key: "/201" in key, workers=1, key_limit=3
+        # ):
+        #     print(key, round(len(content) / 2**20))
+
+        # strip engine type
+        # for now, they all need to have the same engine_type. Maybe engine_url starts
+        # with `://` for auto detect based on file name.
+        engine_type, engine_path_pattern = e_url.split("://", 1)
+
+        if "?" in engine_path_pattern:
+            raise NotImplementedError("TODO: Sorry, '?' isn't yet supported.")
+
+        if "/" not in engine_path_pattern:
+            raise ValueError(f"Bucket name not found in: {e_url}")
+
+        bucket_name, obj_key_pattern = engine_path_pattern.split("/", 1)
+
+        # the S3 API can only filter by the start of the file/object name. The rest is done with
+        # a regular expression.
+        prefix, matcher = s3_pattern_match(obj_key_pattern)
+
+        s3_client = self.data_connector._s3_client
+        continuation_token = None
+        s3_kwargs = {"Bucket": bucket_name, "Prefix": prefix}
+        engine_url = []
+        while True:
+            if continuation_token:
+                # 2nd page onwards
+                s3_kwargs["ContinuationToken"] = continuation_token
+
+            response = s3_client.list_objects_v2(**s3_kwargs)
+            content = response.get("Contents", [])
+            for c in content:
+                engine_file = c["Key"]
+                if matcher(engine_file):
+                    engine_url.append(f"{engine_type}://{engine_file}")
+
+            continuation_token = response.get("NextContinuationToken", None)
+            if not continuation_token:
+                break
+
+        return engine_url
 
 
 class SmartOpenModifier(AbstractEngineTypeModifier):
@@ -21,6 +92,8 @@ class SmartOpenModifier(AbstractEngineTypeModifier):
 
     Implementation : This class is used to override methods in :class:`FilesystemConnector`.
     """
+
+    engine_pattern_expander_cls = SmartOpenEnginePattern
 
     def __init__(self):
         # lazy load variables

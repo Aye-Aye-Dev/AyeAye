@@ -3,10 +3,10 @@ Created on 19 May 2021
 
 @author: si
 """
-from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector
 
 
-class UncookedConnector(FileBasedConnector, FilesystemEnginePatternMixin):
+class UncookedConnector(FileBasedConnector):
     engine_type = "file://"
     optional_args = {
         "file_mode": "t",

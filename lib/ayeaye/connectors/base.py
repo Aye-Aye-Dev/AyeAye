@@ -14,8 +14,7 @@ class AccessMode(Enum):
 
 class AbstractExpandEnginePattern:
     """
-    Mixin to support wildcard engine_urls.
-    https://www.pythontutorial.net/python-oop/python-mixin/
+    Support wildcard engine_urls.
 
     When an engine_url contains pattern matching characters the :class:`MultiConnector` should
     be used after the :class:`ConnectorResolver` singleton has resolved context variables.
@@ -23,6 +22,13 @@ class AbstractExpandEnginePattern:
     Subclasses of this abstract class are given responsibility to pattern match as filesystems
     and blob services use different methodologies to do this.
     """
+
+    def __init__(self, parent_data_connector):
+        """
+        @param parent_data_connector: (object that is subclass of :class:`DataConnector`)
+        """
+        # simple pattern to point to single DC so engine_url can be accessed
+        self.data_connector = parent_data_connector
 
     def has_multi_engine_pattern(self):
         """
@@ -40,9 +46,9 @@ class AbstractExpandEnginePattern:
         raise NotImplementedError("Must be implemented by subclasses")
 
 
-class FilesystemEnginePatternMixin(AbstractExpandEnginePattern):
+class FilesystemEnginePattern(AbstractExpandEnginePattern):
     """
-    Pattern match files and directories. @see :class:`AbstractExpandEnginePattern`
+    Use wildcards to pattern match files and directories. @see :class:`AbstractExpandEnginePattern`
     """
 
     # List of characters that when found in an engine_url indicate it's a pattern matching url that
@@ -53,14 +59,16 @@ class FilesystemEnginePatternMixin(AbstractExpandEnginePattern):
 
     def has_multi_engine_pattern(self):
         for pattern_indicating_character in self.pattern_characters:
-            if pattern_indicating_character in self.engine_url:
+            if pattern_indicating_character in self.data_connector.engine_url:
                 return True
         return False
 
     def expand_pattern(self):
-        status, e_url = self.ignition.engine_url_at_state(EngineUrlCase.FULLY_RESOLVED)
+        status, e_url = self.data_connector.ignition.engine_url_at_state(
+            EngineUrlCase.FULLY_RESOLVED
+        )
         if status != EngineUrlStatus.OK:
-            raw_e_url = self.ignition.engine_url_at_state(EngineUrlCase.RAW)
+            raw_e_url = self.data_connector.ignition.engine_url_at_state(EngineUrlCase.RAW)
             msg = f"Engine url ({raw_e_url}) couldn't be resolved enough to pattern match."
             raise ValueError(msg)
 
@@ -85,7 +93,7 @@ class DataConnector:
     # a member of a :class:`MultiConnector`. When set this class will be the default expander.
     # It is instantiated when the subclass of DataConnector is constructed.
     # `engine_pattern_expander` must be a subclass of :class:`AbstractExpandEnginePattern`.
-    engine_pattern_expander = None
+    engine_pattern_expander_cls = None
 
     # subclasses should specify their optional kwargs. Values in this dict are default values.
     optional_args = {}
@@ -128,6 +136,13 @@ class DataConnector:
             for m_overlay in overlays:
                 method_name = m_overlay.__name__
                 setattr(self, method_name, types.MethodType(m_overlay, self))
+
+        # This is the module that converts patterns (e.g. file system wildcards like * & ?)
+        # into a :class:`MultiConnector` object. Not all data connectors can do this trick,
+        # generally it's file based connectors.
+        self.engine_pattern_expander = (
+            self.engine_pattern_expander_cls(self) if self.engine_pattern_expander_cls else None
+        )
 
         # engine_urls may need resolution of templated variables (typically secrets and paths). The
         # :class:`Ignition` module does this and makes URLs croxx-operating system compatible.
@@ -300,6 +315,7 @@ class FileBasedConnector(DataConnector):
     write_mode_open_args = {}
     # files will be opened in text mode
     file_mode = "t"
+    engine_pattern_expander_cls = FilesystemEnginePattern
 
     def _reset(self):
         """

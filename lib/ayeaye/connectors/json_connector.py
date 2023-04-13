@@ -5,11 +5,11 @@ Created on 15 Apr 2020
 """
 import json
 
-from ayeaye.connectors.base import AccessMode, FileBasedConnector, FilesystemEnginePatternMixin
+from ayeaye.connectors.base import AccessMode, FileBasedConnector
 from ayeaye.pinnate import Pinnate
 
 
-class JsonConnector(FileBasedConnector, FilesystemEnginePatternMixin):
+class JsonConnector(FileBasedConnector):
     engine_type = "json://"
     optional_engine_url_args = FileBasedConnector.optional_engine_url_args + ["indent"]
     default_character_encoding = "utf-8-sig"

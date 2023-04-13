@@ -5,11 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+ 
+### Added
+- nothing
+
+## [0.0.39] - 2023-04-13
 
 ### Added
 - Smart open is the first engine_type modifier. It now supports compression with all DataConnectors that subclass `FileBasedConnector`. So engine_urls like 'gz+ndjson://myfile.ndjson.gz' are now supported.
 - s3 engine type modifer
 - an example ayeaye.Model that uses s3+gz+csv
+- S3 engine types can use wildcards to match multiple files into a MultiConnector. See NoaaClimatology in examples.
 
 ## [0.0.38] - 2023-04-11
 

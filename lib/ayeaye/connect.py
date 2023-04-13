@@ -153,7 +153,6 @@ class Connect:
 
         ident = id(self)
         if ident not in instance._connections:
-
             instance._connections[ident] = self._prepare_connection()
 
             # a Connect belongs to zero or one ayeaye.Model. Link in both directions.
@@ -212,7 +211,6 @@ class Connect:
         # this recursive
         detached_kwargs = {}
         for k, v in self.relayed_kwargs.items():
-
             if k == "engine_url":
                 # this might have been a callable above
                 detached_kwargs[k] = copy.deepcopy(engine_url)
@@ -223,7 +221,6 @@ class Connect:
                 detached_kwargs[k] = v
 
             elif callable(v):
-
                 if k in connector_cls.preserve_callables:
                     # reference to the callable is preserved for the `connector_cls` to call. This is
                     # needed when the `connector_cls` supplies arguments to the callable.
@@ -243,21 +240,23 @@ class Connect:
 
         # check made on the instance, not the class because if there is a pattern, :class:`Ignition`
         # will be needed to resolve context variables before pattern matching.
-        if (
-            isinstance(connector, AbstractExpandEnginePattern)
-            and connector.has_multi_engine_pattern()
-        ):
-            # the engine_url has wildcard/pattern characters so this should be a :class:MultiConnector
-            engine_urls = connector.expand_pattern()
+        if connector.engine_pattern_expander:
+            msg = "Expecting the interface described by AbstractExpandEnginePattern"
+            assert isinstance(connector.engine_pattern_expander, AbstractExpandEnginePattern), msg
 
-            detached_kwargs["engine_url"] = []
-            connector = MultiConnector(**detached_kwargs)
-            connector._connect_instance = self
+            if connector.engine_pattern_expander.has_multi_engine_pattern():
+                # the engine_url has wildcard/pattern characters so this should be a
+                # :class:MultiConnector
+                engine_urls = connector.engine_pattern_expander.expand_pattern()
 
-            # would be good to warn if :method:`expand_pattern` results in no files
+                detached_kwargs["engine_url"] = []
+                connector = MultiConnector(**detached_kwargs)
+                connector._connect_instance = self
 
-            for e_url in engine_urls:
-                connector.add_engine_url(e_url)
+                # would be good to warn if :method:`expand_pattern` results in no files
+
+                for e_url in engine_urls:
+                    connector.add_engine_url(e_url)
 
         return connector
 

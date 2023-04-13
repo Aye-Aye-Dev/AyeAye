@@ -23,7 +23,7 @@ class NoaaClimatology(ayeaye.Model):
     in ~/.aws/credentials.
     """
 
-    # data from the year 1763
+    DEBUG = False
 
     weather_measurements_dictionary = {
         "ID": "11 character station identification code.",
@@ -39,14 +39,25 @@ class NoaaClimatology(ayeaye.Model):
     # These CSV files don't have a header line so set it from data dictionary
     measurement_fields = list(weather_measurements_dictionary.keys())
 
+    # data from the year 1763
     old_weather = ayeaye.Connect(
         engine_url="s3+gz+csv://noaa-ghcn-pds/csv.gz/1763.csv.gz",
         field_names=measurement_fields,
     )
-    # weather_stations = ayeaye.Connect(engine_url="s3+file://noaa-ghcn-pds/ghcnd-stations.txt")
+
+    some_stations = ayeaye.Connect(
+        engine_url="s3+gz+csv://noaa-ghcn-pds/csv.gz/by_station/AGM000603*.csv.gz",
+        field_names=measurement_fields,
+    )
 
     def build(self):
         coldest = hottest = None
+
+        if self.DEBUG:
+            # Demo of pattern match
+            # It's here until I find a better place to demonstrate this
+            for c in self.some_stations:
+                self.log(f"Weather data is available from: {c.engine_url}")
 
         for measurement in self.old_weather:
             # TMAX = Maximum temperature (tenths of degrees C)
