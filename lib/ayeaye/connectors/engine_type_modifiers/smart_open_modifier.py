@@ -31,16 +31,6 @@ class SmartOpenEnginePattern(FilesystemEnginePattern):
         )
         assert status == EngineUrlStatus.OK, "Super class should have caught this."
 
-        # from smart_open import s3
-
-        # # we use workers=1 for reproducibility; you should use as many workers as you have cores
-        # bucket = "silo-open-data"
-        # prefix = "Official/annual/monthly_rain/"
-        # for key, content in s3.iter_bucket(
-        #     bucket, prefix=prefix, accept_key=lambda key: "/201" in key, workers=1, key_limit=3
-        # ):
-        #     print(key, round(len(content) / 2**20))
-
         # strip engine type
         # for now, they all need to have the same engine_type. Maybe engine_url starts
         # with `://` for auto detect based on file name.
@@ -63,10 +53,6 @@ class SmartOpenEnginePattern(FilesystemEnginePattern):
         s3_kwargs = {"Bucket": bucket_name, "Prefix": prefix}
         engine_url = []
         while True:
-            if continuation_token:
-                # 2nd page onwards
-                s3_kwargs["ContinuationToken"] = continuation_token
-
             response = s3_client.list_objects_v2(**s3_kwargs)
             content = response.get("Contents", [])
             for c in content:
@@ -75,7 +61,11 @@ class SmartOpenEnginePattern(FilesystemEnginePattern):
                     engine_url.append(f"{engine_type}://{engine_file}")
 
             continuation_token = response.get("NextContinuationToken", None)
-            if not continuation_token:
+            if continuation_token:
+                # 2nd page onwards
+                s3_kwargs["ContinuationToken"] = continuation_token
+            else:
+                # end of pages
                 break
 
         return engine_url

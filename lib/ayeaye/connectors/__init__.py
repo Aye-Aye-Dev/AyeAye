@@ -41,11 +41,38 @@ class ConnectorPluginsRegistry:
 
     def register_connector(self, connector_cls):
         """
-        @param connector_cls ():
+        Register a non-built in connector.
+
+        e.g.
+
+        class MyConnector(DataConnector):
+            engine_type = "my_protocol://"
+            ...
+
+        some_data = ayeaye.Connect(engine_url="my_protocol://xyz,abc")
+
+        @param connector_cls (subclass of :class:`DataConnector`):
         """
         if not isclass(connector_cls) or not issubclass(connector_cls, DataConnector):
             msg = "'connector_cls' should be a class (not object) and subclass of DataConnector"
             raise TypeError(msg)
+
+        engine_types = (
+            connector_cls.engine_type
+            if isinstance(connector_cls.engine_type, list)
+            else [connector_cls.engine_type]
+        )
+
+        for engine_type in engine_types:
+            if not engine_type.endswith("://"):
+                msg = "The 'engine_type' class attribute is expected to end with '://'"
+                raise ValueError(msg)
+
+            # remove ://
+            engine_type = engine_type[0:-3]
+            if not engine_type.replace("-", "").replace("_", "").isalnum():
+                msg = "The engine_type label can only be alpha-numeric with hyphens and underscores"
+                raise ValueError(msg)
 
         # MAYBE - a mechanism to specify the position/priority of the class
         self.registered_connectors.append(connector_cls)

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.40] - 2023-04-21
+
+### Changed
+- additional checks to the process of registering a connector
+
+### Fixed
+- MultiConnector children not having a registed `Connect` instance
+
 ## [0.0.39] - 2023-04-13
 
 ### Added
