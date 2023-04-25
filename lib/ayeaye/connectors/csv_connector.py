@@ -95,6 +95,7 @@ class CsvConnector(FileBasedConnector):
         return self._engine_params
 
     def connect(self):
+        super().connect()
         if self.csv is None:
             if self.access == AccessMode.READ:
                 if self.field_names is not None and self.alias_fields is not None:

@@ -100,11 +100,13 @@ class RestfulConnector(DataConnector):
         )
 
     def close_connection(self):
+        super().close_connection()
         if self._requests is not None:
             self._requests = None
         self.reset_stats()
 
     def connect(self):
+        super().connect()
         if self._requests is None:
             if self.keep_alive:
                 self._requests = requests.Session()

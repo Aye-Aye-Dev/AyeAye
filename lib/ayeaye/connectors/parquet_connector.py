@@ -50,6 +50,7 @@ class ParquetConnector(DataConnector):
             raise NotImplementedError("Write access not yet implemented")
 
     def connect(self):
+        super().connect()
         if self.table is None:
             engine_params = self.ignition._decode_filesystem_engine_url(self.engine_url)
             file_path = engine_params.file_path
@@ -63,6 +64,7 @@ class ParquetConnector(DataConnector):
             self.row_count = self.table.num_rows
 
     def close_connection(self):
+        super().close_connection()
         self.table = None
         self.row_count = None
 

@@ -174,6 +174,10 @@ class DataConnector:
             what_are_these = ", ".join(kwargs.keys())
             raise ValueError(f"Unexpected argument(s): '{what_are_these}'")
 
+        # For this to work correctly subclasses must correctly call :method:`connect` and
+        # :method:`close_connection`
+        self._is_connected = False
+
     def __del__(self):
         self.close_connection()
 
@@ -228,24 +232,52 @@ class DataConnector:
             # remove old Connector, it will be re-built on access
             del self._parent_model._connections[ident]
 
+    @property
+    def is_connected(self):
+        """
+        Is the dataset is connected.
+
+        This means resources been allocated to connect to a source of data. Resources are
+        typically file handles, network connections etc.
+
+        For this to work correctly subclasses must correctly call :method:`connect` and
+        # :method:`close_connection`
+
+        @return bool
+            The dataset is connected.
+        """
+        return self._is_connected
+
     def connect(self):
         """
-        Open resource handles used to access the dataset. e.g. network or filesystem connection.
-        These resources are help open by the subclass.
+        Open resources needed to access the dataset.
+
+        The resource(s) being opened vary on the type of dataset engine. Subclasses of
+        :class:`DataConnector` are expected to override this method. When doing so they must call
+        this super class method first.
+
+        e.g. super().connect()
         """
-        pass
+        self._is_connected = True
 
     def close_connection(self):
         """
-        Explicitly close the connection to the dataset rather than just wait for the process to end.
+        Explicitly close resources used to access the dataset.
+
+        Subclasses of  :class:`DataConnector` are expected to override this method. When doing so
+        they must call this super class method first.
+
+        e.g. super().close_connection()
+
+        Resources can also be closed independently of this method.
         """
-        pass
+        self._is_connected = False
 
     def __len__(self):
-        raise NotImplementedError("TODO")
+        raise NotImplementedError("Can optionally be implemented by subclasses.")
 
     def __getitem__(self, key):
-        raise NotImplementedError("TODO")
+        raise NotImplementedError("Can optionally be implemented by subclasses.")
 
     def __iter__(self):
         """
@@ -266,7 +298,7 @@ class DataConnector:
 
         @return: mixed
         """
-        raise NotImplementedError("TODO")
+        raise NotImplementedError("Can optionally be implemented by subclasses.")
 
     def as_pandas(self):
         """
@@ -382,6 +414,7 @@ class FileBasedConnector(DataConnector):
             os.makedirs(file_dir)
 
     def connect(self):
+        super().connect()
         if self._file_handle is None:
             if self.file_mode == "b" and self.encoding is not None:
                 raise ValueError("Binary file mode can't be set with an encoding")
@@ -442,6 +475,7 @@ class FileBasedConnector(DataConnector):
         return self._encoding
 
     def close_connection(self):
+        super().close_connection()
         if self._file_handle is not None:
             self._file_handle.close()
         self._reset()

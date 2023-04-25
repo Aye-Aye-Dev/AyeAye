@@ -48,12 +48,19 @@ class KafkaConnector(DataConnector):
         self.items_to_fetch = None
 
     def close_connection(self):
+        super().close_connection()
         if self.access == AccessMode.WRITE and self.client is not None:
             self.flush()
 
     def connect(self):
+        super().connect()
         if self.client is None:
-            self.bootstrap_server, self.topic, self.start_params, self.end_params = self._decode_engine_url()
+            (
+                self.bootstrap_server,
+                self.topic,
+                self.start_params,
+                self.end_params,
+            ) = self._decode_engine_url()
 
             if self.access == AccessMode.READ:
                 self.client = KafkaConsumer(bootstrap_servers=self.bootstrap_server)
@@ -92,10 +99,12 @@ class KafkaConnector(DataConnector):
             ends = self.client.end_offsets(topic_partitions)
 
             self.start_p_offsets = {
-                tp: OffsetAndTimestamp(offset=offset, timestamp=None) for tp, offset in starts.items()
+                tp: OffsetAndTimestamp(offset=offset, timestamp=None)
+                for tp, offset in starts.items()
             }
             self.end_p_offsets = {
-                tp: OffsetAndTimestamp(offset=offset - 1, timestamp=None) for tp, offset in ends.items()
+                tp: OffsetAndTimestamp(offset=offset - 1, timestamp=None)
+                for tp, offset in ends.items()
             }
 
         else:
@@ -190,7 +199,6 @@ class KafkaConnector(DataConnector):
 
         self.approx_position = 0
         for partition_id, start_offset, end_offset in self._partition_ranges():
-
             # TODO - confirm this can never jump to another partition
             tp = TopicPartition(topic=self.topic, partition=partition_id)
             self.client.assign([tp])
@@ -203,7 +211,6 @@ class KafkaConnector(DataConnector):
                 raise ValueError(msg)
 
             for m in self.client:
-
                 self.approx_position += 1
                 yield Pinnate(data=m.value)
 
@@ -246,7 +253,11 @@ class KafkaConnector(DataConnector):
 
     @property
     def progress(self):
-        if self.access != AccessMode.READ or self.items_to_fetch is None or self.approx_position is None:
+        if (
+            self.access != AccessMode.READ
+            or self.items_to_fetch is None
+            or self.approx_position is None
+        ):
             return None
 
         return self.approx_position / self.items_to_fetch

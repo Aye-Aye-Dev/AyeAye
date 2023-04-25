@@ -78,6 +78,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         self._schema_p = None  # see :method:`connect`
 
     def connect(self):
+        super().connect()
         if self.Base is not None:
             return
 
@@ -167,6 +168,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
                     self._schema_p = schema_classes  # single class
 
     def close_connection(self):
+        super().close_connection()
         if self.session is not None:
             self.session.close()
 

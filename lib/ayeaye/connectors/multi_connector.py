@@ -37,7 +37,7 @@ class MultiConnector(DataConnector):
         self._child_dc_mapping = {}
 
     def connect(self):
-
+        super().connect()
         if len(self.engine_url) != len(set(self.engine_url)):
             msg = "engine_url contains duplicates. Not yet supported."
             raise NotImplementedError(msg)
@@ -52,6 +52,9 @@ class MultiConnector(DataConnector):
                 connector = connector_cls(
                     engine_url=engine_url, access=self.access, **self.connector_kwargs
                 )
+                # all child connectors use the parent instance (i.e. the original ayeaye.Connect)
+                connector._connect_instance = self._connect_instance
+
                 self._child_data_connectors.append(connector)
                 # this is the unresolved engine_url
                 self._child_dc_mapping[engine_url] = idx
@@ -71,6 +74,8 @@ class MultiConnector(DataConnector):
                         # new engine_url
                         connector_cls = connector_factory(engine_url)
                         connector = connector_cls(engine_url=engine_url, access=self.access)
+                        # all child connectors use the parent instance (i.e. the original ayeaye.Connect)
+                        connector._connect_instance = self._connect_instance
                         self._child_data_connectors.append(connector)
                         self._child_dc_mapping[engine_url] = idx
 
@@ -78,7 +83,7 @@ class MultiConnector(DataConnector):
                     raise Exception("Please tell the AyeAye developers how this exception happens!")
 
     def close_connection(self):
-
+        super().close_connection()
         if self._child_data_connectors:
             for c in self._child_data_connectors:
                 c.close_connection()

@@ -162,7 +162,8 @@ class Model:
         Call :method:`close_connection` on all datasets.
         """
         for connection in self.datasets().values():
-            connection.close_connection()
+            if connection.is_connected:
+                connection.close_connection()
 
     def set_logger(self, logger):
         """
@@ -203,7 +204,6 @@ class Model:
             self.progress_logged is None
             or self.progress_logged + self.progress_log_interval < time_now
         ):
-
             if msg is None:
                 msg = ""
 
@@ -265,7 +265,6 @@ class Model:
         if locking_level == LockingMode.ALL_DATASETS:
             locking_doc["dataset_engine_urls"] = {}
             for dataset_name, connector in self.datasets().items():
-
                 # TODO: this should be EngineUrlCase.WITHOUT_SECRETS. Secrets shouldn't be in
                 # locking doc. But that's not implemented yet,
                 status, engine_url = connector.ignition.engine_url_at_state(
@@ -350,7 +349,6 @@ class PartitionedModel(Model):
     PartitionOption = namedtuple("PartitionOption", ("minimum", "maximum", "optimal"))
 
     def __init__(self):
-
         super().__init__()
 
         # the link between the execution environment and the process
@@ -471,7 +469,6 @@ class PartitionedModel(Model):
         for subtasks_complete, subtask_return in enumerate(
             proc_pool.run_subtasks(model_cls=self.__class__, tasks=tasks, initialise=worker_init)
         ):
-
             method_name, original_method_kwargs, subtask_return_value = subtask_return
             self.partition_subtask_complete(
                 subtask_method_name=method_name,

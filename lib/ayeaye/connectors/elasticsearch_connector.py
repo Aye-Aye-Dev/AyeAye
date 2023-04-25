@@ -34,9 +34,11 @@ class ElasticsearchConnector(DataConnector):
         self.client = None
 
     def close_connection(self):
+        super().close_connection()
         self.client = None
 
     def connect(self):
+        super().connect()
         if self.client is None:
             self.host, self.port, self.default_index = self._decode_engine_url()
             es_node_args = {"host": self.host}
@@ -98,7 +100,9 @@ class ElasticsearchConnector(DataConnector):
             raise ValueError("Unknown index: must be set in engine_url or as argument")
 
         # index(index, body, doc_type=None, id=None, params=None, headers=None)
-        w = self.client.index(index=resolved_index, doc_type=document_type, id=doc_id, body=document)
+        w = self.client.index(
+            index=resolved_index, doc_type=document_type, id=doc_id, body=document
+        )
         return w
 
     def fetch(self, doc_id=None, document_type=None, index=None):

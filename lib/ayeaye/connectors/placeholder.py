@@ -10,15 +10,6 @@ class PlaceholderDataConnector(DataConnector):
 
     engine_type = None
 
-    def connect(self):
-        pass
-
-    def __len__(self):
-        raise NotImplementedError("TODO")
-
-    def __getitem__(self, key):
-        raise NotImplementedError("TODO")
-
     @property
     def schema(self):
         return None

@@ -51,6 +51,7 @@ class BigQueryConnector(DataConnector):
         self.table_connection = None  # different from _table_ref, loaded when needed
 
     def connect(self):
+        super().connect()
         if self.client is None:
             self.project_id, self.dataset_id, self.table_id = self._decode_engine_url()
             self.client = bigquery.Client(project=self.project_id, credentials=self.credentials)

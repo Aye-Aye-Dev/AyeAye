@@ -55,6 +55,7 @@ class JsonConnector(FileBasedConnector):
         In AccessMode.WRITE mode connect() doesn't do anything because file handles aren't kept
         open by the JsonConnector. The write operation is in :method:`_data_write`.
         """
+        super().connect()
         if self._doc is None:
             FileBasedConnector.connect(self)
 

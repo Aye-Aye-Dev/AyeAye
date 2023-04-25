@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.41] - 2023-04-25
+
+### Changed
+- subclasses of DataConnector (i.e. the connectors) *must* now call the super class's connect() and
+.close_connection() methods. This is a silent breaking change. Not implementing this could result in resour
+ces not being correctly freed when a connection is closed.
+
 ## [0.0.40] - 2023-04-21
 
 ### Changed
