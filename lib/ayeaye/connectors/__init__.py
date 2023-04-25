@@ -15,6 +15,7 @@ from .uncooked_connector import UncookedConnector
 
 from ayeaye.ignition import Ignition, EngineUrlCase, EngineUrlStatus
 from ayeaye.connectors.engine_type_modifiers import engine_type_modifier_factory
+from ayeaye import exception
 
 
 class ConnectorPluginsRegistry:
@@ -138,4 +139,4 @@ def connector_factory(engine_url):
 
                 return connector_cls
 
-    raise NotImplementedError(f"Unknown engine in url:{engine_url}")
+    raise exception.UnknownEngineType(engine_url=engine_url)

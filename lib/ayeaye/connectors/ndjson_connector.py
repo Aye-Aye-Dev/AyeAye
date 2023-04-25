@@ -46,7 +46,6 @@ class NdjsonConnector(FileBasedConnector):
         self.approx_position = 0
 
     def connect(self):
-        super().connect()
         if self.reader is None and self.writer is None:
             if self.access == AccessMode.READ:
                 FileBasedConnector.connect(self)

@@ -55,7 +55,6 @@ class JsonConnector(FileBasedConnector):
         In AccessMode.WRITE mode connect() doesn't do anything because file handles aren't kept
         open by the JsonConnector. The write operation is in :method:`_data_write`.
         """
-        super().connect()
         if self._doc is None:
             FileBasedConnector.connect(self)
 
@@ -69,6 +68,9 @@ class JsonConnector(FileBasedConnector):
         raise NotImplementedError("Not an iterative dataset. Use .data instead.")
 
     def _data_read(self):
+        if self.access not in [AccessMode.READ, AccessMode.READWRITE]:
+            raise ValueError(f"Read attempted on dataset opened in {self.access} mode.")
+
         if self._doc is None:
             self.connect()
             as_native = json.load(self._file_handle)

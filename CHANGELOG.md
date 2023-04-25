@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.42] - 2023-04-25
+
+### Changed
+- unknown engine_type now throws ayeaye.exception.UnknownEngineType instead of NotImplementedError
+
+### Fixed
+- it was possible to read from a JsonConnector when in AccessMode.WRITE mode
+
 ## [0.0.41] - 2023-04-25
 
 ### Changed

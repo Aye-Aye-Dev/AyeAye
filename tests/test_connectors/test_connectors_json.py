@@ -49,3 +49,17 @@ class TestConnectors(unittest.TestCase):
 
         c = JsonConnector(engine_url="json://this_doesnt_exist.json")
         self.assertFalse(c.datasource_exists)
+
+    def test_json_write_mode_cant_read(self):
+        data_dir = tempfile.mkdtemp()
+        json_file = os.path.join(data_dir, "cats.json")
+        c = JsonConnector(engine_url=f"json://{json_file}", access=ayeaye.AccessMode.WRITE)
+        c.data = {"Tiger": "Asia"}
+        c.close_connection()
+
+        with self.assertRaises(ValueError) as context:
+            c.data["Tiger"]
+
+        self.assertIn(
+            "Read attempted on dataset opened in AccessMode.WRITE mode.", str(context.exception)
+        )
