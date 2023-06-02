@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import os
 import tempfile
 import unittest
@@ -289,3 +290,22 @@ class TestConnectorsCsv(unittest.TestCase):
             )
             with self.assertRaises(ValueError):
                 c.add({"common_name": "Grasshopper"})
+
+    def test_last_modified(self):
+        "specific to `FileBasedConnector`"
+        data_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(data_dir, "garden_insects.csv")
+        
+        c = CsvConnector(
+            engine_url="csv://" + csv_file,
+        )
+
+        # file doesn't exist yet
+        self.assertEqual(c.last_modified, None)
+
+        f = open(csv_file, "w")
+        f.write("1, 2, 3")
+        f.close()
+
+        self.assertTrue(isinstance(c.last_modified, datetime))
+        self.assertEqual(c.last_modified.tzinfo, timezone.utc)
