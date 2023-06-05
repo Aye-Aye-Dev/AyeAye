@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from enum import Enum
 import glob
 import os
@@ -486,3 +487,16 @@ class FileBasedConnector(DataConnector):
             return None
 
         return self.approx_position / self.file_size
+
+    @property
+    def last_modified(self):
+        """
+        Returns:
+            (UTC `datetime.datetime`) of file, or None if file does not exist
+        """
+        if not os.path.exists(self.file_path):
+            return None
+        
+        timestamp = os.path.getmtime(self.file_path)
+        last_modified = datetime.utcfromtimestamp(timestamp).replace(tzinfo=timezone.utc)
+        return last_modified
