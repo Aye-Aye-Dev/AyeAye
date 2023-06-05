@@ -69,9 +69,14 @@ class TestModels(unittest.TestCase):
         with open(output_file, "r", encoding=output_encoding) as f:
             output_data = json.load(f)
 
+        msg = "Sample file has 2 rows, cartesian product should be 2x2=4"
+        self.assertEqual(4, len(output_data), msg)
+
         expected_data = [
             "Crown of thorns starfish_Crown of thorns starfish",
             "Crown of thorns starfish_Golden dart frog",
+            "Golden dart frog_Crown of thorns starfish",
+            "Golden dart frog_Golden dart frog",
         ]
         self.assertEqual(expected_data, output_data)
 

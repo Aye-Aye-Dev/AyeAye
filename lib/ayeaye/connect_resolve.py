@@ -67,6 +67,9 @@ class ConnectorResolver:
         return self._attr[attr]
 
     def needs_resolution(self, engine_url):
+        if callable(engine_url):
+            return True
+
         return engine_url is None or (isinstance(engine_url, str) and "{" in engine_url)
 
     def resolve_engine_url(self, unresolved_engine_url):

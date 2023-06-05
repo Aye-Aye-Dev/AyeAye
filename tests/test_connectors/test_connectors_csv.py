@@ -74,7 +74,6 @@ class TestConnectorsCsv(unittest.TestCase):
         self.assertEqual("latin-1", c.encoding, "Can't override default encoding")
 
     def test_csv_engine_decode(self):
-
         c = CsvConnector(engine_url="csv:///data/abc.csv")
         a = c.engine_params
         expected_path = "/data/abc.csv"
@@ -106,7 +105,6 @@ class TestConnectorsCsv(unittest.TestCase):
             current_position = c.progress
 
     def test_csv_without_fieldname_header(self):
-
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_MICE,
             field_names=["common_name", "scientific_name", "geo_distribution"],
@@ -265,7 +263,6 @@ class TestConnectorsCsv(unittest.TestCase):
         self.assertEqual(expected, actual.as_dict())
 
     def test_incompatible_optional_args(self):
-
         c = CsvConnector(
             engine_url="csv://" + EXAMPLE_CSV_MICE,
             field_names=["common_name", "scientific_name", "geo_distribution"],
@@ -282,7 +279,6 @@ class TestConnectorsCsv(unittest.TestCase):
         csv_file = os.path.join(data_dir, "garden_insects.csv")
 
         for optional_field in ["required_fields", "expected_fields", "alias_fields"]:
-
             c = CsvConnector(
                 engine_url="csv://" + csv_file,
                 access=ayeaye.AccessMode.WRITE,
@@ -295,7 +291,7 @@ class TestConnectorsCsv(unittest.TestCase):
         "specific to `FileBasedConnector`"
         data_dir = tempfile.mkdtemp()
         csv_file = os.path.join(data_dir, "garden_insects.csv")
-        
+
         c = CsvConnector(
             engine_url="csv://" + csv_file,
         )
@@ -307,5 +303,5 @@ class TestConnectorsCsv(unittest.TestCase):
         f.write("1, 2, 3")
         f.close()
 
-        self.assertTrue(isinstance(c.last_modified, datetime))
+        self.assertIsInstance(c.last_modified, datetime)
         self.assertEqual(c.last_modified.tzinfo, timezone.utc)

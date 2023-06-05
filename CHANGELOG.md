@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.43] - 2023-06-05
+
+### Added
+- .last_modified to FileBasedConnector connectors. Thanks burnleyrob!
+
+### Changed
+- CsvConnector, ParquetConnector, NdjsonConnector,  closes the file handle when iteration has finished with the file
+
+### Fixed
+- iterating within an iterator for a cloned data connector resulted in premature EOF
+
 ## [0.0.42] - 2023-04-25
 
 ### Changed

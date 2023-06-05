@@ -194,6 +194,9 @@ class CsvConnector(FileBasedConnector):
             self.approx_position += len(self.delimiter.join([str(x) for x in raw.values()]))
             yield Pinnate(data=raw)
 
+        # reduce the number of open file handles when the whole file has been read
+        self.close_connection()
+
     @property
     def data(self):
         raise NotImplementedError("TODO")

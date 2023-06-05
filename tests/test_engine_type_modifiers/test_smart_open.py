@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import unittest
 
@@ -71,3 +72,10 @@ class TestEngineTypeModifier(unittest.TestCase):
         ]:
             with self.assertRaises(NotImplementedError):
                 s3_pattern_match(unsupported_pattern)
+
+    def test_last_modified(self):
+        """
+        SmartOpenModifier should override base method. Actual override not checked, just coverage.
+        """
+        c = Connect(engine_url="gz+ndjson://" + EXAMPLE_COMPRESSED_PATH)
+        self.assertIsInstance(c.last_modified, datetime)

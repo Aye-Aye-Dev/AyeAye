@@ -494,9 +494,9 @@ class FileBasedConnector(DataConnector):
         Returns:
             (UTC `datetime.datetime`) of file, or None if file does not exist
         """
-        if not os.path.exists(self.file_path):
+        if not self.datasource_exists:
             return None
-        
+
         timestamp = os.path.getmtime(self.file_path)
         last_modified = datetime.utcfromtimestamp(timestamp).replace(tzinfo=timezone.utc)
         return last_modified

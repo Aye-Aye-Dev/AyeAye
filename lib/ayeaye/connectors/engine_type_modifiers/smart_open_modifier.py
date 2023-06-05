@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import os
 
 try:
@@ -173,6 +174,22 @@ class SmartOpenModifier(AbstractEngineTypeModifier):
 
             return os.stat(self.file_path).st_size
         return None
+
+    @property
+    def last_modified(self):
+        """
+        Returns:
+            (UTC `datetime.datetime`) of file, or None if file does not exist
+        """
+        if not self.datasource_exists:
+            return None
+
+        if self._s3_resource:
+            raise NotImplementedError("TODO: S3, get from :method:`_remote_file_attribs`")
+
+        timestamp = os.path.getmtime(self.file_path)
+        last_modified = datetime.utcfromtimestamp(timestamp).replace(tzinfo=timezone.utc)
+        return last_modified
 
     def auto_create_directory(self):
         if self._s3_resource:
