@@ -254,7 +254,12 @@ class SqlAlchemyDatabaseConnector(DataConnector):
                 raise ValueError("Dictionary can only be used in single schema mode")
             item = self.schema(**item)
         else:
-            if not isinstance(item, tuple(self.schema.values())):
+            if self.is_single_schema_mode:
+                valid_schemas = self.schema
+            else:
+                valid_schemas = tuple(self.schema.values())
+
+            if not isinstance(item, valid_schemas):
                 msg = "Item of type {} isn't part of this connection's schema"
                 raise ValueError(msg.format(type(item)))
 

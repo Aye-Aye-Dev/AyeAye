@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.44] - 2023-06-07
+
+### Fixed
+- SqlAlchemyDatabaseConnector's .add() couldn't add ORM instance when in single model mode
+
 ## [0.0.43] - 2023-06-05
 
 ### Added

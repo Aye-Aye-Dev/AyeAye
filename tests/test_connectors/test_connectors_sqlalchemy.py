@@ -251,6 +251,17 @@ class TestSqlAlchemyConnector(unittest.TestCase):
         rodents.create_table_schema()
         rodents.add({"species": "Yellow-necked mouse"})
         rodents.commit()
+
+        # should also be possible to pass an ORM instance
+        msg = "The id will be populated after the commit"
+        black_rat = Rodents(species="Black rat")
+        self.assertIsNone(black_rat.id, msg)
+
+        rodents.add(black_rat)
+        rodents.commit()
+
+        self.assertIsInstance(black_rat.id, int, msg)
+
         rodents.close_connection()
 
     def test_schema_model_multiple(self):
