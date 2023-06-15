@@ -345,3 +345,62 @@ class TestConnect(unittest.TestCase):
 
         expected = ["Crown of thorns starfish", "Golden dart frog"]
         self.assertEqual(expected, all_the_animals)
+
+    def test_method_overlay_multi_connector(self):
+        """
+        A method added to a multi connector should behave just like one added to a single
+        datasource connector. The method shouldn't be available to the child connectors.
+        """
+
+        def fake_method(self):
+            return "multi-connector-overlay"
+
+        class AnimalsModel(AbstractFakeModel):
+            animals = Connect(
+                engine_url=[
+                    "csv://" + EXAMPLE_CSV_PATH,
+                    "csv://" + EXAMPLE_TSV_PATH,
+                ],
+                method_overlay=fake_method,
+            )
+
+        m = AnimalsModel()
+
+        msg = "method should be available on multi-connector but not children"
+        self.assertEqual("multi-connector-overlay", m.animals.fake_method(), msg)
+
+        for child_connector in m.animals:
+            with self.assertRaises(AttributeError) as c:
+                child_connector.fake_method()
+
+            self.assertIn("object has no attribute 'fake_method'", str(c.exception), msg)
+
+    def test_method_overlay_multi_connector_children(self):
+        """
+        It should be possible to pass methods to the child connectors of a multi-connector. The method
+        won't be available to the parent multi-connector.
+        """
+
+        def fake_method(self):
+            return "multi-connector-overlay"
+
+        class AnimalsModel(AbstractFakeModel):
+            animals = Connect(
+                engine_url=[
+                    "csv://" + EXAMPLE_CSV_PATH,
+                    "csv://" + EXAMPLE_TSV_PATH,
+                ],
+                child_method_overlay=fake_method,
+            )
+
+        m = AnimalsModel()
+
+        msg = "method shouldn't be available on multi-connector but is in children"
+
+        with self.assertRaises(AttributeError) as c:
+            m.animals.fake_method()
+
+        self.assertIn("object has no attribute 'fake_method'", str(c.exception), msg)
+
+        for child_connector in m.animals:
+            self.assertEqual("multi-connector-overlay", child_connector.fake_method(), msg)

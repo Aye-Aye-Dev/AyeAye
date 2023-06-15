@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.45] - 2023-06-15
+
+### Added
+- overlay methods are now possible with MultiConnector and 'child_method_overlay' can be used to pass a callable to child connectors (of the parent multi connector).
+
 ## [0.0.44] - 2023-06-07
 
 ### Fixed

@@ -9,6 +9,7 @@ from ayeaye.connectors import connector_factory
 
 class MultiConnector(DataConnector):
     engine_type = None  # See docstring in constructor
+    preserve_callables = ["child_method_overlay"]
 
     def __init__(self, *args, **kwargs):
         """
@@ -16,8 +17,8 @@ class MultiConnector(DataConnector):
 
         For args: @see :class:`connectors.base.DataConnector`
 
-        additional args for CsvConnector
-         None
+        additional args for MultiConnector
+         child_method_overlay - add a method to child connectors
 
         Connection information-
             Not normally initiated with `engine_type://...` url but by giving a list
@@ -29,10 +30,17 @@ class MultiConnector(DataConnector):
         base_kwargs = {
             "engine_url": kwargs.pop("engine_url", None),
             "access": kwargs.pop("access", AccessMode.READ),
+            "method_overlay": kwargs.pop("method_overlay", None),
         }
         super().__init__(*args, **base_kwargs)
 
         self.connector_kwargs = kwargs
+
+        # rename field to make allocation of overlay method explicit to either the parent
+        # multi-connector or children
+        method_overlay = self.connector_kwargs.pop("child_method_overlay", None)
+        self.connector_kwargs["method_overlay"] = method_overlay
+
         self._child_data_connectors = None  # on connect
         self._child_dc_mapping = {}
 
