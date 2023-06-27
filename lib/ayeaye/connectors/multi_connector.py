@@ -101,16 +101,33 @@ class MultiConnector(DataConnector):
 
     def add_engine_url(self, engine_url):
         """
-        A convenience method for adding engine_urls at run time and returning the resolved
-        connector (to the new engine_url) in one call.
+        Add a child connector at run time and return the resolved connector (to the new engine_url).
 
-        multi_connector.engine_url.append(...) could also be used.
+        A connector is associated with each `engine_url` passed to this method so duplicate
+        `engine_url`s will all resolve to the same connector.
+
+        multi_connector.engine_url.append(...) could also be used, it doesn't de-dupe `engine_url`s.
+
+        Note that a previously used connector will retain it's connection state from it's previous
+        usage.
+        e.g. a child connector could have iterated part way through an input file.
+        The connector could always be reset by closing with :method:`close_connection` and then
+        opened again.
 
         @param engine_url: (str) unresolved engine_url (i.e. could contain {params} to be resolved
                 by :class:`ayeaye.connect_resolve.ConnectorResolver`
 
         @return: (subclass of :class:`DataConnector`)
         """
+
+        # Note - engine_url might not be fully resolved and multiple unresolved could resolve into
+        # same url
+
+        if engine_url in self._child_dc_mapping:
+            idx = self._child_dc_mapping[engine_url]
+            connector = self._child_data_connectors[idx]
+            return connector
+
         self.engine_url.append(engine_url)
         self.connect()
 

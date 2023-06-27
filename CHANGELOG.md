@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.46] - 2023-06-27
+
+### Changed
+- MultiConnector.add_engine_url to de-duplicate engine_urls and return a previously built connector when a duplicate engine_url is passed.
+
 ## [0.0.45] - 2023-06-15
 
 ### Added

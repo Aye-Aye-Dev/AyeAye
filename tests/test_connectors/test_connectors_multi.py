@@ -101,3 +101,47 @@ class TestMultiConnectors(unittest.TestCase):
         files = [file_path.split(os.path.sep)[-1] for file_path in resolved_connectors]
         self.assertIn("mice.csv", files, msg)
         self.assertIn("monkeys.tsv", files, msg)
+
+    def test_multi_connector_duplicate_engine_url(self):
+        """
+        Get a data connection from a multi connector by engine_url
+        """
+        engine_url = "csv://" + EXAMPLE_CSV_MICE
+        c = MultiConnector(engine_url=[], access=ayeaye.AccessMode.READ)
+
+        connector_0 = c.add_engine_url(engine_url)
+        connector_1 = c.add_engine_url(engine_url)
+
+        self.assertTrue(engine_url == connector_0.engine_url == connector_1.engine_url)
+
+    def test_multi_connector_duplicate_engine_url_with_resolver(self):
+        """
+        Multiple engine_urls resolve into the same thing so should return a single connector.
+        """
+        engine_url = "csv://" + EXAMPLE_CSV_MICE.replace("mice.csv", "{some_file}")
+
+        c = MultiConnector(engine_url=[], access=ayeaye.AccessMode.READ)
+
+        with ayeaye.connector_resolver.context(some_file="mice.csv"):
+            connector_0 = c.add_engine_url(engine_url)
+            connector_1 = c.add_engine_url(engine_url)
+
+            self.assertEqual(connector_0.engine_url, connector_1.engine_url)
+            self.assertTrue(id(connector_0) == id(connector_1))
+
+    def test_unresolved_engine_url(self):
+        # replace 'mice.csv' with a template param
+        engine_url = "csv://" + EXAMPLE_CSV_MICE.replace("mice.csv", "{some_file}")
+
+        c = MultiConnector(engine_url=[], access=ayeaye.AccessMode.READ)
+        connector_0 = c.add_engine_url(engine_url)
+        with self.assertRaises(ValueError) as exception_context:
+            _engine_url = connector_0.engine_url
+
+        msg = "Without any context it should raise an exception"
+        self.assertIn("Couldn't fully resolve engine URL", str(exception_context.exception), msg)
+
+        c = MultiConnector(engine_url=[], access=ayeaye.AccessMode.READ)
+        with ayeaye.connector_resolver.context(some_file="mice.csv"):
+            connector_1 = c.add_engine_url(engine_url)
+            self.assertTrue(connector_1.engine_url.endswith("mice.csv"))
