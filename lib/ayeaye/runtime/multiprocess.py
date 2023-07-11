@@ -1,9 +1,30 @@
 """
 Run :class:`ayeaye.PartitionedModel` models across multiple operating system processes.
 """
+from enum import Enum
 from multiprocessing import Process, Queue
 
 from ayeaye.connect_resolve import connector_resolver
+
+
+# a single queue supports multiple message types
+class MessageType(Enum):
+    COMPLETE = "COMPLETE"  # return value when subtask is complete
+    LOG = "LOG"  # log message
+
+
+class QueueLogger:
+    """
+    Redirect log messages from a sub-task's :class:`Process` to the parent's :method:`log`.
+    """
+
+    def __init__(self, log_prefix, log_queue):
+        self.log_prefix = log_prefix
+        self.log_queue = log_queue
+
+    def write(self, msg):
+        # TODO structured logging
+        self.log_queue.put((MessageType.LOG, msg))
 
 
 class ProcessPool:
@@ -49,7 +70,7 @@ class ProcessPool:
         total_workers,
         ayeaye_model_cls,
         subtask_kwargs_queue,
-        return_values_queue,
+        returns_queue,
         initialise,
         context_kwargs,
     ):
@@ -68,9 +89,13 @@ class ProcessPool:
         @param subtask_kwargs_queue: :class:`multiprocessing.Queue` object
             subtasks are defined by the (method_name, kwargs) (str, dict) items read from this queue
 
-        @param return_values_queue: :class:`multiprocessing.Queue` object
-            method_name, method_kwargs, subtask_return_value from running are sent back to the
-            calling the subtask along this queue.
+        @param returns_queue: :class:`multiprocessing.Queue` object
+            Multiplex data from the subtask back to the caller (i.e. the instance that made the
+            sub-tasks).
+            Format for the queue is-
+
+            MessageType.LOG, message (str)
+            MessageType.COMPLETE, method_name, method_kwargs, subtask_return_value from the completed sub-task
 
         @param initialise: None, dict or list
             args or kwargs for Aye-aye model's :method:`partition_initialise`
@@ -91,6 +116,14 @@ class ProcessPool:
 
         with connector_resolver.context(**context_kwargs["mapper"]):
             model = ayeaye_model_cls()
+
+            # send logs from the sub-task running in separate Process back to the parent down the queue
+            q_logger = QueueLogger(log_prefix=f"Task ({worker_id})", log_queue=returns_queue)
+            model.set_logger(q_logger)
+
+            # switch off STDOUT as I'm pretty sure it shouldn't be used by a process that has forked as
+            # only the parent is joined to a terminal.
+            model.log_to_stdout = False
 
             model.runtime.worker_id = worker_id
             model.runtime.total_workers = total_workers
@@ -125,7 +158,9 @@ class ProcessPool:
 
                 sub_task_method = getattr(model, method_name)
                 subtask_return_value = sub_task_method(**method_kwargs)
-                return_values_queue.put((method_name, method_kwargs, subtask_return_value))
+                returns_queue.put(
+                    (MessageType.COMPLETE, method_name, method_kwargs, subtask_return_value)
+                )
 
             model.close_datasets()
 
@@ -190,8 +225,18 @@ class ProcessPool:
         for _ in range(self.processes):
             subtask_kwargs_queue.put((None, None))
 
-        for _ in range(subtasks_count):
-            yield return_values_queue.get()
+        completed_procs = 0
+        while True:
+            multiplexed_return = return_values_queue.get()
+
+            if multiplexed_return[0] == MessageType.COMPLETE:
+                completed_procs += 1
+
+            # could be a log message or sub-task completed notification
+            yield multiplexed_return
+
+            if completed_procs >= subtasks_count:
+                break
 
         for proc in proc_table:
             proc.join()

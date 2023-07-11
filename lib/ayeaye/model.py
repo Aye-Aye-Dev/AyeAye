@@ -9,7 +9,7 @@ import ayeaye
 from ayeaye.connectors.base import DataConnector
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.runtime.knowledge import RuntimeKnowledge
-from ayeaye.runtime.multiprocess import ProcessPool
+from ayeaye.runtime.multiprocess import MessageType, ProcessPool
 from ayeaye.ignition import EngineUrlCase, EngineUrlStatus
 
 
@@ -384,6 +384,12 @@ class PartitionedModel(Model):
         of the method name and key word arguments. The method+kwargs will be called on one of the
         workers.
 
+        The number of sub-tasks returned doesn't need to relate to the number of partitions
+        (`partition_count`) that will be used as each worker could execute zero or more than one
+        sub-task. `partition_count` is passed to :method:`partition_slice` as there are scenarios
+        where a greater efficiency is possible when the number of sub-tasks is a multiple of the
+        number of workers.
+
         @param partition_count: (int)
             The number of workers the executor plans to run.
 
@@ -469,12 +475,26 @@ class PartitionedModel(Model):
         for subtasks_complete, subtask_return in enumerate(
             proc_pool.run_subtasks(model_cls=self.__class__, tasks=tasks, initialise=worker_init)
         ):
-            method_name, original_method_kwargs, subtask_return_value = subtask_return
-            self.partition_subtask_complete(
-                subtask_method_name=method_name,
-                subtask_kwargs=original_method_kwargs,
-                subtask_return_value=subtask_return_value,
-            )
-            self.log_progress(subtasks_complete / subtasks_count)
+            message_type = subtask_return[0]
+
+            if message_type == MessageType.COMPLETE:
+                (
+                    message_type,
+                    method_name,
+                    original_method_kwargs,
+                    subtask_return_value,
+                ) = subtask_return
+                self.partition_subtask_complete(
+                    subtask_method_name=method_name,
+                    subtask_kwargs=original_method_kwargs,
+                    subtask_return_value=subtask_return_value,
+                )
+                self.log_progress(subtasks_complete / subtasks_count)
+
+            elif message_type == MessageType.LOG:
+                # TODO structured logging to separate and de-dupe fields like the date
+                self.log(subtask_return[1])
+            else:
+                raise ValueError("Undefined message type received")
 
         self.partition_complete()

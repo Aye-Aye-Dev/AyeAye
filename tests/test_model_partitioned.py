@@ -1,4 +1,5 @@
 from collections import defaultdict
+from io import StringIO
 import json
 import os
 import shutil
@@ -6,6 +7,7 @@ import tempfile
 import unittest
 
 import ayeaye
+from ayeaye.common_pattern.parallel_model_runner import ExampleModelRunner
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
@@ -40,7 +42,6 @@ class FindLongestAnimalName(ayeaye.PartitionedModel):
         )
 
     def partition_slice(self, slice_count):
-
         target_method = "find_longest_name"  # this is the method subtasks should be running
         task_sets = defaultdict(list)
         for idx, dataset in enumerate(self.animals):
@@ -93,7 +94,6 @@ class DistributedFakeWork(ayeaye.PartitionedModel):
         return [(target_method, {"some_number": x}) for x in range(10)]
 
     def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
-
         if not hasattr(self, "resultset"):
             self.resultset = []
 
@@ -114,7 +114,6 @@ class TestPartitionedModel(unittest.TestCase):
         return self._working_directory
 
     def test_general_checks(self):
-
         m = FindLongestAnimalName()
         m.log_to_stdout = False
 
@@ -139,7 +138,6 @@ class TestPartitionedModel(unittest.TestCase):
             self.assertIn("monkeys.tsv", squashed_urls)
 
     def test_happy_partitioned_path(self):
-
         m = FindLongestAnimalName()
         m.log_to_stdout = False
 
@@ -169,3 +167,28 @@ class TestPartitionedModel(unittest.TestCase):
 
         expected_results = set(["important_build_data.ndjson" + str(x) for x in range(10)])
         self.assertEqual(expected_results, set(m.resultset))
+
+    def test_parallel_models(self):
+        """
+        Investigating how to run a load of models in parallel on a single machine using
+        a `PartitionedModel`.
+        """
+        external_log = StringIO()
+
+        build_context = {"greeting": "Hello model runner!"}
+        with ayeaye.connector_resolver.context(**build_context):
+            model_runner = ExampleModelRunner()
+            model_runner.set_logger(external_log)
+            model_runner.log_to_stdout = False
+            model_runner.go()
+
+        external_log.seek(0)
+        all_the_logs = external_log.read()
+
+        for expected_snippet, msg in [
+            ("Running model A from position: 0", "ExampleModelRunner log"),
+            ("This is Model C", "Target models output"),
+            ("This is Model B with init arg: hi model B", "With init message"),
+            ("From the build context: Hello model runner!", "With build context"),
+        ]:
+            self.assertIn(expected_snippet, all_the_logs, msg)

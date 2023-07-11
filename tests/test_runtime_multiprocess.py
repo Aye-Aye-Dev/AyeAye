@@ -6,7 +6,6 @@ from ayeaye.runtime.multiprocess import ProcessPool
 
 class ExamineResolverContext(ayeaye.PartitionedModel):
     def fake_subtask(self):
-
         try:
             ayeaye.connector_resolver.resolve("{build_environment_variable}")
             build_environment_variable_set = True
@@ -43,7 +42,6 @@ class TestRuntimeMultiprocess(unittest.TestCase):
         workers_count = 1
 
         with ayeaye.connector_resolver.context(build_environment_variable="is set"):
-
             msg = "Normal Aye-aye context resolver just sees vars in ayeaye.connector_resolver singleton"
             m = ExamineResolverContext()
             results = m.fake_subtask()
@@ -57,11 +55,18 @@ class TestRuntimeMultiprocess(unittest.TestCase):
                     "mapper": {"local_variable": "is_set"},
                 },
             )
-            for method_name, method_kwargs, subtask_return_value in proc_pool.run_subtasks(
+            for (
+                msg_type,
+                method_name,
+                method_kwargs,
+                subtask_return_value,
+            ) in proc_pool.run_subtasks(
                 model_cls=ExamineResolverContext, tasks=[("fake_subtask", None)], initialise=None
             ):
                 # there will be only one sub-task return - this isn't tested
-                self.assertEqual(method_name, "fake_subtask")
-                self.assertEqual(method_kwargs, {})
-                self.assertFalse(subtask_return_value["build_environment_variable_set"], msg)
-                self.assertTrue(subtask_return_value["local_variable_set"], msg)
+                if str(msg_type) == "MessageType.COMPLETE":
+                    # only checking the final/complete message type
+                    self.assertEqual(method_name, "fake_subtask")
+                    self.assertEqual(method_kwargs, {})
+                    self.assertFalse(subtask_return_value["build_environment_variable_set"], msg)
+                    self.assertTrue(subtask_return_value["local_variable_set"], msg)

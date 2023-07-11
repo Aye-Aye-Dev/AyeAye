@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.47] - 2023-07-11
+
+### Changed
+- The multiprocessing.Queue connecting sub-task processes in PartitionedModel to the parent to be a multiplexed queue with message types. This makes it simple to connect the logs from sub-tasks to the parent's logger. This is an internal change that opens up where log messages surface.
+
+### Added
+- A common patten module to show how multiple independent models can be run in parallel using a PartitionedModel
+
 ## [0.0.46] - 2023-06-27
 
 ### Changed
