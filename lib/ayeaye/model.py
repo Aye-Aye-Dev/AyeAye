@@ -32,8 +32,8 @@ class Model:
     Abstract class
 
     The thing is probably an ETL (Extract, Transform and Load) task which is at the minimum
-    the :method:`build`. It could optionally also have a :method:`pre_build_check`, which is run
-    first and must succeed. After the :method:`build` an optional :method:`post_build_check`
+    the :meth:`build`. It could optionally also have a :meth:`pre_build_check`, which is run
+    first and must succeed. After the :method:`build` an optional :meth:`post_build_check`
     can be used to see if build worked.
     """
 
