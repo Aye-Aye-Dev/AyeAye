@@ -38,24 +38,26 @@ class EngineFromManifest:
 
     The file `products_manifest_20210618.json` contains
 
-    ```
-    {"source_files": "products_inventory_2021.csv"}`
-    ```
+    .. code-block:: json
 
-    ```
-    import ayeaye
-    from ayeaye.common_pattern.manifest import EngineFromManifest
-    from ayeaye.connect_resolve import connector_resolver
-
-    class ProductsBuild(ayeaye.Model):
-        manifest = ayeaye.Connect(engine_url="json://products_manifest_{build_id}.json")
-        products = ayeaye.Connect(engine_url=EngineFromManifest(manifest, "source_files", "csv"))
+      {"source_files": "products_inventory_2021.csv"}
 
 
-    with connector_resolver.context(build_id="20210618"):
-        m = ProductsBuild()
-        assert m.products.engine_url == "csv://products_inventory_2021.csv"
-    ```
+    .. code-block:: python
+
+        import ayeaye
+        from ayeaye.common_pattern.manifest import EngineFromManifest
+        from ayeaye.connect_resolve import connector_resolver
+
+        class ProductsBuild(ayeaye.Model):
+            manifest = ayeaye.Connect(engine_url="json://products_manifest_{build_id}.json")
+            products = ayeaye.Connect(engine_url=EngineFromManifest(manifest, "source_files", "csv"))
+
+
+        with connector_resolver.context(build_id="20210618"):
+            m = ProductsBuild()
+            assert m.products.engine_url == "csv://products_inventory_2021.csv"
+
     """
 
     def __init__(self, manifest_dataset, field_name, engine_type):
@@ -117,20 +119,21 @@ class AbstractManifestMapper:
 
     For example, using xxxx as the map name:
 
-    ```
-    class FileMapper(AbstractManifestMapper):
-        def map_xxxx(self):
-            return [(f, f"json://{f}") for f in self.manifest_items]
-    ```
+    .. code-block:: python
+
+        class FileMapper(AbstractManifestMapper):
+            def map_xxxx(self):
+                return [(f, f"json://{f}") for f in self.manifest_items]
 
     creates a method `.xxxx()` which returns just the engine_urls. It is used in an ayeaye.Connect-
 
-    ```
-    class AustralianAnimals(ayeaye.Model):
-        animals_manifest = ayeaye.Connect(engine_url="json://{input_data}/animals_manifest.json")
-        animals_mapper = FileMapper(animals_manifest)
-        all_files = ayeaye.Connect(engine_url=animals_mapper.all_files)
-    ```
+    .. code-block:: python
+
+        class AustralianAnimals(ayeaye.Model):
+            animals_manifest = ayeaye.Connect(engine_url="json://{input_data}/animals_manifest.json")
+            animals_mapper = FileMapper(animals_manifest)
+            all_files = ayeaye.Connect(engine_url=animals_mapper.all_files)
+
 
     And FileMapper will also be an iterator returning a object with attributes linking to the
     engine_urls of all mappers.
@@ -158,7 +161,9 @@ class AbstractManifestMapper:
         self.field_name = field_name
 
     def __copy__(self):
-        c = self.__class__(manifest_dataset=self.manifest_dataset_unresolved, field_name=self.field_name)
+        c = self.__class__(
+            manifest_dataset=self.manifest_dataset_unresolved, field_name=self.field_name
+        )
         return c
 
     def __get__(self, instance, instance_class):
@@ -212,7 +217,7 @@ class AbstractManifestMapper:
         context that is needed before reading the manifest_dataset. That context wouldn't have been
         available during construction.
 
-        Returns content of manifest's data attribute. Similar to :method:`manifest_items`.
+        Returns content of manifest's data attribute. Similar to :meth:`manifest_items`.
         """
         if isinstance(self.manifest_dataset_unresolved, ayeaye.Connect):
             # .clone() is to prevent the .Connect being bound to the parent if it's connected
@@ -238,10 +243,10 @@ class AbstractManifestMapper:
 
         For example-
 
-        ```
-        def map_xxxx(self):
-            ...
-        ```
+        .. code-block:: python
+
+            def map_xxxx(self):
+                ...
 
         `xxxx` is the `map_name`.
 
@@ -252,7 +257,6 @@ class AbstractManifestMapper:
         method_prefix = "map_"
         _methods = {}
         for obj_name in dir(self):
-
             if not obj_name.startswith(method_prefix):
                 continue
 
@@ -281,7 +285,6 @@ class AbstractManifestMapper:
             full_map[manifest_listed_file] = defaultdict(list)
 
         for map_name, map_method in self.methods_mapper.items():
-
             for manifest_listed_file, engine_url in map_method():
                 full_map[manifest_listed_file][map_name].append(engine_url)
 
@@ -295,7 +298,6 @@ class AbstractManifestMapper:
         for manifest_item, map_values in self.full_map.items():
             m = {"manifest_item": manifest_item}
             for map_name, engine_urls in map_values.items():
-
                 # 1-1 mapping easier to understand when returned as single item
                 # if this isn't intuitive then map_method() should declare what to do here.
                 # e.g.

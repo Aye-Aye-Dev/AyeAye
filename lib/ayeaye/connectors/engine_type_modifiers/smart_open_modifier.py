@@ -139,7 +139,7 @@ class SmartOpenModifier(AbstractEngineTypeModifier):
 
     def _open(self, *args, **kwargs):
         """
-        Overrides :method:`FilesystemConnector.connect` with one using Smart Open's open.
+        Overrides :meth:`FilesystemConnector.connect` with one using Smart Open's open.
         """
         smart_open_kwargs = {}
         if "gz" in self.requested_modifier_labels:
@@ -185,7 +185,7 @@ class SmartOpenModifier(AbstractEngineTypeModifier):
             return None
 
         if self._s3_resource:
-            raise NotImplementedError("TODO: S3, get from :method:`_remote_file_attribs`")
+            raise NotImplementedError("TODO: S3, get from :meth:`_remote_file_attribs`")
 
         timestamp = os.path.getmtime(self.file_path)
         last_modified = datetime.utcfromtimestamp(timestamp).replace(tzinfo=timezone.utc)

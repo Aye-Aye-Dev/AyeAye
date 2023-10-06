@@ -67,7 +67,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
             msg = "`schema_builder` and `schema_model` arguments are mutually exclusive"
             raise ValueError(msg)
 
-        # on demand see :method:`connect`
+        # on demand see :meth:`connect`
         # the engine, declarative base class and sessions belong to this connection. Sharing these
         # between connections within a single model is not yet implemented.
         self.Base = None  # the declarative base
@@ -75,7 +75,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
         self.engine = None
 
         # self.schema_builder is built by init from the optional args
-        self._schema_p = None  # see :method:`connect`
+        self._schema_p = None  # see :meth:`connect`
 
     def connect(self):
         super().connect()

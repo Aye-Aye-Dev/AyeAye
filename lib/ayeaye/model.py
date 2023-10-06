@@ -18,7 +18,7 @@ class LockingMode(Enum):
     How to capture context around datasets in a model. This is used to track data provenance and
     to make model repeatability possible.
 
-    @see :method:`Model.lock`
+    @see :meth:`Model.lock`
     """
 
     CONTEXT = "context"  # just the ayeaye.connector_resolver context
@@ -33,7 +33,7 @@ class Model:
 
     The thing is probably an ETL (Extract, Transform and Load) task which is at the minimum
     the :meth:`build`. It could optionally also have a :meth:`pre_build_check`, which is run
-    first and must succeed. After the :method:`build` an optional :meth:`post_build_check`
+    first and must succeed. After the :meth:`build` an optional :meth:`post_build_check`
     can be used to see if build worked.
     """
 
@@ -56,10 +56,10 @@ class Model:
         Run the model.
 
         The steps to run a model are
-        1. :method:`pre_build_check` - Optional conditional check if model's pre-conditions have
+        1. :meth:`pre_build_check` - Optional conditional check if model's pre-conditions have
            been met.
-        2. :method:`build` - The main modelling stage
-        3. :method:`post_build_check` - Optional check if the outputs are valid. e.g. a data
+        2. :meth:`build` - The main modelling stage
+        3. :meth:`post_build_check` - Optional check if the outputs are valid. e.g. a data
            validation check that is simple and concise. It's like a unit test but on changable
            data.
 
@@ -93,12 +93,12 @@ class Model:
     def pre_build_check(self):
         """
         Optionally implemented by subclasses to check any conditions that must be met before
-        running :method:`build`.
+        running :meth:`build`.
 
-        For example, assumptions :method:`build` makes on on the format or values within the data
+        For example, assumptions :meth:`build` makes on on the format or values within the data
         could be checked here in order to keep code in build simple.
 
-        @return: boolean. If False is returned :method:`build` won't be run.
+        @return: boolean. If False is returned :meth:`build` won't be run.
         """
         return True
 
@@ -113,13 +113,13 @@ class Model:
         Do the thing! - build/process/transform - whatever the model does starts here.
 
         Must be implemented by subclasses. Don't change method argument in subclass as this is
-        called by :method:`go` when running the full model execution.
+        called by :meth:`go` when running the full model execution.
         """
         raise NotImplementedError("All models must implement the build() method")
 
     def post_build_check(self):
         """
-        This is an optional method that will be run after :method:`build`. It can be used to check
+        This is an optional method that will be run after :meth:`build`. It can be used to check
         the validity of the build process.
 
         @return: boolean. If False is returned the model is considered to have failed.
@@ -159,7 +159,7 @@ class Model:
 
     def close_datasets(self):
         """
-        Call :method:`close_connection` on all datasets.
+        Call :meth:`close_connection` on all datasets.
         """
         for connection in self.datasets().values():
             if connection.is_connected:
@@ -167,7 +167,7 @@ class Model:
 
     def set_logger(self, logger):
         """
-        Also log to something with a :method:`write`.
+        Also log to something with a :meth:`write`.
         e.g. StringIO
         """
         self.external_logger = logger
@@ -221,7 +221,7 @@ class Model:
         provided by `ayeaye.connector_resolver` in order to be repeatable. For example, the model
         might not be deterministic.
 
-        The value returned will be passed to :method:`apply_locking` if/when a model needs to
+        The value returned will be passed to :meth:`apply_locking` if/when a model needs to
         be repeated.
 
         @returns something that can be serialised to JSON
@@ -230,7 +230,7 @@ class Model:
 
     def apply_locking(self, lock_doc):
         """
-        Use the output from :method:`fetch_locking` to reproduce results from a previous build.
+        Use the output from :meth:`fetch_locking` to reproduce results from a previous build.
 
         This method should be implemented if a model needs to be hydrated with locking details from
         a previous build.
@@ -293,7 +293,7 @@ class PartitionedModel(Model):
     is responsible for orchestrating a level of parallelisation that fits the execution environment.
 
     An external executor is expected to run :class:`PartitionedModel` subclasses. It would
-    instantiate the model and examine it's :method:`partition_plea` before running it in a
+    instantiate the model and examine it's :meth:`partition_plea` before running it in a
     distributed environment (e.g. Google Cloud Run, Celery, AWS' ECS etc.). The external executor
     is responsible for transporting task arguments, log message etc. TODO : there isn't an open
     source executor yet. It has been done in a commercial project.
@@ -314,33 +314,33 @@ class PartitionedModel(Model):
     It works as follows-
 
     1. The executor creates the parent instance. If the 'simple mechanism for parallel execution' (as
-    above) is being used, this is the instance that :method:`go` is running on.
+    above) is being used, this is the instance that :meth:`go` is running on.
 
     2. The executor asks the parent instance for 'suggestions' of how many sub-tasks the model can
-    be split into (see :method:`partition_plea`). This suggestion is for the number of workers the
+    be split into (see :meth:`partition_plea`). This suggestion is for the number of workers the
     model would like to have running in parallel. There are situations where an exact number of
     workers are needed (e.g. so each worker has independent control of a resource such as a file)
     and there are other situations where too many worker could result in a stampede on a resource
     (such as a database).
 
-    3. The executor evaluates the :class:`PartitionOption` returned by :method:`partition_plea`
+    3. The executor evaluates the :class:`PartitionOption` returned by :meth:`partition_plea`
     along with the capabilities of the execution environment and requests a mutually compatible
-    number of partition arguments from :method:`partition_slice`. The number of sub-tasks doesn't
+    number of partition arguments from :meth:`partition_slice`. The number of sub-tasks doesn't
     need to match the number of workers although there can be a relationship.
 
-    4. :method:`partition_slice` is called on the parent instance. It returns a list of method
+    4. :meth:`partition_slice` is called on the parent instance. It returns a list of method
     names and sub-task arguments. Each of which is passed by the executor to an instance of the
     model that has been instantiated with the same resolver context (see :class:`ConnectorResolver`)
     as the 'parent' model. The models running in the worker processes are initiated when the worker
     process starts, i.e. each instance will have it's sub-task method called multiple times. See
-    :method:`partition_initialise`.
+    :meth:`partition_initialise`.
 
-    4. The return value from each subtask is passed to optional :method:`partition_subtask_complete`.
+    4. The return value from each subtask is passed to optional :meth:`partition_subtask_complete`.
 
     5. When the executor is satisfied that all sub-tasks are complete the optional
-    :method:`partition_complete` method is called.
+    :meth:`partition_complete` method is called.
 
-    6. The :method:`build` will be called in a separate worker process. i.e. this isn't the same
+    6. The :meth:`build` will be called in a separate worker process. i.e. this isn't the same
     instance as the parent instance.
     """
 
@@ -386,7 +386,7 @@ class PartitionedModel(Model):
 
         The number of sub-tasks returned doesn't need to relate to the number of partitions
         (`partition_count`) that will be used as each worker could execute zero or more than one
-        sub-task. `partition_count` is passed to :method:`partition_slice` as there are scenarios
+        sub-task. `partition_count` is passed to :meth:`partition_slice` as there are scenarios
         where a greater efficiency is possible when the number of sub-tasks is a multiple of the
         number of workers.
 
@@ -434,7 +434,7 @@ class PartitionedModel(Model):
         multiprocessing for local parallel execution.
 
         This 'built in' concurrent operator sets up a pool of processes that is related to the
-        number of sub-tasks indicated by :method:`partition_plea`. There doesn't need to be
+        number of sub-tasks indicated by :meth:`partition_plea`. There doesn't need to be
         a relationship between the number of processes and the number of tasks but it wouldn't
         make sense for more processes than tasks.
         """

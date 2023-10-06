@@ -15,7 +15,7 @@ class MessageType(Enum):
 
 class QueueLogger:
     """
-    Redirect log messages from a sub-task's :class:`Process` to the parent's :method:`log`.
+    Redirect log messages from a sub-task's :class:`Process` to the parent's :meth:`log`.
     """
 
     def __init__(self, log_prefix, log_queue):
@@ -50,7 +50,7 @@ class ProcessPool:
 
         @param model_initialise (list of args (list) or kwargs (dict))
             Each item in this list is passed as either *args or **kwargs to the Aye-aye model's
-            :method:`partition_initialise`.
+            :meth:`partition_initialise`.
 
         @param context_kwargs: (dict)
             connector_resolver context key value pairs.
@@ -98,10 +98,10 @@ class ProcessPool:
             MessageType.COMPLETE, method_name, method_kwargs, subtask_return_value from the completed sub-task
 
         @param initialise: None, dict or list
-            args or kwargs for Aye-aye model's :method:`partition_initialise`
+            args or kwargs for Aye-aye model's :meth:`partition_initialise`
 
         @param context_kwargs: (dict)
-            Output from :method:`connect_resolve.ConnectorResolver.capture_context` - so needs the
+            Output from :meth:`connect_resolve.ConnectorResolver.capture_context` - so needs the
             'mapper' key with dict. as value.
             key/values that are made available to the model. These are likely to be taken from
             `self` and passed to this static method as it alone runs in the :class:`Process`.
@@ -149,7 +149,7 @@ class ProcessPool:
                 if method_kwargs is None:
                     method_kwargs = {}
 
-                # TODO - :method:`log` for the worker processes should be connected back to the parent
+                # TODO - :meth:`log` for the worker processes should be connected back to the parent
                 # with a queue or pipe and it shouldn't be using stdout
 
                 # TODO - supply the connector_resolver context
@@ -178,7 +178,7 @@ class ProcessPool:
             each item defines a subtask to execute in a worker process
 
         @param initialise: None, or list of tuples (dict and or list)
-            args or kwargs for Aye-aye model's :method:`partition_initialise`.
+            args or kwargs for Aye-aye model's :meth:`partition_initialise`.
             Each item in this list is used to initialise a worker process.
         """
         subtasks_count = len(tasks)

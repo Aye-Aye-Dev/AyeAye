@@ -229,7 +229,7 @@ class TestResolve(unittest.TestCase):
     def test_deferred_results_not_held(self):
         """
         Regression test for fix. The results of a callable for engine_url were being persisted on
-        relayed_kwargs in :method:`Connect._prepare_connection`. DeferredResolution was being used
+        relayed_kwargs in :meth:`Connect._prepare_connection`. DeferredResolution was being used
         in this case and it's a common pattern.
         """
 
@@ -264,7 +264,7 @@ class TestResolve(unittest.TestCase):
 
     def test_reset_connect_resolve(self):
         """
-        :method:`brutal_reset` can be used to stop a failed unit test effecting another unit test.
+        :meth:`brutal_reset` can be used to stop a failed unit test effecting another unit test.
         """
         connector_resolver.add(x="y")
         with self.assertRaises(ValueError) as exception_context:
@@ -307,7 +307,7 @@ class TestResolve(unittest.TestCase):
         """
         A :class:`MultiConnector` should be created and :class:`Ignition` should resolve the
         wild card. This is done much later than that tested in
-        :method:`TestMultiConnectors.test_wildcards`
+        :meth:`TestMultiConnectors.test_wildcards`
         """
 
         # Note-
@@ -331,7 +331,7 @@ class TestResolve(unittest.TestCase):
     def test_isolated_additional_context(self):
         """
         Overlay of variables into two local contexts. Check they don't have visibility of each
-        other because :method:_LocalResolverContext.__exit__ is disposing of the correct
+        other because :meth:_LocalResolverContext.__exit__ is disposing of the correct
         variables.
         """
         common_params = {"study_name": "insects"}

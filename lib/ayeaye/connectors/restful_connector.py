@@ -75,7 +75,7 @@ class RestfulConnector(DataConnector):
         # updated whilst running
         self.last_http_status = None
         self.last_headers = None
-        self._requests = None  # initiated by :method:`connect`
+        self._requests = None  # initiated by :meth:`connect`
         self.statistics = None  # OK to read this
         self.reset_stats()
         self.profiler = ProfileRequest(statistics=self.statistics)

@@ -74,7 +74,7 @@ class ConnectorResolver:
 
     def resolve_engine_url(self, unresolved_engine_url):
         """
-        old name, use :method:`resolve` instead
+        old name, use :meth:`resolve` instead
         """
         warnings.warn(
             "'resolve_engine_url' is deprecated use 'resolve' instead", DeprecationWarning
@@ -145,10 +145,10 @@ class ConnectorResolver:
     def add_secret(self, *args, **kwargs):
         """
         When an :class:`ayeaye.Model` is locked secrets shouldn't be included in the locking data.
-        This method is analogous to :method:`add` but keeps a reference to exclude these items
-        from the :method:`capture_context`.
+        This method is analogous to :meth:`add` but keeps a reference to exclude these items
+        from the :meth:`capture_context`.
 
-        @see :method:`add` for arguments.
+        @see :meth:`add` for arguments.
         """
         raise NotImplementedError("TODO")
 
@@ -156,7 +156,7 @@ class ConnectorResolver:
         """
         Return a JSON safe dictionary of context variables.
 
-        The returned dictionary is expected to be serialised as part of :method:`ayeaye.Model.lock`.
+        The returned dictionary is expected to be serialised as part of :meth:`ayeaye.Model.lock`.
 
         @return (dict)
         """
@@ -171,7 +171,7 @@ class ConnectorResolver:
             raise NotImplementedError("Can't serialise callables - alternative approach needed.")
 
         for attribute_name, attribute_value in self._attr.items():
-            # attrib names are checked in :method:`add`
+            # attrib names are checked in :meth:`add`
             if isinstance(attribute_value, json_safe_types):
                 continue
 
@@ -192,9 +192,9 @@ class ConnectorResolver:
         with connector_resolver.context(m_resolver):
             assert 'csv://my_path/data_1234.csv' == c.engine_url
 
-        @see :method:`TestConnectors.test_resolve_engine_url` for an example.
+        @see :meth:`TestConnectors.test_resolve_engine_url` for an example.
 
-        @see :method:`add` for args and kwargs
+        @see :meth:`add` for args and kwargs
 
         Warning - not yet thread-safe as the global state is altered for the duration of the
         context manager. Can be fixed with thread local variables.
@@ -204,8 +204,8 @@ class ConnectorResolver:
             """
             Keep track of a temporary resolver.
 
-            Can be used with a 'with statement' or by calling :method:`start` and :method:`finish`.
-            @see :method:`TestResolve.test_without_with_statement` for an example.
+            Can be used with a 'with statement' or by calling :meth:`start` and :meth:`finish`.
+            @see :meth:`TestResolve.test_without_with_statement` for an example.
             """
 
             def __init__(self, parent):
@@ -217,7 +217,7 @@ class ConnectorResolver:
 
             def add(self, *a_args, **a_kwargs):
                 """
-                @see :method:`ConnectorResolver.add`
+                @see :meth:`ConnectorResolver.add`
                 """
                 if a_args:
                     self.context_args.extend(a_args)
@@ -261,7 +261,7 @@ class DeferredResolution:
     Avoid the catch 22 of :class:`ConnectorResolver`'s named attribute being needed by a class variable
     but having not been added to the connector_resolver instance.
 
-    Save the calling until :method:`Connect._prepare_connection calls` :method:`evaluate`.
+    Save the calling until :meth:`Connect._prepare_connection calls` :meth:`evaluate`.
     """
 
     def __init__(self, calling_instance, requested_attrib):

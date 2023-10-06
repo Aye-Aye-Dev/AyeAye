@@ -34,7 +34,7 @@ class KafkaConnector(DataConnector):
         """
         super().__init__(*args, **kwargs)
 
-        # set by :method:`connect`
+        # set by :meth:`connect`
         self.bootstrap_server = self.topic = self.start_params = self.end_params = None
         self.start_p_offsets = self.end_p_offsets = None
         self.available_topics = None

@@ -266,7 +266,7 @@ class TestSqlAlchemyConnector(unittest.TestCase):
 
     def test_schema_model_multiple(self):
         """
-        see :method:`` but with a list, same idea as how the schema_builder argument can return a
+        see :meth:`` but with a list, same idea as how the schema_builder argument can return a
         single schema or list.
         """
         Base = declarative_base()

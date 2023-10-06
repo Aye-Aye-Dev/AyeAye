@@ -33,7 +33,7 @@ class TestRuntimeMultiprocess(unittest.TestCase):
     def test_resolver_context_not_inherited(self):
         """
         The resolver context shouldn't be copied to worker processes from the parent. It should be
-        explicitly passed in :method:`ayeaye.runtime.multiprocess.ProcessPool.run_model`.
+        explicitly passed in :meth:`ayeaye.runtime.multiprocess.ProcessPool.run_model`.
 
         In practice they will be the same thing. This behaviour is checked as there was an issue
         with OSX fork() and Linux fork() having differences in memory from parent process? i.e.

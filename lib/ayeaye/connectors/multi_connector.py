@@ -111,7 +111,7 @@ class MultiConnector(DataConnector):
         Note that a previously used connector will retain it's connection state from it's previous
         usage.
         e.g. a child connector could have iterated part way through an input file.
-        The connector could always be reset by closing with :method:`close_connection` and then
+        The connector could always be reset by closing with :meth:`close_connection` and then
         opened again.
 
         @param engine_url: (str) unresolved engine_url (i.e. could contain {params} to be resolved

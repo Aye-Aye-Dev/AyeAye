@@ -238,7 +238,7 @@ class TestConnect(unittest.TestCase):
     def test_standalone_in_non_model_instance(self):
         """
         Make changes to a Connect that doesn't belong to an ayeaye.Model.
-        Also see :method:`TestModels.test_double_usage` for how this behaves with an ayeaye.Model.
+        Also see :meth:`TestModels.test_double_usage` for how this behaves with an ayeaye.Model.
         """
 
         class NonModelClass:

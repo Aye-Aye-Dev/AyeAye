@@ -32,7 +32,7 @@ class CsvConnector(FileBasedConnector):
             field_names (sequence, probably a list (str) - Field names for all rows in file.
                     Using this argument when reading forces the CSV module to treat the first line
                     of the file as data, not as a header. When used in write mode it is the order
-                    of fields in the output csv file and the :method:`add` can be given a record
+                    of fields in the output csv file and the :meth:`add` can be given a record
                     with additional fields (i.e. not in the `field_names` list) that will be
                     silently ignored and not written to the output file.
 
@@ -60,7 +60,7 @@ class CsvConnector(FileBasedConnector):
 
         # fieldnames are loaded from construction args or from field. This will be unified when
         # schemas are implemented. For now, keep track so loading fieldnames from file doesn't
-        # make a :method:`_reset`
+        # make a :meth:`_reset`
         self.base_field_names = copy.copy(self.field_names)
         self.delimiter = ","
 

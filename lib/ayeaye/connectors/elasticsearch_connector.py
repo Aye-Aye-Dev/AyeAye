@@ -29,7 +29,7 @@ class ElasticsearchConnector(DataConnector):
         """
         super().__init__(*args, **kwargs)
 
-        # set by :method:`connect`
+        # set by :meth:`connect`
         self.host = self.port = self.default_index = None
         self.client = None
 
@@ -107,7 +107,7 @@ class ElasticsearchConnector(DataConnector):
 
     def fetch(self, doc_id=None, document_type=None, index=None):
         """
-        @see :method:`add` but without `document` argument
+        @see :meth:`add` but without `document` argument
         @return: the orginal document.
         """
         if self.access != AccessMode.READ and self.access != AccessMode.READWRITE:

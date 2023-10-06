@@ -175,8 +175,8 @@ class DataConnector:
             what_are_these = ", ".join(kwargs.keys())
             raise ValueError(f"Unexpected argument(s): '{what_are_these}'")
 
-        # For this to work correctly subclasses must correctly call :method:`connect` and
-        # :method:`close_connection`
+        # For this to work correctly subclasses must correctly call :meth:`connect` and
+        # :meth:`close_connection`
         self._is_connected = False
 
     def __del__(self):
@@ -187,7 +187,7 @@ class DataConnector:
         """
         Instances of subclasses of :class:`DataConnector` and :class:`ModelConnector` are usually
         built by :class:`ayeaye.Connect`. `connect_instance` is a reference to make it easy to
-        tweak an existing connect on a model. See :method:`TestConnect.test_update_by_replacement`
+        tweak an existing connect on a model. See :meth:`TestConnect.test_update_by_replacement`
         for an example.
         """
         return self._connect_instance
@@ -225,7 +225,7 @@ class DataConnector:
         @return: None
         """
         if self._connect_instance is None:
-            raise ValueError("Connect instance not referenced. See :method:`update` for more")
+            raise ValueError("Connect instance not referenced. See :meth:`update` for more")
 
         self._connect_instance.update(**kwargs)
         ident = id(self._connect_instance)
@@ -241,8 +241,8 @@ class DataConnector:
         This means resources been allocated to connect to a source of data. Resources are
         typically file handles, network connections etc.
 
-        For this to work correctly subclasses must correctly call :method:`connect` and
-        # :method:`close_connection`
+        For this to work correctly subclasses must correctly call :meth:`connect` and
+        # :meth:`close_connection`
 
         @return bool
             The dataset is connected.
@@ -295,7 +295,7 @@ class DataConnector:
     def data(self):
         """
         Return the entire dataset. The returned objects could be lazy evaluated. Use of this method
-        will get ugly with large datasets. Better to use the :method:`__iter__` iterator.
+        will get ugly with large datasets. Better to use the :meth:`__iter__` iterator.
 
         @return: mixed
         """
@@ -303,7 +303,7 @@ class DataConnector:
 
     def as_pandas(self):
         """
-        Similar to :method:`data` but as a Pandas dataframe.
+        Similar to :meth:`data` but as a Pandas dataframe.
 
         @return: (Pandas dataframe)
         """
@@ -373,7 +373,7 @@ class FileBasedConnector(DataConnector):
     def _build_engine_params(self):
         """
         can be overridden by subclass.
-        @see :method:`engine_params`
+        @see :meth:`engine_params`
         """
 
         ep = self.ignition._decode_filesystem_engine_url(
@@ -402,7 +402,7 @@ class FileBasedConnector(DataConnector):
         return None
 
     def auto_create_directory(self):
-        "Place for a hook within subclasses. @see :method:`_auto_create_directory`"
+        "Place for a hook within subclasses. @see :meth:`_auto_create_directory`"
         return self._auto_create_directory()
 
     def _auto_create_directory(self):

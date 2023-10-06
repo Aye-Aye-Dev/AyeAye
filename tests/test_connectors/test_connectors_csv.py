@@ -152,7 +152,7 @@ class TestConnectorsCsv(unittest.TestCase):
     def test_csv_extra_fields_with_write(self):
         """
         When the optional 'field_names' argument is used when writing to a CSV any additional
-        fields in the data passed to :method:`add` will be ignored.
+        fields in the data passed to :meth:`add` will be ignored.
         """
         data_dir = tempfile.mkdtemp()
         csv_file = os.path.join(data_dir, "bird_names.csv")

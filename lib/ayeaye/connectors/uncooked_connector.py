@@ -49,7 +49,7 @@ class UncookedConnector(FileBasedConnector):
     @property
     def file_handle(self):
         """
-        File handle to open file for operations such as :method:`read`()
+        File handle to open file for operations such as :meth:`read`()
         """
         self.connect()
         return self._file_handle

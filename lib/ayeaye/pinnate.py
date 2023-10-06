@@ -172,7 +172,7 @@ class Pinnate:
 
     def as_json(self, *args, **kwargs):
         """
-        @see :method:`as_dict` for params.
+        @see :meth:`as_dict` for params.
         @returns (str) JSON representation
         """
         return json.dumps(self.as_native(*args, **kwargs), default=str)
@@ -226,7 +226,7 @@ class Pinnate:
     def load(self, data):
         """
         :param data: dict, list, set or json string
-        :param merge: bool see :method:`update` if False or :method:`merge` when True.
+        :param merge: bool see :meth:`update` if False or :meth:`merge` when True.
         """
 
         if isinstance(data, str):
@@ -252,7 +252,6 @@ class Pinnate:
             raise TypeError("Unsupported type")
 
         if self.payload_undefined:
-
             if isinstance(data, dict):
                 self._attr = {}
             elif isinstance(data, set):
@@ -277,7 +276,6 @@ class Pinnate:
                     self._attr[k] = v
 
         elif self.is_payload(list):
-
             for v in data:
                 if isinstance(v, dict):
                     self._attr.append(Pinnate(v))
@@ -285,7 +283,6 @@ class Pinnate:
                     self._attr.append(v)
 
         elif self.is_payload(set):
-
             for v in data:
                 if isinstance(v, dict):
                     self._attr.add(Pinnate(v))

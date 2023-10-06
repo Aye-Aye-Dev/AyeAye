@@ -19,7 +19,7 @@ class BigQueryConnector(DataConnector):
 
         additional args for BigQueryConnector
          'credentials' : (dict) for access within Google Cloud Platform
-         'auto_schema' : (bool) only needed for streaming data (e.g. :method:`add`) and only
+         'auto_schema' : (bool) only needed for streaming data (e.g. :meth:`add`) and only
                          when table doesn't already exist.
 
         Connection information-
@@ -38,7 +38,7 @@ class BigQueryConnector(DataConnector):
 
         super().__init__(*args, **kwargs)
 
-        # set by :method:`connect`
+        # set by :meth:`connect`
         self.project_id = self.dataset_id = self.table_id = None
         self.client = None
 
@@ -135,7 +135,7 @@ class BigQueryConnector(DataConnector):
     @property
     def data(self):
         """
-        All the data. Use :method:`query`.
+        All the data. Use :meth:`query`.
         TODO slices
         """
         self.connect()
@@ -151,7 +151,7 @@ class BigQueryConnector(DataConnector):
     def add(self, row):
         """
         Add a row to the connected table.
-        This method doesn't write to BQ immediately. call :method:`flush_writes` when
+        This method doesn't write to BQ immediately. call :meth:`flush_writes` when
         needed and after last row has been written.
         Args:
             row (dict) or tuple with correct column mappings
@@ -215,7 +215,7 @@ class BigQueryConnector(DataConnector):
 
     def query(self, **kwargs):
         """
-        get a subset of :method:`data`.
+        get a subset of :meth:`data`.
 
         Allowed options-
         sql : (str) SQL statement.

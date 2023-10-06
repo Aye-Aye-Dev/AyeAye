@@ -83,7 +83,7 @@ class TestModelCollection(unittest.TestCase):
     def repr_run_order(run_order):
         """
         @return: (list of sets) showing a simplified representation of the run_order from
-        :method:`_resolve_run_order` using just the 'model_name' field.
+        :meth:`_resolve_run_order` using just the 'model_name' field.
         """
         r = []
         for task_group in run_order:

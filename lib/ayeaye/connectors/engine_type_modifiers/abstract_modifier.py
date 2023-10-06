@@ -9,7 +9,7 @@ class AbstractEngineTypeModifier:
     Would transparently compress/decompress on the fly but is otherwise using the
     :class:`ayeaye.Connectors.NdjsonConnector` connector.
 
-    Modifier classes are subclasses of this `AbstractEngineTypeModifier` class and their :method:`apply` is
+    Modifier classes are subclasses of this `AbstractEngineTypeModifier` class and their :meth:`apply` is
     applied to the target `DataConnector` in the same way that python decorators work behind the
     scenes-
 

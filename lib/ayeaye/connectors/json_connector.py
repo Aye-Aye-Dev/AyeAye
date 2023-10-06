@@ -53,7 +53,7 @@ class JsonConnector(FileBasedConnector):
         that is available as self.data.
 
         In AccessMode.WRITE mode connect() doesn't do anything because file handles aren't kept
-        open by the JsonConnector. The write operation is in :method:`_data_write`.
+        open by the JsonConnector. The write operation is in :meth:`_data_write`.
         """
         if self._doc is None:
             FileBasedConnector.connect(self)
@@ -105,7 +105,7 @@ class JsonConnector(FileBasedConnector):
             as_json = json.dumps(new_data, **json_args)
 
         # Data is written to beginning of file (it might be readwrite or already written to);
-        # write to disk immediately (i.e. flush); @see :method:`connect`.
+        # write to disk immediately (i.e. flush); @see :meth:`connect`.
         self._file_handle.seek(0)
         self._file_handle.write(as_json)
         # truncate rest of the file as the previous contents might have been longer

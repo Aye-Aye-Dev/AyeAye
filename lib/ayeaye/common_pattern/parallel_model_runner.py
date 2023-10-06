@@ -15,7 +15,7 @@ class AbstractModelRunner(ayeaye.PartitionedModel):
     The models in the list are started in order but they are run in parallel (with the number of
     parallel tasks depending on the number of CPUs) so any dependencies might not have been satisfied.
 
-    @see :method:`tests.test_model_partitioned.TestPartitionedModel.test_parallel_models` for an
+    @see :meth:`tests.test_model_partitioned.TestPartitionedModel.test_parallel_models` for an
     example of this running.
     """
 

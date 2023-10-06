@@ -21,10 +21,10 @@ class Connect:
     :class:`Connect` can be used standalone (see below) but is really designed to be used as a
     class variable in an :class:`ayeaye.Model`:
 
-    ```
+    .. code-block:: python
+
         class FavouriteColours(ayeaye.Model):
             favourite_colours = ayeaye.Connect(engine_url='csv://data/favourite_colours.csv')
-    ```
 
     An instance of :class:`Connect` as a class variable in an :class:`ayeaye.Model` is a
     declaration of a model's use of a dataset. In Python, class variables shouldn't be used as
@@ -34,10 +34,11 @@ class Connect:
 
     It is also possible to use :class:`Connect` in *standalone* mode. This is as a convenience, in
     particular for evaluating datasets, for example in a Jupyter notepad:
-    ```
-    for row in ayeaye.Connect(engine_url='csv://data/favourite_colours.csv'):
-      print(row.colour)
-    ```
+
+    .. code-block:: python
+
+        for row in ayeaye.Connect(engine_url='csv://data/favourite_colours.csv'):
+          print(row.colour)
 
     For secrets management @see :class:`ConnectorResolver`.
     """
@@ -80,7 +81,7 @@ class Connect:
             raise ValueError(f"For kwargs, {mut_ex_field} values are mutually exclusive.")
 
         self.ref = self.relayed_kwargs.pop("ref", None)
-        self._standalone_connection = None  # see :method:`data`
+        self._standalone_connection = None  # see :meth:`data`
         self._parent_model = None
 
     def __repr__(self):
@@ -103,7 +104,7 @@ class Connect:
         This is typically used when :class:`Connect` objects are being used as class variables to
         refer to the same dataset multiple times in a single model.
 
-        @see :method:`TestModels.test_double_usage`
+        @see :meth:`TestModels.test_double_usage`
 
         @return (instance of :class:`Connect`)
         """
@@ -253,7 +254,7 @@ class Connect:
                 connector = MultiConnector(**detached_kwargs)
                 connector._connect_instance = self
 
-                # would be good to warn if :method:`expand_pattern` results in no files
+                # would be good to warn if :meth:`expand_pattern` results in no files
 
                 for e_url in engine_urls:
                     connector.add_engine_url(e_url)
@@ -299,7 +300,7 @@ class Connect:
         dataset on demand. It's also possible to use Connect as a standalone instance which
         proxies to the target dataset's instance. The standalone version is also stood up on demand
         but it can be done explicitly with this method if Connect is short cutting the as-a-proxy
-        incorrectly. See :method:`__getattr__`.
+        incorrectly. See :meth:`__getattr__`.
         """
         if self.connection_bind == Connect.ConnectBind.MODEL:
             raise ValueError("Attempt to connect as standalone when already bound to a model")
