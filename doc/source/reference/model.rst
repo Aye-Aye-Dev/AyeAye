@@ -1,7 +1,14 @@
-.. _ayeaye.model:
+.. _ayeaye.model.Model:
 
-ayeaye.model
-=================
+ayeaye.model.Model
+==================
 
-.. automodule:: ayeaye.model
+.. autoclass:: ayeaye.model.Model
+   :members:
+
+
+ayeaye.model.LockingMode
+========================
+
+.. autoclass:: ayeaye.model.LockingMode
    :members:

@@ -56,17 +56,17 @@ class Model:
         Run the model.
 
         The steps to run a model are
-        1. :meth:`pre_build_check` - Optional conditional check if model's pre-conditions have
-           been met.
+        1. :meth:`pre_build_check` - Optional conditional check if model's pre-conditions have been
+        met.
         2. :meth:`build` - The main modelling stage
         3. :meth:`post_build_check` - Optional check if the outputs are valid. e.g. a data
-           validation check that is simple and concise. It's like a unit test but on changable
-           data.
+        validation check that is simple and concise. It's like a unit test but on changable data.
 
         Datasets are closed after each stage. This ensures the connections don't have a state, for
         example a position within a file.
 
         @return: boolean for success
+
         """
         self.start_build_time = time()
         if not self.pre_build_check():

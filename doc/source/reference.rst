@@ -9,5 +9,3 @@ Reference
     :glob:
 
     reference/*
-
-xxxxx

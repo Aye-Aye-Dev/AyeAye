@@ -1,2 +1,4 @@
-Getting started with Aye-aye
-============================
+.. _first_steps:
+
+Getting started
+===============
