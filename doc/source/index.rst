@@ -5,7 +5,7 @@
 Welcome to Aye-aye
 ==================
 
-**Aye-aye** An ETL (Extract, Transform, Load) framework.
+**Aye-aye** is an ETL (Extract, Transform, Load) framework written in Python for reshaping data from one form into another.
 
 
 Finding the right documentation
@@ -18,6 +18,8 @@ Finding the right documentation
         If you're new to Aye-aye
         ^^^
         Follow these guides to get started:
+
+        * :ref:`Introduction <intro>` to ETL and Aye-aye's design goals.
 
         * :ref:`First steps <first_steps>`: a simple tutorial to create an run a single ETL model.
 
@@ -47,6 +49,7 @@ Finding the right documentation
 .. toctree::
    :hidden:
 
+   intro
    first_steps
    concepts
    reference
