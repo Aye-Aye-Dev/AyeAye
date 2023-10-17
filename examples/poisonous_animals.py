@@ -10,7 +10,8 @@ class PoisonousAnimals(ayeaye.Model):
     Just using normal python data structures, group all the poisonous animals by country where
     they are found.
     """
-    poisonous_animals = ayeaye.Connect(engine_url='json://data/poisonous_animals.json')
+
+    poisonous_animals = ayeaye.Connect(engine_url="json://data/poisonous_animals.json")
 
     def build(self):
         by_country = defaultdict(list)
@@ -24,6 +25,6 @@ class PoisonousAnimals(ayeaye.Model):
             self.log(msg)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     m = PoisonousAnimals()
     m.go()

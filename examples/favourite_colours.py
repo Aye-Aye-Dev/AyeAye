@@ -27,12 +27,13 @@ class FavouriteColours(ayeaye.Model):
     Data validation tests should compliment rather than substitute unit tests. They are another way
     to spot mistakes that can be more intuitive.
     """
-    favourite_colours = ayeaye.Connect(engine_url='csv://data/favourite_colours.csv')
+
+    favourite_colours = ayeaye.Connect(engine_url="csv://data/favourite_colours.csv")
 
     # output is in readwrite mode because post_buil_check() reads it back in
     favourites_summary = ayeaye.Connect(
-        engine_url='json://data/favourite_colours_summary.json;indent=4',
-        access=ayeaye.AccessMode.READWRITE
+        engine_url="json://data/favourite_colours_summary.json;indent=4",
+        access=ayeaye.AccessMode.READWRITE,
     )
 
     date_format = "%Y-%m-%d"
@@ -41,12 +42,13 @@ class FavouriteColours(ayeaye.Model):
         """
         Data validation example on input data.
         """
-        error_message = ("This model is only designed to work with data from a single year. "
-                         "Both {} and {} have been found in the input dataset."
-                         )
+        error_message = (
+            "This model is only designed to work with data from a single year. "
+            "Both {} and {} have been found in the input dataset."
+        )
         target_year = None
         for survey_record in self.favourite_colours:
-            for check_field in ['start', 'end']:
+            for check_field in ["start", "end"]:
                 record_year = datetime.strptime(survey_record[check_field], self.date_format).year
 
                 if target_year is None:
@@ -59,19 +61,15 @@ class FavouriteColours(ayeaye.Model):
         return True
 
     def build(self):
-
         by_colour = defaultdict(lambda: defaultdict(int))
         for survey_record in self.favourite_colours:
-
             start = datetime.strptime(survey_record.start, self.date_format)
             end = datetime.strptime(survey_record.end, self.date_format)
             date_delta = end - start
 
             unaccounted_days = date_delta.days
             while unaccounted_days > 0:
-
                 for month in range(start.month, end.month + 1):
-
                     month_name = calendar.month_name[month]
                     days_in_month = calendar.monthrange(start.year, month)[1]
 
@@ -89,14 +87,13 @@ class FavouriteColours(ayeaye.Model):
         self.log("Done!")
 
     def post_build_check(self):
-
-        error_message = ("Total days in input doesn't match total days in output. Input has {} "
-                         "days and output has {} days."
-                         )
+        error_message = (
+            "Total days in input doesn't match total days in output. Input has {} "
+            "days and output has {} days."
+        )
 
         input_days = 0
         for survey_record in self.favourite_colours:
-
             start = datetime.strptime(survey_record.start, self.date_format)
             end = datetime.strptime(survey_record.end, self.date_format)
             date_delta = end - start
@@ -113,6 +110,6 @@ class FavouriteColours(ayeaye.Model):
         return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     m = FavouriteColours()
     m.go()

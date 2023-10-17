@@ -3,14 +3,14 @@
 A Brief Introduction
 ====================
 
-ETL
----
+Modelling and ETL
+-----------------
 
 The best layout for data depends on how the data is being used. For example, the dataset of readings collected from a temperature sensor would be organised in the order the readings were taken and the storage would be quick to append readings to. The analysis of the same data would be organised around gaining insight so it should be easy to ask questions of the data- for example: At what time was the maximum temperature?
 
 Sometimes a single datastore can work for both cases. The rest of the time the data needs to be transformed from the operational (readings) dataset to the analytic dataset.
 
-ETL (Extract Transform Load) is the process of reshaping data from one form to another. There are loads of ways to do this.
+ETL (Extract Transform Load) is the process of reshaping data from one form to another. Aye-aye is a Python library that can be used to model and transform data.
 
 
 Design goals for Aye-aye

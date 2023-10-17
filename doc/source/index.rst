@@ -5,7 +5,7 @@
 Welcome to Aye-aye
 ==================
 
-**Aye-aye** is an ETL (Extract, Transform, Load) framework written in Python for reshaping data from one form into another.
+**Aye-aye** is a data modelling and ETL (Extract, Transform, Load) framework written in Python. It is typically used for analytics and reshaping data from one form into another.
 
 
 Finding the right documentation
