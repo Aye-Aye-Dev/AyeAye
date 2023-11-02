@@ -192,3 +192,20 @@ class TestPartitionedModel(unittest.TestCase):
             ("From the build context: Hello model runner!", "With build context"),
         ]:
             self.assertIn(expected_snippet, all_the_logs, msg)
+
+    def test_force_non_concurrent(self):
+        "Single process is used when user sets 'max_concurrent_tasks'"
+
+        build_context = {"hello_partitioned_context": "important_build_data.ndjson"}
+        with ayeaye.connector_resolver.context(**build_context):
+            m = DistributedFakeWork()
+            m.log_to_stdout = False
+            external_log = StringIO()
+            m.set_logger(external_log)
+            m.runtime.max_concurrent_tasks = 1
+            m.go()
+
+        # bit weak, but this is checked from a log message
+        external_log.seek(0)
+        all_the_logs = external_log.read()
+        self.assertIn("Running single sub-task within main process", all_the_logs)

@@ -67,12 +67,12 @@ The `favourites_summary` dataset in the `FavouriteColours` model is a class vari
 Importing class variables is a convenient way to connect models together by their inputs and outputs.
 
 
-Data provenance and build order DAG
-===================================
+Data provenance and build order
+===============================
 
 The dataset connections between models form a graph. In the diagram above the graph can be used to find the provenance (i.e. the data origin) of output datasets. Models which have shaped the output data can be found by tracing back in the graph.
 
-Another use of the dataset+models graph is to determine the order to run the models and even which models can be run in parallel. For example, in the diagram above models X and Y could be run in parallel as there isn't a data dependency from one to the other. But both must complete before model Z can be run as it depends on the output from X and Y.
+Another use of the dataset+models graph is to determine the order to run the models and even which models can be run in parallel. For example, in the diagram above models X and Y could be run in parallel as there isn't a data dependency from one to the other. But both must complete before model Z can be run as it depends on the output from X and Y. The build order in a model is sometimes called the DAG (Directed Acyclic Graph) but that can be confusing as there are DAGS other than the build order.
 
 
 Repeatability

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.48] - 2023-11-02
+
+### Added
+- PartitionedModel separates CPU resource into .runtime and no longer runs multiple processes when
+the maximum number of parallel workers is 1. This will make unittests easier to manage.
+
 ## [0.0.47] - 2023-07-11
 
 ### Changed

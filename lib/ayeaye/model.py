@@ -441,19 +441,17 @@ class PartitionedModel(Model):
 
         partition_option = self.partition_plea()
 
-        assert partition_option.minimum > 0
-        assert partition_option.minimum <= partition_option.maximum
+        msg = "Partition minimum must be > 0 and < maximum"
+        assert partition_option.minimum > 0, msg
+        assert partition_option.minimum <= partition_option.maximum, msg
+
+        max_workers = self.runtime.max_concurrent_tasks
 
         workers_count = partition_option.minimum
-
-        # TODO - make this user adjustable
-        typical_cpu_bounding_ratio = 2
-        max_recommended_workers = os.cpu_count() * typical_cpu_bounding_ratio
-
-        if partition_option.optimal < max_recommended_workers:
+        if partition_option.optimal < max_workers:
             workers_count = partition_option.optimal
         else:
-            workers_count = max_recommended_workers
+            workers_count = max_workers
 
         if workers_count > partition_option.maximum:
             workers_count = partition_option.maximum
@@ -471,30 +469,62 @@ class PartitionedModel(Model):
 
         active_context = connector_resolver.capture_context()
 
-        proc_pool = ProcessPool(processes=workers_count, context_kwargs=active_context)
-        for subtasks_complete, subtask_return in enumerate(
-            proc_pool.run_subtasks(model_cls=self.__class__, tasks=tasks, initialise=worker_init)
-        ):
-            message_type = subtask_return[0]
+        if workers_count == 1:
+            # don't use the process pool as only one worker is available. There might be many
+            # tasks so do these in serial.
+            # this mode is useful for unittests as Multiprocess can confuse things
+            self.log(f"Running single sub-task within main process")
 
-            if message_type == MessageType.COMPLETE:
-                (
-                    message_type,
-                    method_name,
-                    original_method_kwargs,
-                    subtask_return_value,
-                ) = subtask_return
+            # simplified verion of what happens in ProcessPool.
+            # The resolver context and class are currently assumed to be the same as `self` has
+            # so :meth:`partition_initialise` isn't called.
+
+            self.runtime.worker_id = 0
+            self.runtime.total_workers = 1
+
+            subtasks_complete = 0
+            for method_name, method_kwargs in tasks:
+                if method_kwargs is None:
+                    method_kwargs = {}
+
+                sub_task_method = getattr(self, method_name)
+                subtask_return_value = sub_task_method(**method_kwargs)
+                subtasks_complete += 1
+
                 self.partition_subtask_complete(
                     subtask_method_name=method_name,
-                    subtask_kwargs=original_method_kwargs,
+                    subtask_kwargs=method_kwargs,
                     subtask_return_value=subtask_return_value,
                 )
                 self.log_progress(subtasks_complete / subtasks_count)
 
-            elif message_type == MessageType.LOG:
-                # TODO structured logging to separate and de-dupe fields like the date
-                self.log(subtask_return[1])
-            else:
-                raise ValueError("Undefined message type received")
+        else:
+            proc_pool = ProcessPool(processes=workers_count, context_kwargs=active_context)
+            for subtasks_complete, subtask_return in enumerate(
+                proc_pool.run_subtasks(
+                    model_cls=self.__class__, tasks=tasks, initialise=worker_init
+                )
+            ):
+                message_type = subtask_return[0]
+
+                if message_type == MessageType.COMPLETE:
+                    (
+                        message_type,
+                        method_name,
+                        original_method_kwargs,
+                        subtask_return_value,
+                    ) = subtask_return
+                    self.partition_subtask_complete(
+                        subtask_method_name=method_name,
+                        subtask_kwargs=original_method_kwargs,
+                        subtask_return_value=subtask_return_value,
+                    )
+                    self.log_progress(subtasks_complete / subtasks_count)
+
+                elif message_type == MessageType.LOG:
+                    # TODO structured logging to separate and de-dupe fields like the date
+                    self.log(subtask_return[1])
+                else:
+                    raise ValueError("Undefined message type received")
 
         self.partition_complete()
