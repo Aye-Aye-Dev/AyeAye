@@ -11,10 +11,11 @@ from . import TEST_DATA_PATH
 # PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_CSV_PATH = os.path.join(TEST_DATA_PATH, "deadly_creatures.csv")
 EXAMPLE_TSV_PATH = os.path.join(TEST_DATA_PATH, "monkeys.tsv")
-EXAMPLE_CSV_BROKEN_PATH = os.path.join(TEST_DATA_PATH, "deadly_missing_values.csv")
+EXAMPLE_CSV_VENOMOUS = os.path.join(TEST_DATA_PATH, "venomous_creatures.csv")
 EXAMPLE_CSV_MICE = os.path.join(TEST_DATA_PATH, "mice.csv")
 EXAMPLE_CSV_SQUIRRELS = os.path.join(TEST_DATA_PATH, "squirrels.csv")
 EXAMPLE_CSV_DUPLICATE_FIELDNAMES = os.path.join(TEST_DATA_PATH, "duplicate_field_names.csv")
+EXAMPLE_CSV_QUOTED = os.path.join(TEST_DATA_PATH, "venomous_spiders.csv")
 
 
 class TestConnectorsCsv(unittest.TestCase):
@@ -98,7 +99,7 @@ class TestConnectorsCsv(unittest.TestCase):
         """
         Approx position in file not working when None values are in the CSV.
         """
-        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_BROKEN_PATH)
+        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_VENOMOUS)
         current_position = 0
         for _ in c:
             self.assertTrue(c.progress > current_position)
@@ -305,3 +306,73 @@ class TestConnectorsCsv(unittest.TestCase):
 
         self.assertIsInstance(c.last_modified, datetime)
         self.assertEqual(c.last_modified.tzinfo, timezone.utc)
+
+    def test_quoting_read(self):
+        """
+        Quoting mode when reading - toxic_scale field is a number. The CSV module makes this into
+        a float.
+        """
+        c = CsvConnector(engine_url="csv://" + EXAMPLE_CSV_QUOTED, quoting="QUOTE_NONNUMERIC")
+        first_row = next(iter(c))
+        self.assertIsInstance(first_row.toxic_scale, float)
+
+    def test_quoting_write(self):
+        data_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(data_dir, "bird_tally.csv")
+        c = CsvConnector(
+            engine_url="csv://" + csv_file,
+            access=ayeaye.AccessMode.WRITE,
+            field_names=["common_name", "number_seen"],
+            quoting="QUOTE_NONNUMERIC",
+        )
+        for bird in [
+            {"common_name": "Red kite", "number_seen": 101},
+        ]:
+            c.add(bird)
+
+        c.close_connection()
+
+        with open(csv_file, "r", encoding=c.encoding) as f:
+            csv_content = f.read()
+
+        expected_content = '"common_name","number_seen"\n"Red kite",101\n'
+        self.assertEqual(expected_content, csv_content)
+
+    def test_transforms(self):
+        """
+        Transform a datetime into a string so it can be written to a CSV and then
+        back again.
+        """
+
+        def date_to_string(dt):
+            if dt is None:
+                return None
+            return dt.isoformat()
+
+        def date_from_string(dtstr):
+            if dtstr is None or dtstr == "":
+                return None
+            return datetime.fromisoformat(dtstr)
+
+        data_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(data_dir, "bird_spotting.csv")
+
+        c = CsvConnector(
+            engine_url="csv://" + csv_file,
+            access=ayeaye.AccessMode.WRITE,
+            field_names=["common_name", "when_spotted"],
+            transform_map={"when_spotted": date_to_string},
+        )
+        for bird in [
+            {"common_name": "Lammergeier", "when_spotted": datetime(2023, 7, 26)},
+        ]:
+            c.add(bird)
+
+        c.close_connection()
+
+        c = CsvConnector(
+            engine_url="csv://" + csv_file, transform_map={"when_spotted": date_from_string}
+        )
+        first_row = next(iter(c))
+        self.assertIsInstance(first_row.when_spotted, datetime)
+        self.assertEqual(first_row.when_spotted, datetime(2023, 7, 26))

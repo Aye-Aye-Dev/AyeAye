@@ -17,6 +17,8 @@ class CsvConnector(FileBasedConnector):
         "required_fields": None,
         "expected_fields": None,
         "alias_fields": None,
+        "quoting": None,
+        "transform_map": {},
     }
     optional_engine_url_args = FileBasedConnector.optional_engine_url_args + ["start", "end"]
     default_character_encoding = "utf-8-sig"
@@ -49,6 +51,15 @@ class CsvConnector(FileBasedConnector):
                     original field name and the value is alias for the field.
                     Error to call this in write mode or with 'fieldnames' argument. A ValueError
                     will be raised.
+
+            quoting (str name for value from csv module) - e.g. 'QUOTE_NONNUMERIC'
+                    see https://docs.python.org/3/library/csv.html
+                    This can be used to support numeric typing.
+
+            transform_map (dict with fieldname as the key and a callable as the value)
+                    If the field exists in the data, the method is used to create the value
+                    written or the value yielded from the connector. See unittest
+                    TestConnectorsCsv.test_transforms for and example of how to use this.
 
         Connection information-
             engine_url format is
@@ -101,10 +112,13 @@ class CsvConnector(FileBasedConnector):
                     msg = "Can't set field_names and alias them. Just use 'field_names'"
                     raise ValueError(msg)
 
+                extra_args = {}
                 if self.field_names is not None:
-                    extra_args = {"fieldnames": self.field_names}
-                else:
-                    extra_args = {}
+                    extra_args["fieldnames"] = self.field_names
+
+                if self.quoting:
+                    quote_mode = getattr(csv, self.quoting)
+                    extra_args["quoting"] = quote_mode
 
                 FileBasedConnector.connect(self)
 
@@ -169,10 +183,16 @@ class CsvConnector(FileBasedConnector):
 
                 FileBasedConnector.connect(self)
 
+                extra_args = {}
+                if self.quoting:
+                    quote_mode = getattr(csv, self.quoting)
+                    extra_args["quoting"] = quote_mode
+
                 self.csv = csv.DictWriter(
                     self._file_handle,
                     delimiter=self.delimiter,
                     fieldnames=self.field_names,
+                    **extra_args,
                 )
                 self.csv.writeheader()
 
@@ -192,6 +212,13 @@ class CsvConnector(FileBasedConnector):
             # str(x) will slightly over count 'None'. None is given by DictReader when
             # trailing commas are omitted for optional fields at end of row.
             self.approx_position += len(self.delimiter.join([str(x) for x in raw.values()]))
+
+            if self.transform_map:
+                # field mapping + transform callable
+                for k, transformer in self.transform_map.items():
+                    if k in raw:
+                        raw[k] = transformer(raw[k])
+
             yield Pinnate(data=raw)
 
         # reduce the number of open file handles when the whole file has been read
@@ -232,6 +259,13 @@ class CsvConnector(FileBasedConnector):
             data_extract = {fn: _d[fn] for fn in self.field_names if fn in _d}
         else:
             data_extract = _d
+
+        # field level changes before writing
+        if self.transform_map:
+            # field mapping + transform callable
+            for k, transformer in self.transform_map.items():
+                if k in data_extract:
+                    data_extract[k] = transformer(data_extract[k])
 
         self.csv.writerow(data_extract)
 

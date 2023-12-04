@@ -59,7 +59,7 @@ class RestfulConnector(DataConnector):
 
         # config flags - these could become optional args later. Hard coded for now
         # --------------------------
-        # Request is retired for these HTTP status codes
+        # Request is retried for these HTTP status codes. See `requests.adapters.Retry` in :meth:`Connect`.
         self.retry_on_status = [
             500,
             502,
@@ -235,6 +235,29 @@ class RestfulConnector(DataConnector):
 
         @return: :class:`Pinnate` object representing the JSON response or None if response
             doesn't contain valid JSON.
+
+        Examples-
+
+        # Simple dictionary is dumped to JSON
+        auth_request = my_data_provider.post(
+            "Account/Token",
+            {
+                "username": "admin",
+                "password": "supersecret",
+            },
+        )
+
+
+        # Not converted to JSON
+        auth_reply = my_data_provider.post(
+            url="/login/",
+            data=my_data_provider.as_raw(
+                data={
+                    "grant_type": "client_credentials",
+                    "scope": "read",
+                }
+            ),
+        )
         """
         if self.access not in (AccessMode.WRITE, AccessMode.READWRITE):
             raise ValueError("Write attempted on dataset not opened in write mode.")
@@ -259,7 +282,7 @@ class RestfulConnector(DataConnector):
                 r = self._requests.post(url_, data=request_data, headers=headers)
             except requests.ConnectionError as c:
                 msg = f"Failed to POST to {url_}"
-                raise RestfulConnectorConnectionError(msg, details=c.message)
+                raise RestfulConnectorConnectionError(msg, details=str(c))
 
         self._post_request_checks(r)
 
@@ -305,7 +328,7 @@ class RestfulConnector(DataConnector):
                 r = self._requests.patch(url_, data=json_data, headers=headers)
             except requests.ConnectionError as c:
                 msg = f"Failed to PATCH {url_}"
-                raise RestfulConnectorConnectionError(msg, details=c.message)
+                raise RestfulConnectorConnectionError(msg, details=str(c))
 
         self._post_request_checks(r)
 

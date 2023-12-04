@@ -3,7 +3,7 @@ import unittest
 import responses
 
 import ayeaye
-from ayeaye.connectors import RestfulConnector
+from ayeaye.connectors import RestfulConnector, RestfulConnectorConnectionError
 
 
 class TestRestfulConnector(unittest.TestCase):
@@ -60,6 +60,18 @@ class TestRestfulConnector(unittest.TestCase):
         c.post("/parrots/", new_parrot)
 
         self.assertEqual(201, c.last_http_status)
+
+    # @responses.activate
+    def test_post_host_down(self):
+        "Can't connect to host"
+
+        c = RestfulConnector(
+            engine_url="http://zooological-online.mock", access=ayeaye.AccessMode.WRITE
+        )
+
+        new_parrot = ayeaye.Pinnate({"common_name": "Blue-and-yellow macaw"})
+        with self.assertRaises(RestfulConnectorConnectionError):
+            c.post("/parrots/", new_parrot)
 
     @responses.activate
     def test_patch(self):

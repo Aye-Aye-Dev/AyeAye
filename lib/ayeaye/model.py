@@ -1,7 +1,6 @@
 from collections import namedtuple, defaultdict
 from datetime import datetime
 from enum import Enum
-import os
 from time import time
 import warnings
 

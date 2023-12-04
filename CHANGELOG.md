@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.49] - 2023-12-04
+
+### Added
+- Two optional args to CsvConnector. 'quoting' - to pass a mode through to the CSV module and 'transform_map' so a callable can be used at the field level. This is a useful mechanism to make small field level adjustments (e.g. tranforming types) during IO.
+
+### Fixed
+- RestfulConnector using wrong fieldname within an exception
+
 ## [0.0.48] - 2023-11-02
 
 ### Added
