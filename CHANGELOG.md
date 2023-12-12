@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.50] - 2023-12-12
+
+### Added
+- common pattern to make it easy to add datasets to a MultiConnector
+- `method_overlay` argument to Connector to allow explicit naming of the new method which makes it
+cleaner and more intuative with callables (instead of plain functions)
+
 ## [0.0.49] - 2023-12-04
 
 ### Added

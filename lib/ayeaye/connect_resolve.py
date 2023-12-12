@@ -88,7 +88,9 @@ class ConnectorResolver:
 
         @param unresolved: (str) with templated variables. e.g. "csv://{my_variable}/abc.csv"
 
-        @return: (str) engine_url
+        @return: (str) a string without templating placeholders.
+
+        @raise ValueError: if there are templated variables that don't exist in the context.
         """
         resolving = unresolved
 

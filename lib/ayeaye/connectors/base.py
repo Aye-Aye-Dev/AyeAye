@@ -113,7 +113,8 @@ class DataConnector:
         :param engine_url (string): The file or URI to the location of the dataset
         :param access (AccessMode): Whether the dataset accessed through this Connector is for
                 input or output
-        :param method_overlay (callable or list of callables): Callables are patched onto `self` as methods.
+        :param method_overlay (callable or list of callables or tuple (callable, method_name)
+                or list of those tuples: Callables are patched onto `self` as methods.
                 e.g.
                     my_dataset = ayeaye.Connect(..., method_overlay=[accessor_method])
                     ...
@@ -133,10 +134,21 @@ class DataConnector:
 
         # dynamically add methods to `self`
         if method_overlay:
-            overlays = [method_overlay] if callable(method_overlay) else method_overlay
+            overlays = [method_overlay] if not isinstance(method_overlay, list) else method_overlay
             for m_overlay in overlays:
-                method_name = m_overlay.__name__
-                setattr(self, method_name, types.MethodType(m_overlay, self))
+                if isinstance(m_overlay, tuple):
+                    if len(m_overlay) != 2:
+                        msg = (
+                            "method_overlay should be a two part tuple (callable_overlay, "
+                            "method_name)"
+                        )
+                        raise ValueError(msg)
+                    callable_overlay, method_name = m_overlay
+                    setattr(self, method_name, types.MethodType(callable_overlay, self))
+                else:
+                    # expected to be a plain function
+                    method_name = m_overlay.__name__
+                    setattr(self, method_name, types.MethodType(m_overlay, self))
 
         # This is the module that converts patterns (e.g. file system wildcards like * & ?)
         # into a :class:`MultiConnector` object. Not all data connectors can do this trick,
