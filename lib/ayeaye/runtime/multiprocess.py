@@ -27,7 +27,49 @@ class QueueLogger:
         self.log_queue.put((MessageType.LOG, msg))
 
 
-class ProcessPool:
+class AbstractProcessPool:
+    def run_subtasks(
+        self,
+        model_cls,
+        sub_tasks,
+        initialise=None,
+        context_kwargs=None,
+        processes=None,
+    ):
+        """
+        Generator yielding (method_name, method_kwargs, subtask_return_value) from completed
+        subtasks.
+
+        @param ayeaye_model_cls: subclass of :class:`ayeaye.PartitionedModel`
+            Class, not object/instance.
+            This will be instantiated without arguments and subtasks will be methods executed on
+            this instance.
+
+        @param sub_tasks: list of (method_name, method_kwargs) (str, dict)
+            each item defines a subtask to execute in a worker process
+
+        @param initialise: None, or list of tuples (dict and or list)
+            args or kwargs for Aye-aye model's :meth:`partition_initialise`.
+            Each item in this list is used to initialise a worker process.
+
+        @param processes: (int or None)
+            optionally tell each worker the total number of worker processes. This makes it
+            easy for workers do choose a subset of records. This number can't exceed
+            `self.max_processes`. If it does a ValueError exception is raised. An exception seems
+            brutal but is more intuitive than auto-adjusting the actual number of processes.
+            If None is given, `self.max_processes` is used.
+
+        @param context_kwargs: (dict)
+            connector_resolver context key value pairs.
+            The connector resolver is a 'globally accessible' object use to resolve engine_urls.
+            It takes key value pairs and callables. This argument is just for the former.
+            @see :class:`ayeaye.ayeaye.connect_resolve.ConnectorResolver`
+
+        """
+        raise NotImplementedError("Must be implemented by subclasses")
+
+
+class LocalProcessPool(AbstractProcessPool):
     """
     Like :class:`multiprocessing.Pool` but with instances that persist for as long as the process.
 
@@ -39,30 +81,11 @@ class ProcessPool:
     know if you can see a way with `Pool`.
     """
 
-    def __init__(self, processes=None, model_initialise=None, context_kwargs=None):
+    def __init__(self, max_processes):
         """
-        Indicate how many worker processes to create with either-
-
-        @param processes: (int)
-            number of worker processes
-
-            OR
-
-        @param model_initialise (list of args (list) or kwargs (dict))
-            Each item in this list is passed as either *args or **kwargs to the Aye-aye model's
-            :meth:`partition_initialise`.
-
-        @param context_kwargs: (dict)
-            connector_resolver context key value pairs.
-            The connector resolver is a 'globally accessible' object use to resolve engine_urls.
-            It takes key value pairs and callables. This argument is just for the former.
-            @see :class:`ayeaye.ayeaye.connect_resolve.ConnectorResolver`
+        @param max_processes: (int) upper limit for number of concurrent processes.
         """
-        assert (processes is None) != (model_initialise is None), "Mutually exclusive arguments."
-
-        self.processes = processes
-        self.model_initialise = model_initialise
-        self.context_kwargs = context_kwargs
+        self.max_processes = max_processes
 
     @staticmethod
     def run_model(
@@ -164,47 +187,44 @@ class ProcessPool:
 
             model.close_datasets()
 
-    def run_subtasks(self, model_cls, tasks, initialise):
+    def run_subtasks(
+        self, model_cls, sub_tasks, initialise=None, context_kwargs=None, processes=None
+    ):
         """
         Generator yielding (method_name, method_kwargs, subtask_return_value) from completed
         subtasks.
 
-        @param ayeaye_model_cls: subclass of :class:`ayeaye.PartitionedModel`
-            Class, not object/instance.
-            This will be instantiated without arguments and subtasks will be methods executed on
-            this instance.
-
-        @param tasks: list of (method_name, method_kwargs) (str, dict)
-            each item defines a subtask to execute in a worker process
-
-        @param initialise: None, or list of tuples (dict and or list)
-            args or kwargs for Aye-aye model's :meth:`partition_initialise`.
-            Each item in this list is used to initialise a worker process.
+        @see doc. string in :meth:`AbstractProcessPool.run_subtasks`
         """
-        subtasks_count = len(tasks)
+        if processes is None:
+            processes = self.max_processes
+
+        if processes > self.max_processes:
+            raise ValueError(f"{processes} processes passed, max set to {self.max_processes}")
+
+        subtasks_count = len(sub_tasks)
 
         # Optionally, a model can pass initialisation variables to workers
         if initialise is None:
-            worker_init = [None for _ in range(self.processes)]
+            worker_init = [None for _ in range(processes)]
         else:
-            if len(initialise) != self.processes:
-                raise ValueError(
-                    "The numeber of worker 'initialise' items doesn't match number of workers."
-                )
+            if len(initialise) != processes:
+                msg = "The number of worker 'initialise' items doesn't match number of workers."
+                raise ValueError(msg)
             worker_init = initialise
 
-        context_kwargs = self.context_kwargs or {}
+        context_kwargs = context_kwargs or {}
 
         subtask_kwargs_queue = Queue()
         return_values_queue = Queue()
 
         proc_table = []
-        for proc_id in range(self.processes):
+        for proc_id in range(processes):
             proc = Process(
-                target=ProcessPool.run_model,
+                target=LocalProcessPool.run_model,
                 args=(
                     proc_id,
-                    self.processes,
+                    processes,
                     model_cls,
                     subtask_kwargs_queue,
                     return_values_queue,
@@ -218,11 +238,11 @@ class ProcessPool:
             proc.daemon = True
             proc.start()
 
-        for sub_task in tasks:
+        for sub_task in sub_tasks:
             subtask_kwargs_queue.put(sub_task)
 
         # instruct worker process to terminate
-        for _ in range(self.processes):
+        for _ in range(processes):
             subtask_kwargs_queue.put((None, None))
 
         completed_procs = 0

@@ -1,7 +1,7 @@
 import unittest
 
 import ayeaye
-from ayeaye.runtime.multiprocess import ProcessPool
+from ayeaye.runtime.multiprocess import LocalProcessPool
 
 
 class ExamineResolverContext(ayeaye.PartitionedModel):
@@ -49,20 +49,22 @@ class TestRuntimeMultiprocess(unittest.TestCase):
             self.assertFalse(results["local_variable_set"], msg)
 
             msg = "build_environment_variable should be discarded, local_variable should be present"
-            proc_pool = ProcessPool(
+            proc_pool = LocalProcessPool(max_processes=workers_count)
+
+            subtask_kwargs = dict(
+                model_cls=ExamineResolverContext,
+                sub_tasks=[("fake_subtask", None)],
+                initialise=None,
                 processes=workers_count,
-                context_kwargs={
-                    "mapper": {"local_variable": "is_set"},
-                },
+                context_kwargs={"mapper": {"local_variable": "is_set"}},
             )
+
             for (
                 msg_type,
                 method_name,
                 method_kwargs,
                 subtask_return_value,
-            ) in proc_pool.run_subtasks(
-                model_cls=ExamineResolverContext, tasks=[("fake_subtask", None)], initialise=None
-            ):
+            ) in proc_pool.run_subtasks(**subtask_kwargs):
                 # there will be only one sub-task return - this isn't tested
                 if str(msg_type) == "MessageType.COMPLETE":
                     # only checking the final/complete message type

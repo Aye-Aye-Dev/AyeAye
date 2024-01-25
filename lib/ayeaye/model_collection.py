@@ -2,7 +2,6 @@ from collections import defaultdict
 import copy
 from dataclasses import dataclass
 from inspect import isclass
-import itertools
 
 from ayeaye.connectors.base import AccessMode
 from ayeaye.connectors.multi_connector import MultiConnector
@@ -78,7 +77,14 @@ class ModelCollection:
             if model_name in nodes:
                 raise ValueError(f"Duplicate node found: {model_name}")
 
-            node = Pinnate({"model_cls": model_cls, "model_name": model_name, "targets": set(), "sources": set()})
+            node = Pinnate(
+                {
+                    "model_cls": model_cls,
+                    "model_name": model_name,
+                    "targets": set(),
+                    "sources": set(),
+                }
+            )
 
             # as instantiated model
             # model_obj = model_cls()
@@ -157,7 +163,9 @@ class ModelCollection:
                 completed.update(node.targets)
                 del nodes[ready_node.model_cls]
 
-        p = Pinnate({"leaf_sources": leaf_sources, "leaf_targets": leaf_targets, "run_order": run_order})
+        p = Pinnate(
+            {"leaf_sources": leaf_sources, "leaf_targets": leaf_targets, "run_order": run_order}
+        )
         return p
 
     def run_order(self):
@@ -216,40 +224,44 @@ class ModelCollection:
         def dataset_source(target_dataset_container):
             "generator yielding model classes"
             for source_model_cls in dataset_sources[target_dataset_container]:
-
                 for source_dataset_container in nodes[source_model_cls].sources:
                     if source_dataset_container == target_dataset_container:
                         yield source_model_cls, source_dataset_container
 
         edge_set = set()
         for node in nodes.values():
-
             # print(node.model_cls.__name__, len(node.targets))
 
             for dataset_container_a in node.sources:
-
                 if dataset_container_a in leaf_sources:
                     dataset_label = dataset_container_a.model_attrib_label
-                    mge = ModelGraphEdge(model_a=None, model_b=node.model_cls, dataset_label=dataset_label)
+                    mge = ModelGraphEdge(
+                        model_a=None, model_b=node.model_cls, dataset_label=dataset_label
+                    )
                     edge_set.add(mge)
 
             for dataset_container_a in node.targets:
-
                 if dataset_container_a in leaf_targets:
                     dataset_label = dataset_container_a.model_attrib_label
-                    mge = ModelGraphEdge(model_a=node.model_cls, model_b=None, dataset_label=dataset_label)
+                    mge = ModelGraphEdge(
+                        model_a=node.model_cls, model_b=None, dataset_label=dataset_label
+                    )
                     edge_set.add(mge)
 
                 for model_b, dataset_container_b in dataset_source(dataset_container_a):
-
                     # print(node.model_cls, dataset_container_a, model_b, dataset_container_b)
 
                     dataset_label = dataset_container_a.model_attrib_label
                     # models might each use different attrib names
-                    if dataset_container_b is not None and dataset_label != dataset_container_b.model_attrib_label:
+                    if (
+                        dataset_container_b is not None
+                        and dataset_label != dataset_container_b.model_attrib_label
+                    ):
                         dataset_label += " / " + dataset_container_b.model_attrib_label
 
-                    mge = ModelGraphEdge(model_a=node.model_cls, model_b=model_b, dataset_label=dataset_label)
+                    mge = ModelGraphEdge(
+                        model_a=node.model_cls, model_b=model_b, dataset_label=dataset_label
+                    )
                     edge_set.add(mge)
 
         # TODO - are sub graphs needed?
@@ -337,7 +349,6 @@ class VisualiseModels:
         for graph in graphset:
             # graphs don't need to be separate for Mermaid
             for edge in graph:
-
                 model_a = edge.model_a.__name__ if edge.model_a is not None else next(leaf_label)
                 model_b = edge.model_b.__name__ if edge.model_b is not None else next(leaf_label)
 

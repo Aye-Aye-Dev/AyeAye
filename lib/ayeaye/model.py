@@ -8,7 +8,7 @@ import ayeaye
 from ayeaye.connectors.base import DataConnector
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.runtime.knowledge import RuntimeKnowledge
-from ayeaye.runtime.multiprocess import MessageType, ProcessPool
+from ayeaye.runtime.multiprocess import MessageType, LocalProcessPool
 from ayeaye.ignition import EngineUrlCase, EngineUrlStatus
 
 
@@ -353,6 +353,38 @@ class PartitionedModel(Model):
         # the link between the execution environment and the process
         self.runtime = RuntimeKnowledge()
 
+        # lazy / injectable
+        self._process_pool = None
+
+    @property
+    def process_pool(self):
+        """
+        Set the way subtasks are processed in parallel. Do this before using the model.
+
+        The It's used to change how subtasks are run. The default is to use :class:`LocalProcessPool`
+        which uses multiple :class:`multiprocessing.Process`es but a distributed pool could be used
+        instead.
+        see Fossa repo :class:`fossa.control.rabbit_mq.message_exchange` for another
+        example.
+
+        @return: subclass of :class:`ayeaye.runtime.multiprocess.AbstractProcessPool`
+        """
+        if self._process_pool is None:
+            # default behaviour is to run subtasks in separate local processes
+            self._process_pool = LocalProcessPool(max_processes=self.runtime.max_concurrent_tasks)
+
+        return self._process_pool
+
+    @process_pool.setter
+    def process_pool(self, alternative_process_pool):
+        """
+        Override the default process pool. Maybe with a distributed one.
+        @param alternative_process_pool: object as subclass of
+            :class:`ayeaye.runtime.multiprocess.AbstractProcessPool`
+        """
+        # Note -no check for existing pool. A user could trash an existing running set of subtasks
+        self._process_pool = alternative_process_pool
+
     def partition_initialise(self, *args, **kwargs):
         """
         This method will be called when a worker process instantiates a model. This method can
@@ -444,6 +476,8 @@ class PartitionedModel(Model):
         assert partition_option.minimum > 0, msg
         assert partition_option.minimum <= partition_option.maximum, msg
 
+        # this should be in lock-step with the default LocalProcessPool and other pools do their
+        # own thing.
         max_workers = self.runtime.max_concurrent_tasks
 
         workers_count = partition_option.minimum
@@ -498,12 +532,15 @@ class PartitionedModel(Model):
                 self.log_progress(subtasks_complete / subtasks_count)
 
         else:
-            proc_pool = ProcessPool(processes=workers_count, context_kwargs=active_context)
-            for subtasks_complete, subtask_return in enumerate(
-                proc_pool.run_subtasks(
-                    model_cls=self.__class__, tasks=tasks, initialise=worker_init
-                )
-            ):
+            subtasks_complete = 0
+            subtask_kwargs = {
+                "model_cls": self.__class__,
+                "sub_tasks": tasks,
+                "initialise": worker_init,
+                "context_kwargs": active_context,
+                "processes": workers_count,
+            }
+            for subtask_return in self.process_pool.run_subtasks(**subtask_kwargs):
                 message_type = subtask_return[0]
 
                 if message_type == MessageType.COMPLETE:
@@ -518,6 +555,7 @@ class PartitionedModel(Model):
                         subtask_kwargs=original_method_kwargs,
                         subtask_return_value=subtask_return_value,
                     )
+                    subtasks_complete += 1
                     self.log_progress(subtasks_complete / subtasks_count)
 
                 elif message_type == MessageType.LOG:

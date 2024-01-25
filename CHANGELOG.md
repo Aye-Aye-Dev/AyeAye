@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.51] - 2024-01-25
+
+### Added
+- AbstractProcessPool to make it easier to add custom process pools - see the Fossa project
+
+### Changed
+- PartitionedModel to have injectable :class:`AbstractProcessPool`
+- ProcessPool - moved arguments from constructor to run_tasks to make it easier to customise subclasses of ProcessPool
+- renamed: ProcessPool to LocalProcessPool to clarify the difference with the new pool being created in the Fossa project
+
+### Removed
+- model_initialise option in ProcessPool as ProcessPool is only used by PartitionedModel which doesn't use it and it's simplier without.
+
 ## [0.0.50] - 2023-12-12
 
 ### Added
