@@ -2,6 +2,7 @@ import unittest
 
 import ayeaye
 from ayeaye.runtime.multiprocess import LocalProcessPool
+from ayeaye.runtime.task_message import task_message_factory, TaskComplete, TaskLogMessage
 
 
 class ExamineResolverContext(ayeaye.PartitionedModel):
@@ -59,16 +60,28 @@ class TestRuntimeMultiprocess(unittest.TestCase):
                 context_kwargs={"mapper": {"local_variable": "is_set"}},
             )
 
-            for (
-                msg_type,
-                method_name,
-                method_kwargs,
-                subtask_return_value,
-            ) in proc_pool.run_subtasks(**subtask_kwargs):
+            for subtask_msg in proc_pool.run_subtasks(**subtask_kwargs):
                 # there will be only one sub-task return - this isn't tested
-                if str(msg_type) == "MessageType.COMPLETE":
+                if isinstance(subtask_msg, TaskComplete):
                     # only checking the final/complete message type
-                    self.assertEqual(method_name, "fake_subtask")
-                    self.assertEqual(method_kwargs, {})
-                    self.assertFalse(subtask_return_value["build_environment_variable_set"], msg)
-                    self.assertTrue(subtask_return_value["local_variable_set"], msg)
+                    self.assertEqual(subtask_msg.method_name, "fake_subtask")
+                    self.assertEqual(subtask_msg.method_kwargs, {})
+                    self.assertFalse(
+                        subtask_msg.return_value["build_environment_variable_set"], msg
+                    )
+                    self.assertTrue(subtask_msg.return_value["local_variable_set"], msg)
+
+    def test_task_message_serialisation(self):
+        """
+        To and from a string which can be transported across a channel which multiplexes different
+        message types.
+        """
+        sample_message = "Building a dataset has started"
+        task_mmessage = TaskLogMessage(msg=sample_message)
+
+        serialised = task_mmessage.to_json()
+        self.assertIsInstance(serialised, str)
+
+        message = task_message_factory(serialised)
+        self.assertIsInstance(message, TaskLogMessage)
+        self.assertEqual(message.msg, sample_message)

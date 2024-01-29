@@ -3,14 +3,16 @@ Run :class:`ayeaye.PartitionedModel` models across multiple operating system pro
 """
 from enum import Enum
 from multiprocessing import Process, Queue
+import sys
+import traceback
 
 from ayeaye.connect_resolve import connector_resolver
-
-
-# a single queue supports multiple message types
-class MessageType(Enum):
-    COMPLETE = "COMPLETE"  # return value when subtask is complete
-    LOG = "LOG"  # log message
+from ayeaye.runtime.task_message import (
+    task_message_factory,
+    TaskComplete,
+    TaskFailed,
+    TaskLogMessage,
+)
 
 
 class QueueLogger:
@@ -24,7 +26,8 @@ class QueueLogger:
 
     def write(self, msg):
         # TODO structured logging
-        self.log_queue.put((MessageType.LOG, msg))
+        log_serialised = TaskLogMessage(msg=msg).to_json()
+        self.log_queue.put(log_serialised)
 
 
 class AbstractProcessPool:
@@ -37,8 +40,12 @@ class AbstractProcessPool:
         processes=None,
     ):
         """
-        Generator yielding (method_name, method_kwargs, subtask_return_value) from completed
-        subtasks.
+        Generator yielding messages from subtasks.
+
+        Messages are a subclass of :class:`AbstractTaskMessage`.
+
+        A subtask is considered complete when it yields either :class:`TaskComplete` or
+        :class:`TaskFailed`. It can yield many :class:`TaskLogMessage`
 
         @param ayeaye_model_cls: subclass of :class:`ayeaye.PartitionedModel`
             Class, not object/instance.
@@ -73,12 +80,15 @@ class LocalProcessPool(AbstractProcessPool):
     """
     Like :class:`multiprocessing.Pool` but with instances that persist for as long as the process.
 
-    A worker :class:`multiprocessing.Process` runs methods of an :class:`ayeaye.Model`s instance.
+    A worker :class:`multiprocessing.Process` runs methods on an :class:`ayeaye.Model`s instance.
     The model instance is instantiated when the process starts, from there on just the methods
     requested to run the sub-task are called.
 
     It's frustrating that this can't be done with :class:`multiprocessing.Pool`. Please let me
     know if you can see a way with `Pool`.
+
+    This subclass of :class:`AbstractProcessPool` doesn't re-try failed tasks; it simply passes
+    a :class:`TaskFailed` message to the calling model. @see :method:`run_subtasks.`
     """
 
     def __init__(self, max_processes):
@@ -115,10 +125,8 @@ class LocalProcessPool(AbstractProcessPool):
         @param returns_queue: :class:`multiprocessing.Queue` object
             Multiplex data from the subtask back to the caller (i.e. the instance that made the
             sub-tasks).
-            Format for the queue is-
-
-            MessageType.LOG, message (str)
-            MessageType.COMPLETE, method_name, method_kwargs, subtask_return_value from the completed sub-task
+            Format for the queue is the output from :meth:`to_json` from any subclass of
+            :class:`AbstractTaskMessage`.
 
         @param initialise: None, dict or list
             args or kwargs for Aye-aye model's :meth:`partition_initialise`
@@ -177,13 +185,33 @@ class LocalProcessPool(AbstractProcessPool):
 
                 # TODO - supply the connector_resolver context
 
-                # TODO - handle exceptions
-
                 sub_task_method = getattr(model, method_name)
-                subtask_return_value = sub_task_method(**method_kwargs)
-                returns_queue.put(
-                    (MessageType.COMPLETE, method_name, method_kwargs, subtask_return_value)
-                )
+
+                try:
+                    subtask_return_value = sub_task_method(**method_kwargs)
+                    task_msg = TaskComplete(
+                        method_name=method_name,
+                        method_kwargs=method_kwargs,
+                        return_value=subtask_return_value,
+                    )
+
+                except Exception as e:
+                    # TODO - this is a bit rough
+                    _e_type, _e_value, e_traceback = sys.exc_info()
+                    traceback_ln = []
+                    tb_list = traceback.extract_tb(e_traceback)
+                    for filename, line, funcname, text in tb_list:
+                        t = f"Traceback:  File[{filename}] Line[{line}] Text[{text}]"
+                        traceback_ln.append(t)
+
+                    task_msg = TaskFailed(
+                        method_name=method_name,
+                        method_kwargs=method_kwargs,
+                        exception_class_name=str(type(e)),
+                        traceback=traceback_ln,
+                    )
+
+                returns_queue.put(task_msg.to_json())
 
             model.close_datasets()
 
@@ -191,8 +219,8 @@ class LocalProcessPool(AbstractProcessPool):
         self, model_cls, sub_tasks, initialise=None, context_kwargs=None, processes=None
     ):
         """
-        Generator yielding (method_name, method_kwargs, subtask_return_value) from completed
-        subtasks.
+        Generator yielding instances that are a subclass of :class:`AbstractTaskMessage`. These
+        are from subtasks.
 
         @see doc. string in :meth:`AbstractProcessPool.run_subtasks`
         """
@@ -249,11 +277,13 @@ class LocalProcessPool(AbstractProcessPool):
         while True:
             multiplexed_return = return_values_queue.get()
 
-            if multiplexed_return[0] == MessageType.COMPLETE:
+            message = task_message_factory(multiplexed_return)
+
+            if isinstance(message, (TaskComplete, TaskFailed)):
                 completed_procs += 1
 
             # could be a log message or sub-task completed notification
-            yield multiplexed_return
+            yield message
 
             if completed_procs >= subtasks_count:
                 break

@@ -8,7 +8,8 @@ import ayeaye
 from ayeaye.connectors.base import DataConnector
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.runtime.knowledge import RuntimeKnowledge
-from ayeaye.runtime.multiprocess import MessageType, LocalProcessPool
+from ayeaye.runtime.multiprocess import LocalProcessPool
+from ayeaye.runtime.task_message import TaskComplete, TaskFailed, TaskLogMessage
 from ayeaye.ignition import EngineUrlCase, EngineUrlStatus
 
 
@@ -540,27 +541,34 @@ class PartitionedModel(Model):
                 "context_kwargs": active_context,
                 "processes": workers_count,
             }
-            for subtask_return in self.process_pool.run_subtasks(**subtask_kwargs):
-                message_type = subtask_return[0]
-
-                if message_type == MessageType.COMPLETE:
-                    (
-                        message_type,
-                        method_name,
-                        original_method_kwargs,
-                        subtask_return_value,
-                    ) = subtask_return
+            subtasks_count = len(tasks)
+            for subtask_message in self.process_pool.run_subtasks(**subtask_kwargs):
+                if isinstance(subtask_message, TaskComplete):
                     self.partition_subtask_complete(
-                        subtask_method_name=method_name,
-                        subtask_kwargs=original_method_kwargs,
-                        subtask_return_value=subtask_return_value,
+                        subtask_method_name=subtask_message.method_name,
+                        subtask_kwargs=subtask_message.method_kwargs,
+                        subtask_return_value=subtask_message.return_value,
                     )
                     subtasks_complete += 1
                     self.log_progress(subtasks_complete / subtasks_count)
 
-                elif message_type == MessageType.LOG:
+                elif isinstance(subtask_message, TaskFailed):
+                    subtasks_complete += 1
+
+                    msg = (
+                        f"Subtask failed for '{subtask_message.method_name}' "
+                        f"with {subtask_message.method_kwargs} "
+                        f"with exception {subtask_message.exception_class_name}"
+                    )
+                    msg += "\n".join(subtask_message.traceback)
+                    # TODO - could just logging it?
+
+                    # for now, throw an error
+                    raise ValueError(msg)
+
+                elif isinstance(subtask_message, TaskLogMessage):
                     # TODO structured logging to separate and de-dupe fields like the date
-                    self.log(subtask_return[1])
+                    self.log(subtask_message.msg, level=subtask_message.level)
                 else:
                     raise ValueError("Undefined message type received")
 

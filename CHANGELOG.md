@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.52] - 2024-01-29
+
+### Added
+- richer classes (ayeaye.runtime.task_message) for task message within processing pool
+
+### Changed
+- yield type from `AbstractProcessPool.run_subtasks`
+
+### Removed
+- ayeaye.runtime.multiprocess.MessageType
+
 ## [0.0.51] - 2024-01-25
 
 ### Added
