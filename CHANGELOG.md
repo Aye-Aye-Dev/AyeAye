@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.53] - 2024-01-30
+
+### Fixed
+- serialised task messages were being yielded by `LocalProcessPool`
+
 ## [0.0.52] - 2024-01-29
 
 ### Added

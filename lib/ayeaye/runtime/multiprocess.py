@@ -1,14 +1,12 @@
 """
 Run :class:`ayeaye.PartitionedModel` models across multiple operating system processes.
 """
-from enum import Enum
 from multiprocessing import Process, Queue
 import sys
 import traceback
 
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.runtime.task_message import (
-    task_message_factory,
     TaskComplete,
     TaskFailed,
     TaskLogMessage,
@@ -26,7 +24,7 @@ class QueueLogger:
 
     def write(self, msg):
         # TODO structured logging
-        log_serialised = TaskLogMessage(msg=msg).to_json()
+        log_serialised = TaskLogMessage(msg=msg)
         self.log_queue.put(log_serialised)
 
 
@@ -211,7 +209,7 @@ class LocalProcessPool(AbstractProcessPool):
                         traceback=traceback_ln,
                     )
 
-                returns_queue.put(task_msg.to_json())
+                returns_queue.put(task_msg)
 
             model.close_datasets()
 
@@ -275,15 +273,13 @@ class LocalProcessPool(AbstractProcessPool):
 
         completed_procs = 0
         while True:
-            multiplexed_return = return_values_queue.get()
+            task_message = return_values_queue.get()
 
-            message = task_message_factory(multiplexed_return)
-
-            if isinstance(message, (TaskComplete, TaskFailed)):
+            if isinstance(task_message, (TaskComplete, TaskFailed)):
                 completed_procs += 1
 
             # could be a log message or sub-task completed notification
-            yield message
+            yield task_message
 
             if completed_procs >= subtasks_count:
                 break
