@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.54] - 2024-01-31
+
+### Added
+- a custom exception for when a subtask fails
+- optional PartitionedModel.partition_subtask_failed hook to allow models to handle subtask exceptions
+
+### Changed
+- default behaviour on subtask fail in a PartitionedModel to raise the SubTaskFailed exception
+- LocalProcessPool to cleanup orphan Processes on deconstruction
+- TaskFailed to include a couple of extra fields - model_class_name and resolver_context
+
 ## [0.0.53] - 2024-01-30
 
 ### Fixed

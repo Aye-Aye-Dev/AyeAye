@@ -8,6 +8,7 @@ import unittest
 
 import ayeaye
 from ayeaye.common_pattern.parallel_model_runner import ExampleModelRunner
+from ayeaye.exception import SubTaskFailed
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
@@ -99,6 +100,30 @@ class DistributedFakeWork(ayeaye.PartitionedModel):
 
         if subtask_method_name == "some_work":
             self.resultset.append(subtask_return_value)
+
+
+class BrokenModel(ayeaye.PartitionedModel):
+    "One subtask throws an exception."
+
+    def build(self):
+        pass
+
+    def some_work(self, some_number):
+        some_data = 1 / some_number
+        return some_data
+
+    def partition_slice(self, _):
+        target_method = "some_work"
+        return [(target_method, {"some_number": x}) for x in range(10)]
+
+
+class LessBrokenModel(BrokenModel):
+    def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
+        assert subtask_method_name == "some_work"
+        self.log(f"success for {subtask_kwargs['some_number']}")
+
+    def partition_subtask_failed(self, task_fail_message):
+        self.log(f"failed for {task_fail_message.method_kwargs['some_number']}", "ERROR")
 
 
 class TestPartitionedModel(unittest.TestCase):
@@ -209,3 +234,46 @@ class TestPartitionedModel(unittest.TestCase):
         external_log.seek(0)
         all_the_logs = external_log.read()
         self.assertIn("Running single sub-task within main process", all_the_logs)
+
+    def test_build_throws_exception(self):
+        """
+        When a subtask in a partitioned model fails the :meth:`go` in the parent
+        model should raise a specific exception.
+        """
+        m = BrokenModel()
+        m.log_to_stdout = False
+
+        with self.assertRaises(SubTaskFailed) as context:
+            m.go()
+
+        expected = (
+            "Subtask failed. 'BrokenModel.some_work' raised an "
+            "<class 'ZeroDivisionError'> exception."
+        )
+        self.assertEqual(expected, str(context.exception))
+
+    def test_build_handles_exception(self):
+        """
+        When a subtask in a partitioned model fails an optional method in the model
+        (:meth:`partition_subtask_failed`) can deal with the problem and not stop the execution of
+        other subtasks.
+        """
+
+        m = LessBrokenModel()
+
+        external_log = StringIO()
+        m.set_logger(external_log)
+        m.log_to_stdout = False
+
+        m.go()
+
+        external_log.seek(0)
+        all_the_logs = external_log.read()
+
+        expected = "success for 1"
+        msg = "Just check for one success"
+        self.assertIn(expected, all_the_logs, msg)
+
+        expected = "failed for 0"
+        msg = "There should be a failure"
+        self.assertIn(expected, all_the_logs, msg)

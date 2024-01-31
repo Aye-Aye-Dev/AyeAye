@@ -20,3 +20,26 @@ class UnknownEngineType(Exception):
         """
         super().__init__(f"Unknown engine_type in url: '{engine_url}'")
         self.engine_url = engine_url
+
+
+class SubTaskFailed(Exception):
+    """
+    :class:`PartitionedModel` splits a task into sub-tasks and though either local or distributed
+    execution runs these sub-tasks independently. This exception is raised on the originating model
+    when a sub-task has raised an exception.
+
+    It contains a load of information about the failure within the :attr:`task_fail_message`. See
+    :class:`ayeaye.runtime.task_message.TaskFailed` for all the fields.
+    """
+
+    def __init__(self, task_fail_message):
+        """
+        @param task_fail: (:class:`ayeaye.runtime.task_message.TaskFailed`)
+        """
+        failed_cls_name = task_fail_message.model_class_name
+        msg = (
+            f"Subtask failed. '{failed_cls_name}.{task_fail_message.method_name}' raised an "
+            f"{task_fail_message.exception_class_name} exception."
+        )
+        super().__init__(msg)
+        self.task_fail_message = task_fail_message

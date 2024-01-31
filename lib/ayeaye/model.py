@@ -5,6 +5,7 @@ from time import time
 import warnings
 
 import ayeaye
+from ayeaye.exception import SubTaskFailed
 from ayeaye.connectors.base import DataConnector
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.runtime.knowledge import RuntimeKnowledge
@@ -438,6 +439,21 @@ class PartitionedModel(Model):
         """
         return None
 
+    def partition_subtask_failed(self, task_fail_message):
+        """
+        A subtask could be run within the current process or within an isolated separate process or
+        on another machine altogether. If the task fails with an exception details of the problem
+        are relayed back to the originating model via a :class:`ayeaye.runtime.task_message.TaskFailed`
+        message. This could be handled by the model (just re-implement this method within the subclass)
+        or else the `TaskFailed` message will be converted into an exception.
+
+        A failed subtask shouldn't be silent so the default behaviour is to raise this as an
+        :class:`ayeaye.exceptions.SubTaskFailed` exception.
+
+        @param task_fail_message: (`ayeaye.runtime.task_message.TaskFailed`)
+        """
+        raise SubTaskFailed(task_fail_message=task_fail_message)
+
     def partition_complete(self):
         """
         Optional method. Called when executor has finished all sub-tasks.
@@ -555,16 +571,11 @@ class PartitionedModel(Model):
                 elif isinstance(subtask_message, TaskFailed):
                     subtasks_complete += 1
 
-                    msg = (
-                        f"Subtask failed for '{subtask_message.method_name}' "
-                        f"with {subtask_message.method_kwargs} "
-                        f"with exception {subtask_message.exception_class_name}"
-                    )
-                    msg += "\n".join(subtask_message.traceback)
-                    # TODO - could just logging it?
-
+                    # The failure could be handled by the model. Default behaviour in
+                    # :meth:`PartitionedModel.partition_subtask_complete` is to raise this as an
+                    # exception
                     # for now, throw an error
-                    raise ValueError(msg)
+                    self.partition_subtask_failed(task_fail_message=subtask_message)
 
                 elif isinstance(subtask_message, TaskLogMessage):
                     # TODO structured logging to separate and de-dupe fields like the date

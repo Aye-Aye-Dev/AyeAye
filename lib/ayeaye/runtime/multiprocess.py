@@ -94,6 +94,24 @@ class LocalProcessPool(AbstractProcessPool):
         @param max_processes: (int) upper limit for number of concurrent processes.
         """
         self.max_processes = max_processes
+        self.proc_table = None
+
+    def __del__(self):
+        """
+        Clean up child processes if they are left orphaned. This can happen if an exception
+        within a process isn't handled correctly and would result in exceptions being
+        dumped.
+        """
+
+        if self.proc_table:
+            # terminate any processes that are still alive
+            for proc in self.proc_table:
+                if proc.is_alive():
+                    proc.terminate()
+
+            # wait for processes to end
+            for proc in self.proc_table:
+                proc.join()
 
     @staticmethod
     def run_model(
@@ -203,8 +221,10 @@ class LocalProcessPool(AbstractProcessPool):
                         traceback_ln.append(t)
 
                     task_msg = TaskFailed(
+                        model_class_name=ayeaye_model_cls.__name__,
                         method_name=method_name,
                         method_kwargs=method_kwargs,
+                        resolver_context=context_kwargs["mapper"],
                         exception_class_name=str(type(e)),
                         traceback=traceback_ln,
                     )
@@ -244,7 +264,7 @@ class LocalProcessPool(AbstractProcessPool):
         subtask_kwargs_queue = Queue()
         return_values_queue = Queue()
 
-        proc_table = []
+        self.proc_table = []
         for proc_id in range(processes):
             proc = Process(
                 target=LocalProcessPool.run_model,
@@ -258,9 +278,9 @@ class LocalProcessPool(AbstractProcessPool):
                     context_kwargs,
                 ),
             )
-            proc_table.append(proc)
+            self.proc_table.append(proc)
 
-        for proc in proc_table:
+        for proc in self.proc_table:
             proc.daemon = True
             proc.start()
 
@@ -284,5 +304,5 @@ class LocalProcessPool(AbstractProcessPool):
             if completed_procs >= subtasks_count:
                 break
 
-        for proc in proc_table:
+        for proc in self.proc_table:
             proc.join()

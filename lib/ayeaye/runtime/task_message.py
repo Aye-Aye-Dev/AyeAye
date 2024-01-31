@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict
 import json
-from typing import Any, Optional
+from typing import Any, ClassVar, Optional
 
 
 class AbstractTaskMessage:
@@ -34,8 +34,10 @@ class TaskComplete(AbstractTaskMessage):
 
 @dataclass
 class TaskFailed(AbstractTaskMessage):
+    model_class_name: str
     method_name: str
     method_kwargs: dict
+    resolver_context: dict
     exception_class_name: str
     traceback: list
 
