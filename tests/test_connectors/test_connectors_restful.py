@@ -91,3 +91,21 @@ class TestRestfulConnector(unittest.TestCase):
         c.patch("/parrots/african_grey/", updated_parrot)
 
         self.assertEqual(200, c.last_http_status)
+
+    @responses.activate
+    def test_delete(self):
+        "http DELETE an existing document"
+
+        responses.add(
+            responses.DELETE,
+            "http://zooological-online.mock/parrots/african_grey/",
+            status=200,  # could also be a 204 (No Content) or 202 (Accepted)
+        )
+
+        c = RestfulConnector(
+            engine_url="http://zooological-online.mock", access=ayeaye.AccessMode.READWRITE
+        )
+
+        c.delete("/parrots/african_grey/")
+
+        self.assertEqual(200, c.last_http_status)
