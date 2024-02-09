@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.55] - 2024-02-09
+
+### Added
+- the DELETE http verb via .delete in the restful connector - thanks RA!
+
 ## [0.0.54] - 2024-01-31
 
 ### Added
