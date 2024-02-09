@@ -341,6 +341,40 @@ class RestfulConnector(DataConnector):
 
         serialised_request = Pinnate(reply_doc)
         return serialised_request
+    
+    def delete(self, url):
+        """
+        HTTP DELETE
+        """
+        if self.access not in (AccessMode.WRITE, AccessMode.READWRITE):
+            raise ValueError("Write attempted on dataset not opened in write mode.")
+
+        self.connect()
+
+        url_ = self.qualify_url(url)
+        headers = {"Content-type": "application/json"}
+
+        if isinstance(self.headers, dict):
+            headers.update(self.headers)
+
+        with self.profiler(url_):
+            try:
+                r = self._requests.delete(url_, headers=headers)
+            except requests.ConnectionError as c:
+                msg = f"Failed to DELETE {url_}"
+                raise RestfulConnectorConnectionError(msg, details=str(c))
+
+        self._post_request_checks(r)
+
+        # reply doc. is optional
+        try:
+            reply_doc = r.json()
+        except requests.exceptions.JSONDecodeError:
+            # r.text could contain something but probably empty
+            return None
+
+        serialised_request = Pinnate(reply_doc)
+        return serialised_request
 
     def _post_request_checks(self, r):
         """
