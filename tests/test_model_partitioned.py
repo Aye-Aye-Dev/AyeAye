@@ -9,6 +9,7 @@ import unittest
 import ayeaye
 from ayeaye.common_pattern.parallel_model_runner import ExampleModelRunner
 from ayeaye.exception import SubTaskFailed
+from ayeaye.runtime.task_message import TaskPartition
 
 PROJECT_TEST_PATH = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE_CSV_PATH = os.path.join(PROJECT_TEST_PATH, "data", "deadly_creatures.csv")
@@ -124,6 +125,44 @@ class LessBrokenModel(BrokenModel):
 
     def partition_subtask_failed(self, task_fail_message):
         self.log(f"failed for {task_fail_message.method_kwargs['some_number']}", "ERROR")
+
+
+class ScalingFactorsModel(ayeaye.PartitionedModel):
+    "Use TaskPartition, model construction and partition initialisation"
+
+    def __init__(self, *args, base_factor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.base_factor = base_factor
+        self.local_additional_scaling_factor = None
+
+    def build(self):
+        pass
+
+    def partition_initialise(self, additional_scaling_factor):
+        super().partition_initialise()
+        self.local_additional_scaling_factor = additional_scaling_factor
+
+    def do_the_maths(self, some_number):
+        some_data = some_number * self.base_factor * self.local_additional_scaling_factor
+        return some_data
+
+    def partition_slice(self, _):
+        sub_tasks = []
+        for a_number in range(4, 16, 4):
+            tp = TaskPartition(
+                method_name="do_the_maths",
+                method_kwargs={"some_number": a_number},
+                model_construction_kwargs={"base_factor": 0.25},
+                partition_initialise_kwargs={"additional_scaling_factor": 1 / a_number},
+            )
+            sub_tasks.append(tp)
+
+        return sub_tasks
+
+    def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
+        "Make the results available to the unittest"
+        msg = f"some_number: {subtask_kwargs['some_number']} : {subtask_return_value}"
+        self.log(msg)
 
 
 class TestPartitionedModel(unittest.TestCase):
@@ -277,3 +316,33 @@ class TestPartitionedModel(unittest.TestCase):
         expected = "failed for 0"
         msg = "There should be a failure"
         self.assertIn(expected, all_the_logs, msg)
+
+    def test_task_partition_messages(self):
+        """
+        ScalingFactorsModel uses TaskPartition messages to allow partition initialise and model
+        construction.
+        """
+
+        for max_workers in [1, 10]:
+            m = ScalingFactorsModel()
+
+            # ensure same behavior in PartitionedModel._build
+            m.runtime.max_concurrent_tasks = max_workers
+
+            external_log = StringIO()
+            m.set_logger(external_log)
+            m.log_to_stdout = False
+
+            m.go()
+
+            external_log.seek(0)
+            all_the_logs = external_log.read()
+
+            expected = [
+                "some_number: 4 : 0.25",
+                "some_number: 8 : 0.25",
+                "some_number: 12 : 0.25",
+            ]
+
+            for e in expected:
+                self.assertIn(e, all_the_logs)

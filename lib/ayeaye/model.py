@@ -10,7 +10,7 @@ from ayeaye.connectors.base import DataConnector
 from ayeaye.connect_resolve import connector_resolver
 from ayeaye.runtime.knowledge import RuntimeKnowledge
 from ayeaye.runtime.multiprocess import LocalProcessPool
-from ayeaye.runtime.task_message import TaskComplete, TaskFailed, TaskLogMessage
+from ayeaye.runtime.task_message import TaskComplete, TaskFailed, TaskLogMessage, TaskPartition
 from ayeaye.ignition import EngineUrlCase, EngineUrlStatus
 
 
@@ -387,13 +387,22 @@ class PartitionedModel(Model):
         # Note -no check for existing pool. A user could trash an existing running set of subtasks
         self._process_pool = alternative_process_pool
 
-    def partition_initialise(self, *args, **kwargs):
+    def partition_initialise(self, **kwargs):
         """
         This method will be called when a worker process instantiates a model. This method can
-        be overridden but sub-class's method must be called.
+        be overridden but this sub-class's method must be called.
+        e.g. `super().partition_initialise()`
+
+        `kwargs` can be whatever the subclass needs but values must be serialisable to JSON.
+
+        Note that models (like all Python classes) also take constructor arguments.
+        The :meth:`partition_initialise` method is for setting up a model with any worker
+        specific details. The normal Python `__init__` construction is for instance level setup.
+        e.g. `__init__` would be used for passing a variable that is common to all subtasks and
+        `partition_initialise` might contain a hashing value so a sub-task only selects a sub-set
+        of the data that it receives.
         """
         self.start_build_time = time()
-
         return None
 
     def partition_plea(self):
@@ -418,15 +427,18 @@ class PartitionedModel(Model):
         workers.
 
         The number of sub-tasks returned doesn't need to relate to the number of partitions
-        (`partition_count`) that will be used as each worker could execute zero or more than one
-        sub-task. `partition_count` is passed to :meth:`partition_slice` as there are scenarios
+        (`partition_count`). This is because each worker could execute zero or more sub-task.
+
+        `partition_count` is passed to :meth:`partition_slice` as there are scenarios
         where a greater efficiency is possible when the number of sub-tasks is a multiple of the
         number of workers.
 
         @param partition_count: (int)
             The number of workers the executor plans to run.
 
-        @returns (list of (method name (str), kwargs [i.e. a dict])
+        @returns (list of (method name (str), kwargs (dict))
+                    or
+                 (list of :clas`TaskPartition` objects)
         """
         raise NotImplementedError("All models must implement this method")
 
@@ -457,21 +469,6 @@ class PartitionedModel(Model):
     def partition_complete(self):
         """
         Optional method. Called when executor has finished all sub-tasks.
-        """
-        return None
-
-    def worker_initialise(self, processes):
-        """
-        Optional method. This is called by the executor after the number of workers has been
-        determined if the number of workers is a fixed number.
-
-        @param processes: (int)
-            The number of workers the executor plans to run.
-
-        @return: list of tuples containing args (list) or kwargs (dict) or None when not needed.
-            Each item in this list is used to initialise a single worker. It could contain
-            a worker ID. The number of items must equal the number of partitions. An exception
-            will be raised if this isn't the case.
         """
         return None
 
@@ -513,11 +510,23 @@ class PartitionedModel(Model):
 
         tasks = self.partition_slice(workers_count)
         subtasks_count = len(tasks)
-
-        # model can specify arguments for initialising workers
-        worker_init = self.worker_initialise(processes=workers_count)
-
         active_context = connector_resolver.capture_context()
+
+        # the simple version of :meth:`partition_slice` returns a list of tuples.
+        # :class:`TaskPartition` contains more info
+        task_definitions = []
+        for t in tasks:
+            if isinstance(t, TaskPartition):
+                task_definitions.append(t)
+            else:
+                method_name, method_kwargs = t
+                tp = TaskPartition(
+                    method_name=method_name,
+                    method_kwargs=method_kwargs if method_kwargs is not None else {},
+                    model_construction_kwargs={},
+                    partition_initialise_kwargs={},
+                )
+                task_definitions.append(tp)
 
         if workers_count == 1:
             # don't use the process pool as only one worker is available. There might be many
@@ -533,17 +542,19 @@ class PartitionedModel(Model):
             self.runtime.total_workers = 1
 
             subtasks_complete = 0
-            for method_name, method_kwargs in tasks:
-                if method_kwargs is None:
-                    method_kwargs = {}
+            for task in task_definitions:
+                # re-create self as a new instance model. This keeps single process mode insync
+                # with the `process_pool` mode.
+                m = self.__class__(**task.model_construction_kwargs)
+                m.partition_initialise(**task.partition_initialise_kwargs)
 
-                sub_task_method = getattr(self, method_name)
-                subtask_return_value = sub_task_method(**method_kwargs)
+                sub_task_method = getattr(m, task.method_name)
+                subtask_return_value = sub_task_method(**task.method_kwargs)
                 subtasks_complete += 1
 
                 self.partition_subtask_complete(
-                    subtask_method_name=method_name,
-                    subtask_kwargs=method_kwargs,
+                    subtask_method_name=task.method_name,
+                    subtask_kwargs=task.method_kwargs,
                     subtask_return_value=subtask_return_value,
                 )
                 self.log_progress(subtasks_complete / subtasks_count)
@@ -552,8 +563,7 @@ class PartitionedModel(Model):
             subtasks_complete = 0
             subtask_kwargs = {
                 "model_cls": self.__class__,
-                "sub_tasks": tasks,
-                "initialise": worker_init,
+                "sub_tasks": task_definitions,
                 "context_kwargs": active_context,
                 "processes": workers_count,
             }

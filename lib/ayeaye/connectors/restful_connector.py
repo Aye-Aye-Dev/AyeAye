@@ -318,11 +318,6 @@ class RestfulConnector(DataConnector):
         else:
             json_data = json.dumps(data)
 
-        if isinstance(data, Pinnate):
-            json_data = json.dumps(data.as_dict())
-        else:
-            json_data = json.dumps(data)
-
         with self.profiler(url_):
             try:
                 r = self._requests.patch(url_, data=json_data, headers=headers)
@@ -341,7 +336,7 @@ class RestfulConnector(DataConnector):
 
         serialised_request = Pinnate(reply_doc)
         return serialised_request
-    
+
     def delete(self, url):
         """
         HTTP DELETE

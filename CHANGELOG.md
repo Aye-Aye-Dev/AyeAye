@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.56] - 2024-03-25
+
+### Changed
+- PartitionedModel.partition_initialise to only take key word args, not list of args
+- PartitionedModel.partition_plea to be able to return list of TaskPartition objects which allow for richer initialisation of the worker
+- (breaking change) - interface from AbstractProcessPool.run_subtasks to take TaskPartition objects instead of tuples.
+- single process execution in PartitionedModel is now more like multiprocess execution as the model is constructed and partition is initialised for each sub-task.
+
+### Removed
+- PartitionedModel.worker_initialise - it doesn't do anything that can't be achieved with PartitionedModel.partition_initialise plus .partition_slice
+
 ## [0.0.55] - 2024-02-09
 
 ### Added

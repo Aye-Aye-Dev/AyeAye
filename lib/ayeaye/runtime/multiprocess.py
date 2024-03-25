@@ -1,6 +1,7 @@
 """
 Run :class:`ayeaye.PartitionedModel` models across multiple operating system processes.
 """
+import json
 from multiprocessing import Process, Queue
 import sys
 import traceback
@@ -29,14 +30,7 @@ class QueueLogger:
 
 
 class AbstractProcessPool:
-    def run_subtasks(
-        self,
-        model_cls,
-        sub_tasks,
-        initialise=None,
-        context_kwargs=None,
-        processes=None,
-    ):
+    def run_subtasks(self, model_cls, sub_tasks, context_kwargs=None, processes=None):
         """
         Generator yielding messages from subtasks.
 
@@ -50,12 +44,8 @@ class AbstractProcessPool:
             This will be instantiated without arguments and subtasks will be methods executed on
             this instance.
 
-        @param sub_tasks: list of (method_name, method_kwargs) (str, dict)
+        @param sub_tasks: list of :class:`TaskPartition` objects
             each item defines a subtask to execute in a worker process
-
-        @param initialise: None, or list of tuples (dict and or list)
-            args or kwargs for Aye-aye model's :meth:`partition_initialise`.
-            Each item in this list is used to initialise a worker process.
 
         @param processes: (int or None)
             optionally tell each worker the total number of worker processes. This makes it
@@ -117,10 +107,9 @@ class LocalProcessPool(AbstractProcessPool):
     def run_model(
         worker_id,
         total_workers,
-        ayeaye_model_cls,
-        subtask_kwargs_queue,
+        model_cls,
+        subtasks_queue,
         returns_queue,
-        initialise,
         context_kwargs,
     ):
         """
@@ -130,22 +119,19 @@ class LocalProcessPool(AbstractProcessPool):
         @param total_workers: (int)
             Number of workers in pool or None for dynamic workers
 
-        @param ayeaye_model_cls: subclass of :class:`ayeaye.PartitionedModel`
+        @param model_cls: subclass of :class:`ayeaye.PartitionedModel`
             Class, not object/instance.
             This will be instantiated without arguments and subtasks will be methods executed on
             this instance.
 
-        @param subtask_kwargs_queue: :class:`multiprocessing.Queue` object
-            subtasks are defined by the (method_name, kwargs) (str, dict) items read from this queue
+        @param subtasks_queue: :class:`multiprocessing.Queue` object
+            subtasks are defined by serialised :class:`TaskPartition` objects, items read from this queue
 
         @param returns_queue: :class:`multiprocessing.Queue` object
             Multiplex data from the subtask back to the caller (i.e. the instance that made the
             sub-tasks).
             Format for the queue is the output from :meth:`to_json` from any subclass of
             :class:`AbstractTaskMessage`.
-
-        @param initialise: None, dict or list
-            args or kwargs for Aye-aye model's :meth:`partition_initialise`
 
         @param context_kwargs: (dict)
             Output from :meth:`connect_resolve.ConnectorResolver.capture_context` - so needs the
@@ -162,39 +148,38 @@ class LocalProcessPool(AbstractProcessPool):
         connector_resolver.brutal_reset()
 
         with connector_resolver.context(**context_kwargs["mapper"]):
-            model = ayeaye_model_cls()
-
             # send logs from the sub-task running in separate Process back to the parent down the queue
             q_logger = QueueLogger(log_prefix=f"Task ({worker_id})", log_queue=returns_queue)
-            model.set_logger(q_logger)
-
-            # switch off STDOUT as I'm pretty sure it shouldn't be used by a process that has forked as
-            # only the parent is joined to a terminal.
-            model.log_to_stdout = False
-
-            model.runtime.worker_id = worker_id
-            model.runtime.total_workers = total_workers
-
-            init_args = []
-            init_kwargs = {}
-            if initialise is not None:
-                for init_as in initialise:
-                    if isinstance(init_as, list):
-                        init_args = init_as
-                    elif isinstance(init_as, dict):
-                        init_kwargs = init_as
-                    else:
-                        raise ValueError("Unknown initialise variable")
-
-            model.partition_initialise(*init_args, **init_kwargs)
 
             while True:
-                method_name, method_kwargs = subtask_kwargs_queue.get()
-                if method_name is None:
+                task_message_serialised = subtasks_queue.get()
+
+                # None on queue means end process as all work has been completed
+                if task_message_serialised is None:
                     break
+
+                task_message = json.loads(task_message_serialised)
+
+                assert task_message["type"] == "TaskPartition"
+                method_name = task_message["payload"]["method_name"]
+                method_kwargs = task_message["payload"]["method_kwargs"]
+                model_construction_kwargs = task_message["payload"]["model_construction_kwargs"]
+                partition_initialise_kwargs = task_message["payload"]["partition_initialise_kwargs"]
 
                 if method_kwargs is None:
                     method_kwargs = {}
+
+                model = model_cls(**model_construction_kwargs)
+                model.set_logger(q_logger)
+
+                # switch off STDOUT as I'm pretty sure it shouldn't be used by a process that has forked as
+                # only the parent is joined to a terminal.
+                model.log_to_stdout = False
+
+                model.runtime.worker_id = worker_id
+                model.runtime.total_workers = total_workers
+
+                model.partition_initialise(**partition_initialise_kwargs)
 
                 # TODO - :meth:`log` for the worker processes should be connected back to the parent
                 # with a queue or pipe and it shouldn't be using stdout
@@ -221,7 +206,9 @@ class LocalProcessPool(AbstractProcessPool):
                         traceback_ln.append(t)
 
                     task_msg = TaskFailed(
-                        model_class_name=ayeaye_model_cls.__name__,
+                        model_class_name=model_cls.__name__,
+                        model_construction_kwargs=model_construction_kwargs,
+                        partition_initialise_kwargs=partition_initialise_kwargs,
                         method_name=method_name,
                         method_kwargs=method_kwargs,
                         resolver_context=context_kwargs["mapper"],
@@ -231,11 +218,9 @@ class LocalProcessPool(AbstractProcessPool):
 
                 returns_queue.put(task_msg)
 
-            model.close_datasets()
+                model.close_datasets()
 
-    def run_subtasks(
-        self, model_cls, sub_tasks, initialise=None, context_kwargs=None, processes=None
-    ):
+    def run_subtasks(self, model_cls, sub_tasks, context_kwargs=None, processes=None):
         """
         Generator yielding instances that are a subclass of :class:`AbstractTaskMessage`. These
         are from subtasks.
@@ -249,34 +234,23 @@ class LocalProcessPool(AbstractProcessPool):
             raise ValueError(f"{processes} processes passed, max set to {self.max_processes}")
 
         subtasks_count = len(sub_tasks)
-
-        # Optionally, a model can pass initialisation variables to workers
-        if initialise is None:
-            worker_init = [None for _ in range(processes)]
-        else:
-            if len(initialise) != processes:
-                msg = "The number of worker 'initialise' items doesn't match number of workers."
-                raise ValueError(msg)
-            worker_init = initialise
-
         context_kwargs = context_kwargs or {}
 
-        subtask_kwargs_queue = Queue()
+        subtasks_queue = Queue()
         return_values_queue = Queue()
 
         self.proc_table = []
         for proc_id in range(processes):
             proc = Process(
                 target=LocalProcessPool.run_model,
-                args=(
-                    proc_id,
-                    processes,
-                    model_cls,
-                    subtask_kwargs_queue,
-                    return_values_queue,
-                    worker_init[proc_id],
-                    context_kwargs,
-                ),
+                kwargs={
+                    "worker_id": proc_id,
+                    "total_workers": processes,
+                    "model_cls": model_cls,
+                    "subtasks_queue": subtasks_queue,
+                    "returns_queue": return_values_queue,
+                    "context_kwargs": context_kwargs,
+                },
             )
             self.proc_table.append(proc)
 
@@ -285,11 +259,11 @@ class LocalProcessPool(AbstractProcessPool):
             proc.start()
 
         for sub_task in sub_tasks:
-            subtask_kwargs_queue.put(sub_task)
+            subtasks_queue.put(sub_task.to_json())
 
         # instruct worker process to terminate
         for _ in range(processes):
-            subtask_kwargs_queue.put((None, None))
+            subtasks_queue.put(None)
 
         completed_procs = 0
         while True:

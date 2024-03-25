@@ -1,13 +1,13 @@
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass, field
 import json
-from typing import Any, ClassVar, Optional
+from typing import Any, Optional
 
 
 class AbstractTaskMessage:
     """
     Subtasks of an :class:`ayeaye.Model` could be executed locally or across a distributed system.
-    Subclass of `AbstractTaskMessage` represent outputs from the subtask that are relayed back to
-    the originating model.
+    Subclass of `AbstractTaskMessage` represent a proposed task or outputs from running a task.
+    Outputs are relayed back to the originating model.
 
     This is a mixin class which is only intended to be used alongside a `dataclass`
     """
@@ -26,6 +26,14 @@ class AbstractTaskMessage:
 
 
 @dataclass
+class TaskPartition(AbstractTaskMessage):
+    method_name: str
+    method_kwargs: dict
+    model_construction_kwargs: dict = field(default_factory=dict)
+    partition_initialise_kwargs: dict = field(default_factory=dict)
+
+
+@dataclass
 class TaskComplete(AbstractTaskMessage):
     method_name: str
     method_kwargs: dict
@@ -35,6 +43,8 @@ class TaskComplete(AbstractTaskMessage):
 @dataclass
 class TaskFailed(AbstractTaskMessage):
     model_class_name: str
+    model_construction_kwargs: dict
+    partition_initialise_kwargs: dict
     method_name: str
     method_kwargs: dict
     resolver_context: dict

@@ -2,7 +2,12 @@ import unittest
 
 import ayeaye
 from ayeaye.runtime.multiprocess import LocalProcessPool
-from ayeaye.runtime.task_message import task_message_factory, TaskComplete, TaskLogMessage
+from ayeaye.runtime.task_message import (
+    task_message_factory,
+    TaskComplete,
+    TaskLogMessage,
+    TaskPartition,
+)
 
 
 class ExamineResolverContext(ayeaye.PartitionedModel):
@@ -54,8 +59,7 @@ class TestRuntimeMultiprocess(unittest.TestCase):
 
             subtask_kwargs = dict(
                 model_cls=ExamineResolverContext,
-                sub_tasks=[("fake_subtask", None)],
-                initialise=None,
+                sub_tasks=[TaskPartition(method_name="fake_subtask", method_kwargs={})],
                 processes=workers_count,
                 context_kwargs={"mapper": {"local_variable": "is_set"}},
             )
