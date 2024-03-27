@@ -27,6 +27,7 @@ class AbstractTaskMessage:
 
 @dataclass
 class TaskPartition(AbstractTaskMessage):
+    model_cls: Any  # Not really any but a `Class`; this won't serialise to JSON
     method_name: str
     method_kwargs: dict
     model_construction_kwargs: dict = field(default_factory=dict)

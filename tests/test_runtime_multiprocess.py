@@ -58,8 +58,13 @@ class TestRuntimeMultiprocess(unittest.TestCase):
             proc_pool = LocalProcessPool(max_processes=workers_count)
 
             subtask_kwargs = dict(
-                model_cls=ExamineResolverContext,
-                sub_tasks=[TaskPartition(method_name="fake_subtask", method_kwargs={})],
+                sub_tasks=[
+                    TaskPartition(
+                        model_cls=ExamineResolverContext,
+                        method_name="fake_subtask",
+                        method_kwargs={},
+                    )
+                ],
                 processes=workers_count,
                 context_kwargs={"mapper": {"local_variable": "is_set"}},
             )

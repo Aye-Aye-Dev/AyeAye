@@ -41,5 +41,8 @@ class SubTaskFailed(Exception):
             f"Subtask failed. '{failed_cls_name}.{task_fail_message.method_name}' raised an "
             f"{task_fail_message.exception_class_name} exception."
         )
+        trace_str = "\n".join(task_fail_message.traceback)
+        msg = msg + "\n" + trace_str
+
         super().__init__(msg)
         self.task_fail_message = task_fail_message

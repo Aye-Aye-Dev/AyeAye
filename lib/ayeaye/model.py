@@ -438,13 +438,13 @@ class PartitionedModel(Model):
 
         @returns (list of (method name (str), kwargs (dict))
                     or
-                 (list of :clas`TaskPartition` objects)
+                 (list of :class`TaskPartition` objects)
         """
         raise NotImplementedError("All models must implement this method")
 
     def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
         """
-        Optional method. Takes return values from subtasks.
+        Optional method. Called on the parent task when executor has finished all sub-tasks.
 
         This will be called on the parent task (i.e. not on the worker). It can be used to collate
         results or take further actions when a sub-task has finished.
@@ -521,6 +521,7 @@ class PartitionedModel(Model):
             else:
                 method_name, method_kwargs = t
                 tp = TaskPartition(
+                    model_cls=self.__class__,
                     method_name=method_name,
                     method_kwargs=method_kwargs if method_kwargs is not None else {},
                     model_construction_kwargs={},
@@ -545,7 +546,7 @@ class PartitionedModel(Model):
             for task in task_definitions:
                 # re-create self as a new instance model. This keeps single process mode insync
                 # with the `process_pool` mode.
-                m = self.__class__(**task.model_construction_kwargs)
+                m = task.model_cls(**task.model_construction_kwargs)
                 m.partition_initialise(**task.partition_initialise_kwargs)
 
                 sub_task_method = getattr(m, task.method_name)
@@ -562,7 +563,6 @@ class PartitionedModel(Model):
         else:
             subtasks_complete = 0
             subtask_kwargs = {
-                "model_cls": self.__class__,
                 "sub_tasks": task_definitions,
                 "context_kwargs": active_context,
                 "processes": workers_count,

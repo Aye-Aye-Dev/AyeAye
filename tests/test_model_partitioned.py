@@ -150,6 +150,7 @@ class ScalingFactorsModel(ayeaye.PartitionedModel):
         sub_tasks = []
         for a_number in range(4, 16, 4):
             tp = TaskPartition(
+                model_cls=self.__class__,
                 method_name="do_the_maths",
                 method_kwargs={"some_number": a_number},
                 model_construction_kwargs={"base_factor": 0.25},
@@ -289,7 +290,7 @@ class TestPartitionedModel(unittest.TestCase):
             "Subtask failed. 'BrokenModel.some_work' raised an "
             "<class 'ZeroDivisionError'> exception."
         )
-        self.assertEqual(expected, str(context.exception))
+        self.assertIn(expected, str(context.exception))
 
     def test_build_handles_exception(self):
         """

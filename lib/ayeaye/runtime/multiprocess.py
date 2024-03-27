@@ -1,17 +1,12 @@
 """
 Run :class:`ayeaye.PartitionedModel` models across multiple operating system processes.
 """
-import json
 from multiprocessing import Process, Queue
 import sys
 import traceback
 
 from ayeaye.connect_resolve import connector_resolver
-from ayeaye.runtime.task_message import (
-    TaskComplete,
-    TaskFailed,
-    TaskLogMessage,
-)
+from ayeaye.runtime.task_message import TaskComplete, TaskFailed, TaskLogMessage, TaskPartition
 
 
 class QueueLogger:
@@ -30,7 +25,7 @@ class QueueLogger:
 
 
 class AbstractProcessPool:
-    def run_subtasks(self, model_cls, sub_tasks, context_kwargs=None, processes=None):
+    def run_subtasks(self, sub_tasks, context_kwargs=None, processes=None):
         """
         Generator yielding messages from subtasks.
 
@@ -38,11 +33,6 @@ class AbstractProcessPool:
 
         A subtask is considered complete when it yields either :class:`TaskComplete` or
         :class:`TaskFailed`. It can yield many :class:`TaskLogMessage`
-
-        @param ayeaye_model_cls: subclass of :class:`ayeaye.PartitionedModel`
-            Class, not object/instance.
-            This will be instantiated without arguments and subtasks will be methods executed on
-            this instance.
 
         @param sub_tasks: list of :class:`TaskPartition` objects
             each item defines a subtask to execute in a worker process
@@ -103,11 +93,70 @@ class LocalProcessPool(AbstractProcessPool):
             for proc in self.proc_table:
                 proc.join()
 
+    def run_subtasks(self, sub_tasks, context_kwargs=None, processes=None):
+        """
+        Generator yielding instances that are a subclass of :class:`AbstractTaskMessage`. These
+        are from subtasks.
+
+        @see doc. string in :meth:`AbstractProcessPool.run_subtasks`
+        """
+        if processes is None:
+            processes = self.max_processes
+
+        if processes > self.max_processes:
+            raise ValueError(f"{processes} processes passed, max set to {self.max_processes}")
+
+        subtasks_count = len(sub_tasks)
+        context_kwargs = context_kwargs or {}
+
+        subtasks_queue = Queue()
+        return_values_queue = Queue()
+
+        self.proc_table = []
+        for proc_id in range(processes):
+            proc = Process(
+                target=LocalProcessPool.run_model,
+                kwargs={
+                    "worker_id": proc_id,
+                    "total_workers": processes,
+                    "subtasks_queue": subtasks_queue,
+                    "returns_queue": return_values_queue,
+                    "context_kwargs": context_kwargs,
+                },
+            )
+            self.proc_table.append(proc)
+
+        for proc in self.proc_table:
+            proc.daemon = True
+            proc.start()
+
+        for sub_task in sub_tasks:
+            subtasks_queue.put(sub_task)
+
+        # instruct worker process to terminate
+        for _ in range(processes):
+            subtasks_queue.put(None)
+
+        completed_procs = 0
+        while True:
+            task_message = return_values_queue.get()
+
+            if isinstance(task_message, (TaskComplete, TaskFailed)):
+                completed_procs += 1
+
+            # could be a log message or sub-task completed notification
+            yield task_message
+
+            if completed_procs >= subtasks_count:
+                break
+
+        for proc in self.proc_table:
+            proc.join()
+
     @staticmethod
     def run_model(
         worker_id,
         total_workers,
-        model_cls,
         subtasks_queue,
         returns_queue,
         context_kwargs,
@@ -119,13 +168,9 @@ class LocalProcessPool(AbstractProcessPool):
         @param total_workers: (int)
             Number of workers in pool or None for dynamic workers
 
-        @param model_cls: subclass of :class:`ayeaye.PartitionedModel`
-            Class, not object/instance.
-            This will be instantiated without arguments and subtasks will be methods executed on
-            this instance.
-
         @param subtasks_queue: :class:`multiprocessing.Queue` object
-            subtasks are defined by serialised :class:`TaskPartition` objects, items read from this queue
+            subtasks are defined in :class:`TaskPartition` objects; each subtask is an item read
+            from this queue.
 
         @param returns_queue: :class:`multiprocessing.Queue` object
             Multiplex data from the subtask back to the caller (i.e. the instance that made the
@@ -152,24 +197,18 @@ class LocalProcessPool(AbstractProcessPool):
             q_logger = QueueLogger(log_prefix=f"Task ({worker_id})", log_queue=returns_queue)
 
             while True:
-                task_message_serialised = subtasks_queue.get()
+                task_message = subtasks_queue.get()
 
                 # None on queue means end process as all work has been completed
-                if task_message_serialised is None:
+                if task_message is None:
                     break
 
-                task_message = json.loads(task_message_serialised)
+                assert isinstance(task_message, TaskPartition)
 
-                assert task_message["type"] == "TaskPartition"
-                method_name = task_message["payload"]["method_name"]
-                method_kwargs = task_message["payload"]["method_kwargs"]
-                model_construction_kwargs = task_message["payload"]["model_construction_kwargs"]
-                partition_initialise_kwargs = task_message["payload"]["partition_initialise_kwargs"]
+                if task_message.method_kwargs is None:
+                    task_message.method_kwargs = {}
 
-                if method_kwargs is None:
-                    method_kwargs = {}
-
-                model = model_cls(**model_construction_kwargs)
+                model = task_message.model_cls(**task_message.model_construction_kwargs)
                 model.set_logger(q_logger)
 
                 # switch off STDOUT as I'm pretty sure it shouldn't be used by a process that has forked as
@@ -179,20 +218,20 @@ class LocalProcessPool(AbstractProcessPool):
                 model.runtime.worker_id = worker_id
                 model.runtime.total_workers = total_workers
 
-                model.partition_initialise(**partition_initialise_kwargs)
+                model.partition_initialise(**task_message.partition_initialise_kwargs)
 
                 # TODO - :meth:`log` for the worker processes should be connected back to the parent
                 # with a queue or pipe and it shouldn't be using stdout
 
                 # TODO - supply the connector_resolver context
 
-                sub_task_method = getattr(model, method_name)
+                sub_task_method = getattr(model, task_message.method_name)
 
                 try:
-                    subtask_return_value = sub_task_method(**method_kwargs)
+                    subtask_return_value = sub_task_method(**task_message.method_kwargs)
                     task_msg = TaskComplete(
-                        method_name=method_name,
-                        method_kwargs=method_kwargs,
+                        method_name=task_message.method_name,
+                        method_kwargs=task_message.method_kwargs,
                         return_value=subtask_return_value,
                     )
 
@@ -206,11 +245,11 @@ class LocalProcessPool(AbstractProcessPool):
                         traceback_ln.append(t)
 
                     task_msg = TaskFailed(
-                        model_class_name=model_cls.__name__,
-                        model_construction_kwargs=model_construction_kwargs,
-                        partition_initialise_kwargs=partition_initialise_kwargs,
-                        method_name=method_name,
-                        method_kwargs=method_kwargs,
+                        model_class_name=task_message.model_cls.__name__,
+                        model_construction_kwargs=task_message.model_construction_kwargs,
+                        partition_initialise_kwargs=task_message.partition_initialise_kwargs,
+                        method_name=task_message.method_name,
+                        method_kwargs=task_message.method_kwargs,
                         resolver_context=context_kwargs["mapper"],
                         exception_class_name=str(type(e)),
                         traceback=traceback_ln,
@@ -219,64 +258,3 @@ class LocalProcessPool(AbstractProcessPool):
                 returns_queue.put(task_msg)
 
                 model.close_datasets()
-
-    def run_subtasks(self, model_cls, sub_tasks, context_kwargs=None, processes=None):
-        """
-        Generator yielding instances that are a subclass of :class:`AbstractTaskMessage`. These
-        are from subtasks.
-
-        @see doc. string in :meth:`AbstractProcessPool.run_subtasks`
-        """
-        if processes is None:
-            processes = self.max_processes
-
-        if processes > self.max_processes:
-            raise ValueError(f"{processes} processes passed, max set to {self.max_processes}")
-
-        subtasks_count = len(sub_tasks)
-        context_kwargs = context_kwargs or {}
-
-        subtasks_queue = Queue()
-        return_values_queue = Queue()
-
-        self.proc_table = []
-        for proc_id in range(processes):
-            proc = Process(
-                target=LocalProcessPool.run_model,
-                kwargs={
-                    "worker_id": proc_id,
-                    "total_workers": processes,
-                    "model_cls": model_cls,
-                    "subtasks_queue": subtasks_queue,
-                    "returns_queue": return_values_queue,
-                    "context_kwargs": context_kwargs,
-                },
-            )
-            self.proc_table.append(proc)
-
-        for proc in self.proc_table:
-            proc.daemon = True
-            proc.start()
-
-        for sub_task in sub_tasks:
-            subtasks_queue.put(sub_task.to_json())
-
-        # instruct worker process to terminate
-        for _ in range(processes):
-            subtasks_queue.put(None)
-
-        completed_procs = 0
-        while True:
-            task_message = return_values_queue.get()
-
-            if isinstance(task_message, (TaskComplete, TaskFailed)):
-                completed_procs += 1
-
-            # could be a log message or sub-task completed notification
-            yield task_message
-
-            if completed_procs >= subtasks_count:
-                break
-
-        for proc in self.proc_table:
-            proc.join()

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.57] - 2024-03-27
+
+### Changed
+- SubTaskFailed exception to include traceback info
+- TaskPartition to require the class. This makes it easier for one model to run another. The simple version of `partition_slice` defaults to the current class.
+- AbstractProcessPool.run_subtasks to no longer take the model class as this is now in TaskPartition updated: no longer serialising TaskPartition to json. Instead allowing python's queue to do this in LocalProcessPool.
+
+
 ## [0.0.56] - 2024-03-25
 
 ### Changed
