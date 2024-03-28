@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass, field
 import json
 from typing import Any, Optional
+import warnings
 
 
 class AbstractTaskMessage:
@@ -18,6 +19,13 @@ class AbstractTaskMessage:
 
         @return: (str)
         """
+        warnings.warn(
+            (
+                "AbstractTaskMessage.to_json is deprecated. Please pickle or implement your own "
+                "serialisation instead."
+            ),
+            DeprecationWarning,
+        )
         d = {
             "type": self.__class__.__name__,
             "payload": asdict(self),

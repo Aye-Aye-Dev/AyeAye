@@ -138,7 +138,7 @@ class ScalingFactorsModel(ayeaye.PartitionedModel):
     def build(self):
         pass
 
-    def partition_initialise(self, additional_scaling_factor):
+    def partition_initialise(self, additional_scaling_factor=None):
         super().partition_initialise()
         self.local_additional_scaling_factor = additional_scaling_factor
 
@@ -163,6 +163,33 @@ class ScalingFactorsModel(ayeaye.PartitionedModel):
     def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
         "Make the results available to the unittest"
         msg = f"some_number: {subtask_kwargs['some_number']} : {subtask_return_value}"
+        self.log(msg)
+
+
+class ModelRunnerModel(ayeaye.PartitionedModel):
+    """
+    This model runs multiple instances of ScalingFactorsModel
+    """
+
+    def build(self):
+        pass
+
+    def partition_slice(self, _):
+        sub_tasks = []
+        for base_number in range(3):
+            tp = TaskPartition(
+                model_cls=ScalingFactorsModel,
+                method_name="go",
+                method_kwargs={},
+                model_construction_kwargs={"base_factor": base_number},
+            )
+            sub_tasks.append(tp)
+
+        return sub_tasks
+
+    def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
+        "Make the results available to the unittest"
+        msg = f"Completed ModelRunnerModel: {subtask_method_name} {subtask_kwargs} {subtask_return_value}"
         self.log(msg)
 
 
@@ -347,3 +374,29 @@ class TestPartitionedModel(unittest.TestCase):
 
             for e in expected:
                 self.assertIn(e, all_the_logs)
+
+    def test_model_can_run_models(self):
+        """
+        ModelRunnerModel runs ScalingFactorsModel 3 times.
+        ScalingFactorsModel is a partitioned model and has it's own subtasks
+        """
+        # basic check as the assumption is for an exception and no results rather than broken results.
+
+        m = ModelRunnerModel()
+        external_log = StringIO()
+        m.set_logger(external_log)
+        m.log_to_stdout = False
+
+        m.go()
+
+        external_log.seek(0)
+        all_the_logs = external_log.read()
+
+        expected = "Completed ModelRunnerModel: go {} True"
+        self.assertEqual(
+            3, all_the_logs.count(expected), "ScalingFactorsModel should be run 3 times"
+        )
+
+        expected_scaling_model = "some_number: 4 : 0.25"
+        msg = "Log messages from the child model should be passed back to ModelRunnerModel's log"
+        self.assertIn(expected_scaling_model, all_the_logs, msg)

@@ -46,7 +46,7 @@ class AbstractProcessPool:
 
         @param context_kwargs: (dict)
             connector_resolver context key value pairs.
-            The connector resolver is a 'globally accessible' object use to resolve engine_urls.
+            The connector resolver is a 'globally accessible' object used to resolve engine_urls.
             It takes key value pairs and callables. This argument is just for the former.
             @see :class:`ayeaye.ayeaye.connect_resolve.ConnectorResolver`
 
@@ -127,7 +127,8 @@ class LocalProcessPool(AbstractProcessPool):
             self.proc_table.append(proc)
 
         for proc in self.proc_table:
-            proc.daemon = True
+            # daemon for the purpose of child processes being terminated when the parent terminates.
+            # proc.daemon = True
             proc.start()
 
         for sub_task in sub_tasks:
@@ -179,8 +180,8 @@ class LocalProcessPool(AbstractProcessPool):
             :class:`AbstractTaskMessage`.
 
         @param context_kwargs: (dict)
-            Output from :meth:`connect_resolve.ConnectorResolver.capture_context` - so needs the
-            'mapper' key with dict. as value.
+            Output from :meth:`connect_resolve.ConnectorResolver.capture_context` - but without
+            the 'mapper' key.
             key/values that are made available to the model. These are likely to be taken from
             `self` and passed to this static method as it alone runs in the :class:`Process`.
             @see :class:`connect_resolve.ConnectorResolver`
@@ -192,7 +193,7 @@ class LocalProcessPool(AbstractProcessPool):
         # For more detail see unittest TestRuntimeMultiprocess.test_resolver_context_not_inherited
         connector_resolver.brutal_reset()
 
-        with connector_resolver.context(**context_kwargs["mapper"]):
+        with connector_resolver.context(**context_kwargs):
             # send logs from the sub-task running in separate Process back to the parent down the queue
             q_logger = QueueLogger(log_prefix=f"Task ({worker_id})", log_queue=returns_queue)
 
@@ -250,7 +251,7 @@ class LocalProcessPool(AbstractProcessPool):
                         partition_initialise_kwargs=task_message.partition_initialise_kwargs,
                         method_name=task_message.method_name,
                         method_kwargs=task_message.method_kwargs,
-                        resolver_context=context_kwargs["mapper"],
+                        resolver_context=context_kwargs,
                         exception_class_name=str(type(e)),
                         traceback=traceback_ln,
                     )

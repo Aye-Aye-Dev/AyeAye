@@ -564,7 +564,7 @@ class PartitionedModel(Model):
             subtasks_complete = 0
             subtask_kwargs = {
                 "sub_tasks": task_definitions,
-                "context_kwargs": active_context,
+                "context_kwargs": active_context["mapper"],
                 "processes": workers_count,
             }
             subtasks_count = len(tasks)

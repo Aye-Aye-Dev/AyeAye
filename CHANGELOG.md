@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.58] - 2024-03-28
+
+### Added
+- A PartitionedModel can run other PartitionedModel(s)
+
+### Changed
+- LocalProcessPool.run_subtasks no longer creates daemon Processes. This makes it possible to a Par
+tionedTask to spawn other Partitioned tasks. The downside is the potential for orphaned subtasks.
+
+### Fixed
+- AbstractProcessPool.run_subtasks's context_kwargs should be a plain dictionary and doesn't need the 'mapper' key from :meth:`ayeaye.ayeaye.connect_resolve.ConnectorResolver.capture_context`
+
 ## [0.0.57] - 2024-03-27
 
 ### Changed
