@@ -59,6 +59,8 @@ class TaskFailed(AbstractTaskMessage):
     resolver_context: dict
     exception_class_name: str
     traceback: list
+    task_id: Optional[str] = None
+    failure_origin_task_id: Optional[str] = None  # task_id of a failed subtask
 
 
 @dataclass

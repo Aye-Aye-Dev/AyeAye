@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.59] - 2024-04-03
+
+### Added
+- optional task_id and failure_origin_task_id fields to ayeaye.runtime.task_message.TaskFailed. Theseare useful to Fossa
+
 ## [0.0.58] - 2024-03-28
 
 ### Added
