@@ -66,7 +66,7 @@ class TestRuntimeMultiprocess(unittest.TestCase):
                     )
                 ],
                 processes=workers_count,
-                context_kwargs={{"local_variable": "is_set"},
+                context_kwargs={"local_variable": "is_set"},
             )
 
             for subtask_msg in proc_pool.run_subtasks(**subtask_kwargs):

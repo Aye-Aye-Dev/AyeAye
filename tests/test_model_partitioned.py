@@ -83,6 +83,10 @@ class DistributedFakeWork(ayeaye.PartitionedModel):
     # uses connector_resolver
     non_existant_data = ayeaye.Connect(engine_url="file://{hello_partitioned_context}")
 
+    def __init__(self):
+        super().__init__()
+        self.number_of_tasks = 10
+
     def build(self):
         pass
 
@@ -93,7 +97,7 @@ class DistributedFakeWork(ayeaye.PartitionedModel):
 
     def partition_slice(self, _):
         target_method = "some_work"
-        return [(target_method, {"some_number": x}) for x in range(10)]
+        return [(target_method, {"some_number": x}) for x in range(self.number_of_tasks)]
 
     def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
         if not hasattr(self, "resultset"):
@@ -400,3 +404,16 @@ class TestPartitionedModel(unittest.TestCase):
         expected_scaling_model = "some_number: 4 : 0.25"
         msg = "Log messages from the child model should be passed back to ModelRunnerModel's log"
         self.assertIn(expected_scaling_model, all_the_logs, msg)
+
+    def test_no_slices(self):
+        """
+        What happens when a partitioned model doesn't produce any subtasks?
+        """
+        build_context = {"hello_partitioned_context": "important_build_data.ndjson"}
+        with ayeaye.connector_resolver.context(**build_context):
+            m = DistributedFakeWork()
+            m.number_of_tasks = 0
+            m.log_to_stdout = False
+            m.go()
+
+        # this is a regression check. Won't get here if it's locking up when there are no subtasks.

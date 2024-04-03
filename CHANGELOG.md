@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  
 ### Added
 - nothing
+## [0.0.60] - 2024-04-03
+
+### Fixed
+- hung if PartitionedModel.partition_slice returns an empty list
+- stray bracket resulting in a couple of unittests being skipped
 
 ## [0.0.59] - 2024-04-03
 

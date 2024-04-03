@@ -139,7 +139,7 @@ class LocalProcessPool(AbstractProcessPool):
             subtasks_queue.put(None)
 
         completed_procs = 0
-        while True:
+        while completed_procs < subtasks_count:
             task_message = return_values_queue.get()
 
             if isinstance(task_message, (TaskComplete, TaskFailed)):
@@ -147,9 +147,6 @@ class LocalProcessPool(AbstractProcessPool):
 
             # could be a log message or sub-task completed notification
             yield task_message
-
-            if completed_procs >= subtasks_count:
-                break
 
         for proc in self.proc_table:
             proc.join()
