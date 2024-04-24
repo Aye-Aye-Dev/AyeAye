@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  
 ### Added
 - nothing
+
+## [0.0.61] - 2024-04-24
+
+### Changed
+- Model's use of external logger to instead support multiple external loggers in the same as Fossa does
+
 ## [0.0.60] - 2024-04-03
 
 ### Fixed

@@ -42,7 +42,7 @@ class Model:
         self._connections = {}  # see :class:`ayeaye.Connect` 'descriptors' in doc string.
 
         self.log_to_stdout = True
-        self.external_logger = None
+        self.external_loggers = []
         self.progress_log_interval = 20  # minimum seconds between progress messages to log
 
         # stats
@@ -171,20 +171,21 @@ class Model:
         Also log to something with a :meth:`write`.
         e.g. StringIO
         """
-        self.external_logger = logger
+        self.external_loggers.append(logger)
 
     def log(self, msg, level="INFO"):
         """
         @param level: (str) DEBUG, PROGRESS, INFO, WARNING, ERROR or CRITICAL
         """
-        if not (self.log_to_stdout or self.external_logger is not None):
+        if not (self.log_to_stdout or len(self.external_loggers) > 0):
             return
 
         date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         msg = "{} {}{}".format(date_str, level.ljust(10), msg)
 
-        if self.external_logger is not None:
-            self.external_logger.write(msg)
+        if self.external_loggers:
+            for ext_logger in self.external_loggers:
+                ext_logger.write(msg)
 
         if self.log_to_stdout:
             print(msg)
