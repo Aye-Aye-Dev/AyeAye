@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.62] - 2024-07-09
+
+### Added
+- check for existing process pool when loading one
+
+### Changed
+- copy in exception
+- doc strings
+- single process mode with PartitionedModels uses same logging as parent task
+- RuntimeKnowledge's cpu_task_ratio can be a float
+
+
 ## [0.0.61] - 2024-04-24
 
 ### Changed

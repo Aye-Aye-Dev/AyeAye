@@ -5,6 +5,7 @@ Created on 31 Jan 2022
 
 @author: si
 """
+import math
 import os
 
 
@@ -42,7 +43,7 @@ class RuntimeKnowledge:
             # user has set an absolute value
             return self._max_concurrent_tasks
 
-        return os.cpu_count() * self.cpu_task_ratio
+        return math.ceil(os.cpu_count() * self.cpu_task_ratio)
 
     @max_concurrent_tasks.setter
     def max_concurrent_tasks(self, max_tasks):

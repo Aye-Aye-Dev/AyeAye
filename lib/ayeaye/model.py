@@ -297,8 +297,8 @@ class PartitionedModel(Model):
     An external executor is expected to run :class:`PartitionedModel` subclasses. It would
     instantiate the model and examine it's :meth:`partition_plea` before running it in a
     distributed environment (e.g. Google Cloud Run, Celery, AWS' ECS etc.). The external executor
-    is responsible for transporting task arguments, log message etc. TODO : there isn't an open
-    source executor yet. It has been done in a commercial project.
+    is responsible for transporting task arguments, log message etc.
+    See https://github.com/Aye-Aye-Dev/Fossa
 
     :class:`PartitionedModel` does support a simple mechanism for parallel execution across local
     processes. To use it implement the mandatory methods and run method:`go`.
@@ -330,12 +330,12 @@ class PartitionedModel(Model):
     number of partition arguments from :meth:`partition_slice`. The number of sub-tasks doesn't
     need to match the number of workers although there can be a relationship.
 
-    4. :meth:`partition_slice` is called on the parent instance. It returns a list of method
-    names and sub-task arguments. Each of which is passed by the executor to an instance of the
-    model that has been instantiated with the same resolver context (see :class:`ConnectorResolver`)
-    as the 'parent' model. The models running in the worker processes are initiated when the worker
-    process starts, i.e. each instance will have it's sub-task method called multiple times. See
-    :meth:`partition_initialise`.
+    4. :meth:`partition_slice` is called on the parent instance. It returns a list of sub-tasks
+    (e.g. method names and sub-task arguments). Each sub-task is passed by the executor to an
+    instance of the model that has been instantiated with the same resolver context (see
+    :class:`ConnectorResolver`) as the 'parent' model. The models running in the worker processes
+    are initiated when the worker process starts, i.e. each instance will have it's sub-task method
+     called multiple times. See :meth:`partition_initialise`.
 
     4. The return value from each subtask is passed to optional :meth:`partition_subtask_complete`.
 
@@ -385,7 +385,10 @@ class PartitionedModel(Model):
         @param alternative_process_pool: object as subclass of
             :class:`ayeaye.runtime.multiprocess.AbstractProcessPool`
         """
-        # Note -no check for existing pool. A user could trash an existing running set of subtasks
+        # check for existing pool so a user doesn't trash an existing running set of subtasks
+        if self._process_pool is not None:
+            raise ValueError("Attempt made to replace existing process pool")
+
         self._process_pool = alternative_process_pool
 
     def partition_initialise(self, **kwargs):
@@ -408,12 +411,24 @@ class PartitionedModel(Model):
 
     def partition_plea(self):
         """
-        Subclass to suggest possible options for splitting the task execution.
+        Subclass this method so models can suggest possible options for splitting the task execution.
 
-        This is the mechanism for the model to explain to the execution environment how the task
-        could be split into sub-tasks.
+        This method presents a mechanism for the model to co-ordinate with the execution environment
+        in order to split the task based on the environment. Generally, this isn't needed as the
+        number of workers is independent to the number of sub-tasks. i.e. a typical model will
+        produce a large number of sub-tasks that are executed by a smaller number of workers.
 
-        The default behaviour is to return `PartitionOption(minimum=1, maximum=128, optimal=16)`.
+        This method is useful when-
+        (i) Too many parallel tasks could swamp a resource. e.g. a relational database
+        (ii) Optimal hash partitioning - where each worker runs one partition in parallel
+        https://docs.gitlab.com/ee/development/database/partitioning/hash.html
+
+        The default behaviour is to return `PartitionOption(minimum=1, maximum=128, optimal=16)`
+        as this is a reasonable parallel work load for a typical task which consumes a balance of
+        IO and CPU on either a modern machine or in a distributed setup.
+
+        Also @see :class:`ayeaye.runtime.knowledge.RuntimeKnowledge` which will impose resource
+        limits when running processes locally.
 
         @return (PartitionOption)
         """
@@ -428,11 +443,11 @@ class PartitionedModel(Model):
         workers.
 
         The number of sub-tasks returned doesn't need to relate to the number of partitions
-        (`partition_count`). This is because each worker could execute zero or more sub-task.
+        (`partition_count`). This is because each worker could execute zero or more sub-tasks.
 
         `partition_count` is passed to :meth:`partition_slice` as there are scenarios
         where a greater efficiency is possible when the number of sub-tasks is a multiple of the
-        number of workers.
+        number of workers. See doc. in :meth:`partition_plea`
 
         @param partition_count: (int)
             The number of workers the executor plans to run.
@@ -548,6 +563,11 @@ class PartitionedModel(Model):
                 # re-create self as a new instance model. This keeps single process mode insync
                 # with the `process_pool` mode.
                 m = task.model_cls(**task.model_construction_kwargs)
+
+                # it's running in the same process as self so share logging
+                m.log_to_stdout = self.log_to_stdout
+                m.external_loggers = self.external_loggers
+
                 m.partition_initialise(**task.partition_initialise_kwargs)
 
                 sub_task_method = getattr(m, task.method_name)

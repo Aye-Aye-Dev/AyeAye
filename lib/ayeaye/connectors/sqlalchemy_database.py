@@ -96,7 +96,7 @@ class SqlAlchemyDatabaseConnector(DataConnector):
                 return the class
                 """
                 if not isinstance(schema_model, DeclarativeMeta):
-                    raise TypeError("Not an SqlAlchemy database model")
+                    raise TypeError(f"{schema_model} isn't an SqlAlchemy database model")
 
                 # Using method resolution order, find the declarative_base that would be common to
                 # all models.

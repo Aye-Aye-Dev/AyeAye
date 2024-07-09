@@ -25,9 +25,19 @@ class QueueLogger:
 
 
 class AbstractProcessPool:
+    """
+    A pool of workers. These workers run sub-tasks.
+
+    :class:`LocalProcessPool` is a simple pool built into Aye-aye. There is a distributed pool
+    (for running tasks across multiple containers or virtual machines) in
+    https://github.com/Aye-Aye-Dev/Fossa
+    """
+
     def run_subtasks(self, sub_tasks, context_kwargs=None, processes=None):
         """
         Generator yielding messages from subtasks.
+
+        Sub-tasks are created by :class:`PartitionedModel` models.
 
         Messages are a subclass of :class:`AbstractTaskMessage`.
 
@@ -38,11 +48,8 @@ class AbstractProcessPool:
             each item defines a subtask to execute in a worker process
 
         @param processes: (int or None)
-            optionally tell each worker the total number of worker processes. This makes it
-            easy for workers do choose a subset of records. This number can't exceed
-            `self.max_processes`. If it does a ValueError exception is raised. An exception seems
-            brutal but is more intuitive than auto-adjusting the actual number of processes.
-            If None is given, `self.max_processes` is used.
+            optionally tell the worker running these sub-tasks how many sub-tasks could be run
+            in parallel.
 
         @param context_kwargs: (dict)
             connector_resolver context key value pairs.
@@ -97,6 +104,10 @@ class LocalProcessPool(AbstractProcessPool):
         """
         Generator yielding instances that are a subclass of :class:`AbstractTaskMessage`. These
         are from subtasks.
+
+        If the number of `processes` exceeds `self.max_processes` a ValueError exception is raised.
+        An exception seems brutal but is more intuitive to debug than auto-adjusting the actual
+        number of processes. If None is given, `self.max_processes` is used.
 
         @see doc. string in :meth:`AbstractProcessPool.run_subtasks`
         """
