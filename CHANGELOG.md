@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  
 ### Added
 - nothing
+## [0.0.63] - 2024-07-18
+
+### Fixed
+- mistake in doc. strings
+- local single worker mode for partitioned models wasn't closing datasets at end of sub-task
 
 ## [0.0.62] - 2024-07-09
 

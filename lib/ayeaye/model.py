@@ -460,7 +460,7 @@ class PartitionedModel(Model):
 
     def partition_subtask_complete(self, subtask_method_name, subtask_kwargs, subtask_return_value):
         """
-        Optional method. Called on the parent task when executor has finished all sub-tasks.
+        Optional method. Called on the parent task for each completed sub-tasks.
 
         This will be called on the parent task (i.e. not on the worker). It can be used to collate
         results or take further actions when a sub-task has finished.
@@ -484,7 +484,7 @@ class PartitionedModel(Model):
 
     def partition_complete(self):
         """
-        Optional method. Called when executor has finished all sub-tasks.
+        Optional method. Called on the parent when the executor has finished all sub-tasks.
         """
         return None
 
@@ -573,6 +573,8 @@ class PartitionedModel(Model):
                 sub_task_method = getattr(m, task.method_name)
                 subtask_return_value = sub_task_method(**task.method_kwargs)
                 subtasks_complete += 1
+
+                m.close_datasets()
 
                 self.partition_subtask_complete(
                     subtask_method_name=task.method_name,
