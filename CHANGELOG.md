@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  
 ### Added
 - nothing
+
+## [0.0.64] - 2024-07-25
+
+### Added
+- Pinnate now supports serialise/pickle
+
 ## [0.0.63] - 2024-07-18
 
 ### Fixed

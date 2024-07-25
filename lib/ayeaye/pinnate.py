@@ -220,6 +220,24 @@ class Pinnate:
 
         self._attr[key] = value
 
+    def __getstate__(self):
+        """
+        For serialise/pickle
+        """
+        # 'pinnate_data' is a namespace to avoid None requiring :meth:`new`
+        return {"pinnate_data": self.as_native()}
+
+    def __setstate__(self, state):
+        """
+        For serialise/pickle
+        """
+        self._attr = None
+
+        # None shouldn't be passed to :meth:`load` as per constructor. It needs to be handled
+        # like this otherwise pickle doesn't call :meth:`__setstate__`
+        if state["pinnate_data"] is not None:
+            self.load(state["pinnate_data"])
+
     def get(self, key, default=None):
         return self._attr.get(key, default)
 

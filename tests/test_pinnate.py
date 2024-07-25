@@ -1,4 +1,5 @@
 from datetime import datetime
+import pickle
 import unittest
 
 from ayeaye.pinnate import Pinnate
@@ -160,6 +161,27 @@ class TestPinnate(unittest.TestCase):
 
         p[0] = "x"
         self.assertEqual("x", p[0])
+
+    def test_serialise(self):
+        "It should be possible to pickle and un-pickle Pinnate objects."
+
+        # list
+        p = Pinnate(["a", "b", "c"])
+        pinnate_text = pickle.dumps(p)
+        p_hydrated = pickle.loads(pinnate_text)
+        self.assertEqual("c", p_hydrated[2])
+
+        more_complex = {"a": {"b": ["c"]}}
+        p = Pinnate(more_complex)
+        pinnate_text = pickle.dumps(p)
+        p_hydrated = pickle.loads(pinnate_text)
+        self.assertEqual("c", p_hydrated.a.b[0])
+
+        # payload_undefined
+        p = Pinnate(None)
+        pinnate_text = pickle.dumps(p)
+        p_hydrated = pickle.loads(pinnate_text)
+        self.assertEqual(None, p_hydrated.as_native())
 
 
 if __name__ == "__main__":
