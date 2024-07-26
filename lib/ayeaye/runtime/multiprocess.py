@@ -220,8 +220,8 @@ class LocalProcessPool(AbstractProcessPool):
                 model = task_message.model_cls(**task_message.model_construction_kwargs)
                 model.set_logger(q_logger)
 
-                # switch off STDOUT as I'm pretty sure it shouldn't be used by a process that has forked as
-                # only the parent is joined to a terminal.
+                # switch off STDOUT as I'm pretty sure it shouldn't be used by a process other than
+                # the parent as only the parent is joined to a terminal.
                 model.log_to_stdout = False
 
                 model.runtime.worker_id = worker_id
@@ -231,8 +231,6 @@ class LocalProcessPool(AbstractProcessPool):
 
                 # TODO - :meth:`log` for the worker processes should be connected back to the parent
                 # with a queue or pipe and it shouldn't be using stdout
-
-                # TODO - supply the connector_resolver context
 
                 sub_task_method = getattr(model, task_message.method_name)
 
@@ -246,8 +244,8 @@ class LocalProcessPool(AbstractProcessPool):
 
                 except Exception as e:
                     # TODO - this is a bit rough
-                    _e_type, _e_value, e_traceback = sys.exc_info()
-                    traceback_ln = []
+                    _e_type, e_value, e_traceback = sys.exc_info()
+                    traceback_ln = [str(e_value)]
                     tb_list = traceback.extract_tb(e_traceback)
                     for filename, line, funcname, text in tb_list:
                         t = f"Traceback:  File[{filename}] Line[{line}] Text[{text}]"

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.65] - 2024-07-26
+
+### Updated
+- Tiny change to the message when an exception occurs. Now includes type errors.
+
 ## [0.0.64] - 2024-07-25
 
 ### Added
