@@ -54,24 +54,27 @@ class Ignition:
         """
         assert isinstance(engine_url_case, EngineUrlCase)
 
-        if engine_url_case == EngineUrlCase.WITHOUT_SECRETS:
-            raise NotImplementedError("TODO")
-
         if engine_url_case not in self._engine_url_state:
             raw_e_url = self._engine_url_state[EngineUrlCase.RAW]
 
             if raw_e_url is None:
                 raise ValueError("engine_url passed as None")
 
-            if connector_resolver.needs_resolution(raw_e_url):
-                # local resolution is still needed
+            if not connector_resolver.needs_resolution(raw_e_url):
+                # no substitutions are possible (i.e. no resolution possible) so all cases
+                # are the same.
+                self._engine_url_state[engine_url_case] = self._engine_url_state[EngineUrlCase.RAW]
+
+            elif engine_url_case == EngineUrlCase.FULLY_RESOLVED:
                 resolved = connector_resolver.resolve(raw_e_url)
                 self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = resolved
+
+            elif engine_url_case == EngineUrlCase.WITHOUT_SECRETS:
+                resolved = connector_resolver.resolve_without_secrets(raw_e_url)
+                self._engine_url_state[EngineUrlCase.WITHOUT_SECRETS] = resolved
+
             else:
-                # nothing to resolve so fully_resolved = raw
-                self._engine_url_state[EngineUrlCase.FULLY_RESOLVED] = self._engine_url_state[
-                    EngineUrlCase.RAW
-                ]
+                raise ValueError("Unknown engine_url_case")
 
         if engine_url_case in self._engine_url_state:
             return EngineUrlStatus.OK, self._engine_url_state[engine_url_case]

@@ -158,7 +158,7 @@ class DataConnector:
         )
 
         # engine_urls may need resolution of templated variables (typically secrets and paths). The
-        # :class:`Ignition` module does this and makes URLs croxx-operating system compatible.
+        # :class:`Ignition` module does this and makes URLs cross-operating system compatible.
         self.ignition = Ignition(engine_url)
 
         # It might be both possible and necessary to resolve the engine_url. This happens when the
@@ -208,7 +208,8 @@ class DataConnector:
     def engine_url(self):
         """
         A fully resolved engine url contains everything needed to connect to the data source. This
-        includes secrets like username and password.
+        includes secrets like username and password which must be resolvable before this property
+        is accessed.
 
         Don't store the result of this property when locking or similar. @see :class:`Ignition`.
 

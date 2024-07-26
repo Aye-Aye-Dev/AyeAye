@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.0.66] - 2024-07-26
+
+### Added
+- :meth:`ConnectorResolver.add_secret` to separate variables that shouldn't be included in locking
+- Values given to ConnectorResolver's kwargs (:meth:`add`) can be callables.
+
+### Updated
+- ConnectorResolver named attributes couldn't ever be integers as they are passed as kwargs
+
 ## [0.0.65] - 2024-07-26
 
 ### Updated

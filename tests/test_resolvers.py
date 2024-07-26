@@ -24,6 +24,9 @@ class TestResolve(unittest.TestCase):
     Runtime variables made available through ayeaye.connect_resolve.connector_resolver.
     """
 
+    def tearDown(self):
+        connector_resolver.brutal_reset()
+
     def test_multi_connector_resolve(self):
         """
         MultiConnector + ConnectorResolver.
@@ -278,7 +281,6 @@ class TestResolve(unittest.TestCase):
         # don't leave state for other tests
         connector_resolver.brutal_reset()
 
-    @unittest.skip("Callable kwargs not implemented yet")
     def test_callable_mapper_value(self):
         class CheeseSales(Model):
             products = Connect(engine_url="csv://my_path_x/data_{data_version}.csv")
@@ -397,3 +399,66 @@ class TestResolve(unittest.TestCase):
             m = DangerousDogsSurvey()
             self.assertEqual("csv:///data/dogs", m.bad_mutts.engine_url)
             self.assertIsInstance(m.bad_mutts, CsvConnector)
+
+    def test_basic_secrets(self):
+        """
+        Using :meth:`ConnectorResolver.add_secret`
+        """
+        # typically this is an engine url
+        raw = "{one} {two} three"
+
+        c = ConnectorResolver()
+        c.add(**{"one": "non-secret"})
+        c.add_secret(**{"two": "secret"})
+
+        self.assertEqual("non-secret secret three", c.resolve(raw), "Fully resolved")
+
+        msg = "Secret remains unresolved"
+        self.assertEqual("non-secret {two} three", c.resolve_without_secrets(raw), msg)
+
+    def test_missing_variables_with_secrets(self):
+        """
+        Check :meth:`resolve_without_secrets` complains when a secret wouldn't be resolvable.
+        """
+
+        raw = "{known} {known_later} {not_secret}"
+
+        c = ConnectorResolver()
+        c.add(**{"not_secret": "squirrel"})
+        c.add_secret(**{"known": "super"})
+
+        with self.assertRaises(ValueError) as context:
+            c.resolve_without_secrets(raw)
+
+        self.assertIn("the following aren't resolvable: {known_later}", str(context.exception))
+
+        c.add_secret(**{"known_later": "secret"})
+        self.assertEqual("{known} {known_later} squirrel", c.resolve_without_secrets(raw))
+        self.assertEqual("super secret squirrel", c.resolve(raw))
+
+    def test_late_secrets(self):
+        """
+        The objective is to resolve {db_engine_url} into a database DSN
+        which still has the password as a template variable; an additional round
+        of resolution adds the password to complete the DSN.
+        """
+
+        def lookup_passwords(mid_resolve):
+            target = "{aws:db_password}"
+            if target in mid_resolve:
+                return mid_resolve.replace(target, "secret_password")
+            return mid_resolve
+
+        connector_resolver.add_secret(lookup_passwords)
+
+        manifest = {"db_engine_url": "postgresql://db_user:{aws:db_password}@db.host/animals"}
+        with connector_resolver.context(**manifest):
+            db_dsn = connector_resolver.resolve("{db_engine_url}")
+
+        msg = (
+            "Only works when a standard context variable contains a secret variable. i.e. "
+            "resolution isn't recursive, it only works in the obvious scenario when secrets "
+            "travel around a system separately and are picked up just before use."
+        )
+        expected = "postgresql://db_user:secret_password@db.host/animals"
+        self.assertEqual(expected, db_dsn, msg)

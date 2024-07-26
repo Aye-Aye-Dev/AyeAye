@@ -53,6 +53,9 @@ class ConnectorResolver:
         self.unnamed_callables = []
         self._attr = {}
 
+        self.secret_callables = []
+        self._secret_attr = {}
+
     def brutal_reset(self):
         """
         Discard any callables or attributes that have been set. This method is really for unit
@@ -81,16 +84,9 @@ class ConnectorResolver:
         )
         return self.resolve(unresolved_engine_url)
 
-    def resolve(self, unresolved):
+    def _base_resolve(self, unresolved):
         """
-        Fully resolve template variables to an string that contains no further parameters or raise
-        an exception if not possible to resolve all.
-
-        @param unresolved: (str) with templated variables. e.g. "csv://{my_variable}/abc.csv"
-
-        @return: (str) a string without templating placeholders.
-
-        @raise ValueError: if there are templated variables that don't exist in the context.
+        Internal method for non-secrets resolve. Will return partially resolved strings.
         """
         resolving = unresolved
 
@@ -104,6 +100,85 @@ class ConnectorResolver:
                 return resolving
 
         for k, v in self._attr.items():
+            template_var = f"{{{k}}}"
+            if template_var in resolving:
+                if callable(v):
+                    resolving = resolving.replace(template_var, v())
+                else:
+                    resolving = resolving.replace(template_var, v)
+                if not self.needs_resolution(resolving):
+                    return resolving
+
+        return resolving
+
+    def resolve_without_secrets(self, unresolved):
+        """
+        Resolve normal template variables, not secrets variables to a string.
+
+        A secret is typically a password, leave these template variables in place. Any other
+        template variables or missing secrets will result in an exception being raised.
+
+        @param unresolved: (str) with templated variables. e.g. "csv://{my_variable}/abc.csv"
+
+        @return: (str) a string without templating placeholders.
+
+        @raise ValueError: if there are templated variables (normal or secret) that don't exist
+        in the context.
+        """
+        resolving = self._base_resolve(unresolved)
+
+        if not self.needs_resolution(resolving):
+            # not a lot to do!
+            return resolving
+
+        missing_keys = re.findall("{.+?}", resolving)
+        unknown_keys = []
+        for key_bracketed in missing_keys:
+            key = key_bracketed[1:-1]
+
+            if key in self._secret_attr:
+                continue
+
+            is_resolvable_by_callable = False
+            for r_callable in self.secret_callables:
+                check_render = r_callable(f"{key}")
+                if not self.needs_resolution(check_render):
+                    is_resolvable_by_callable = True
+                    break
+
+            if not is_resolvable_by_callable:
+                unknown_keys.append(key_bracketed)
+
+        if unknown_keys:
+            msg = f"When resolving 'without secrets' the following aren't resolvable: "
+            msg += ",".join(unknown_keys)
+            raise ValueError(msg)
+
+        return resolving
+
+    def resolve(self, unresolved):
+        """
+        Fully resolve template variables to a string that contains no further parameters or raise
+        an exception if not possible to resolve all.
+
+        @param unresolved: (str) with templated variables. e.g. "csv://{my_variable}/abc.csv"
+
+        @return: (str) a string without templating placeholders.
+
+        @raise ValueError: if there are templated variables that don't exist in the context.
+        """
+        resolving = self._base_resolve(unresolved)
+
+        if not self.needs_resolution(resolving):
+            # not a lot to do!
+            return resolving
+
+        for r_callable in self.secret_callables:
+            resolving = r_callable(resolving)
+            if not self.needs_resolution(resolving):
+                return resolving
+
+        for k, v in self._secret_attr.items():
             template_var = f"{{{k}}}"
             if template_var in resolving:
                 resolving = resolving.replace(template_var, v)
@@ -134,13 +209,11 @@ class ConnectorResolver:
             self.unnamed_callables.append(resolver_callable)
 
         for attribute_name, attribute_value in kwargs.items():
-            if attribute_name in self._attr:
+            if attribute_name in self._attr or attribute_name in self._secret_attr:
                 raise ValueError(f"Attempted to set existing attribute: {attribute_name}")
 
-            if not isinstance(attribute_name, (int, str)):
-                raise ValueError(
-                    f"templated variable '{attribute_name}' needs to be string or int."
-                )
+            if not isinstance(attribute_name, str):
+                raise ValueError(f"Templated variable '{attribute_name}' needs to be string.")
 
             self._attr[attribute_name] = attribute_value
 
@@ -152,7 +225,18 @@ class ConnectorResolver:
 
         @see :meth:`add` for arguments.
         """
-        raise NotImplementedError("TODO")
+        for resolver_callable in args:
+            assert callable(resolver_callable)
+            self.secret_callables.append(resolver_callable)
+
+        for attribute_name, attribute_value in kwargs.items():
+            if attribute_name in self._secret_attr or attribute_name in self._attr:
+                raise ValueError(f"Attempted to set existing attribute: {attribute_name}")
+
+            if not isinstance(attribute_name, str):
+                raise ValueError(f"Templated variable '{attribute_name}' needs to be string.")
+
+            self._secret_attr[attribute_name] = attribute_value
 
     def capture_context(self):
         """

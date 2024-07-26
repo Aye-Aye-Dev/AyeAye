@@ -267,16 +267,10 @@ class Model:
         if locking_level == LockingMode.ALL_DATASETS:
             locking_doc["dataset_engine_urls"] = {}
             for dataset_name, connector in self.datasets().items():
-                # TODO: this should be EngineUrlCase.WITHOUT_SECRETS. Secrets shouldn't be in
-                # locking doc. But that's not implemented yet,
+                # Secrets shouldn't be in the locking doc.
                 status, engine_url = connector.ignition.engine_url_at_state(
-                    EngineUrlCase.FULLY_RESOLVED
+                    EngineUrlCase.WITHOUT_SECRETS
                 )
-                msg = (
-                    "Incomplete implementation: if there are secrets in the engine_url they "
-                    "will be included in locking doc."
-                )
-                warnings.warn(msg)
 
                 if status != EngineUrlStatus.OK:
                     raise ValueError(f"Can't lock, engine_url not available for '{dataset_name}'")
