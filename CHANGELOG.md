@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - nothing
 
+## [0.1.7] - 2026-03-21
+
+### Fixed
+- import exception when used alongside similar namespaced python packages - thanks burnleyrob!
+
 ## [0.1.6] - 2026-02-27
 
 ### Added
