@@ -6,7 +6,7 @@ Created on 17 Dec 2020
 
 try:
     import ndjson
-except ModuleNotFoundError:
+except ImportError:
     pass
 
 from ayeaye.connectors.base import AccessMode, FileBasedConnector

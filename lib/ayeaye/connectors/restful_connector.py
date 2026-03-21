@@ -9,7 +9,7 @@ from time import time
 
 try:
     import requests
-except ModuleNotFoundError:
+except ImportError:
     pass
 
 

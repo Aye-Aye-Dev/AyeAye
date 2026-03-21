@@ -1,7 +1,7 @@
 try:
     from google.cloud import bigquery
     from google.cloud.exceptions import NotFound
-except ModuleNotFoundError:
+except ImportError:
     pass
 
 from ayeaye.connectors.base import AccessMode, DataConnector

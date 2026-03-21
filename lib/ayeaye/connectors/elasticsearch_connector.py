@@ -1,7 +1,7 @@
 try:
     # pipenv install elasticsearch
     from elasticsearch import Elasticsearch
-except ModuleNotFoundError:
+except ImportError:
     pass
 
 from ayeaye.connectors.base import DataConnector, AccessMode

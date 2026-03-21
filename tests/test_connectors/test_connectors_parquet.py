@@ -4,12 +4,12 @@ import unittest
 PANDAS_NOT_INSTALLED = False
 try:
     import pandas as pd
-except ModuleNotFoundError:
+except ImportError:
     pd = None
 
 try:
     import pyarrow.parquet as pq
-except ModuleNotFoundError:
+except ImportError:
     pq = None
 
 

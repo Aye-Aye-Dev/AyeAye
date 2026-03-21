@@ -5,7 +5,7 @@ import warnings
 try:
     from smart_open import open as smart_open
     import boto3
-except ModuleNotFoundError:
+except ImportError:
     pass
 
 from ayeaye.connectors.base import AccessMode, DataFlow, FileBasedConnector, FilesystemEnginePattern

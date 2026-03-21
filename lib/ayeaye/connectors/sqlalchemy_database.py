@@ -9,7 +9,7 @@ try:
     from sqlalchemy.ext.declarative import DeclarativeMeta
     from sqlalchemy.orm import declarative_base, sessionmaker
     from sqlalchemy.sql import text
-except ModuleNotFoundError:
+except ImportError:
     pass
 
 from ayeaye.connectors.base import DataConnector, DataFlow, AccessMode
